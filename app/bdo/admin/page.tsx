@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
 import { DollarSign, Edit, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Users, Wand2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -105,9 +106,493 @@ interface AppUser {
   createdAt: Date;
 }
 
+interface ThemeSettings {
+  fontFamily: string;
+  fontSizeBase: string;
+  fontSizeSmall: string;
+  fontSizeLarge: string;
+  fontSizeHeading: string;
+  fontSizeSectionHeader: string;
+  borderRadius: string;
+  sectionPaddingX: string;
+  sectionPaddingY: string;
+  sectionMarginBottom: string;
+  fieldSpacing: string;
+  inputPaddingX: string;
+  inputPaddingY: string;
+  colorPrimary: string;
+  colorPrimaryLight: string;
+  colorPrimaryLighter: string;
+  colorPrimaryPale: string;
+  colorPrimaryPalest: string;
+  colorAccent: string;
+  colorPageBg: string;
+  colorCardBg: string;
+  colorInputBg: string;
+  colorHighlightBg: string;
+  colorHighlightBorder: string;
+  colorBorder: string;
+  colorDisabled: string;
+  colorTextPrimary: string;
+  colorTextBody: string;
+  colorTextSecondary: string;
+  colorTextMuted: string;
+  colorSuccess: string;
+  colorSuccessLight: string;
+  colorSuccessBg: string;
+  colorSuccessText: string;
+  colorSuccessBorder: string;
+  colorWarning: string;
+  colorWarningLight: string;
+  colorWarningBg: string;
+  colorWarningText: string;
+  colorDanger: string;
+  colorDangerLight: string;
+  colorDangerBg: string;
+  colorDangerText: string;
+  colorInfoBg: string;
+  colorInfoBorder: string;
+  colorInfoText: string;
+  colorPurple: string;
+  colorOrange: string;
+}
+
+const defaultTheme: ThemeSettings = {
+  fontFamily: 'Poppins',
+  fontSizeBase: '13px',
+  fontSizeSmall: '11px',
+  fontSizeLarge: '15px',
+  fontSizeHeading: '1.125rem',
+  fontSizeSectionHeader: '0.8rem',
+  borderRadius: '0.375rem',
+  sectionPaddingX: '1rem',
+  sectionPaddingY: '0.75rem',
+  sectionMarginBottom: '0.75rem',
+  fieldSpacing: '0.5rem',
+  inputPaddingX: '0.75rem',
+  inputPaddingY: '0.375rem',
+  colorPrimary: '#133c7f',
+  colorPrimaryLight: '#4263a5',
+  colorPrimaryLighter: '#718bbc',
+  colorPrimaryPale: '#a1b3d2',
+  colorPrimaryPalest: '#e7edf4',
+  colorAccent: '#2563eb',
+  colorPageBg: '#fafbfd',
+  colorCardBg: '#ffffff',
+  colorInputBg: '#f3f4f6',
+  colorHighlightBg: '#f0f4ff',
+  colorHighlightBorder: '#e2e8f0',
+  colorBorder: '#c5d4e8',
+  colorDisabled: '#cbd5e1',
+  colorTextPrimary: '#133c7f',
+  colorTextBody: '#1a1a1a',
+  colorTextSecondary: '#4a6fa5',
+  colorTextMuted: '#7da1d4',
+  colorSuccess: '#059669',
+  colorSuccessLight: '#10b981',
+  colorSuccessBg: '#ecfdf5',
+  colorSuccessText: '#166534',
+  colorSuccessBorder: '#22c55e',
+  colorWarning: '#d97706',
+  colorWarningLight: '#f59e0b',
+  colorWarningBg: '#fef3c7',
+  colorWarningText: '#92400e',
+  colorDanger: '#e63b2e',
+  colorDangerLight: '#ef4444',
+  colorDangerBg: '#fef2f2',
+  colorDangerText: '#dc2626',
+  colorInfoBg: '#eff6ff',
+  colorInfoBorder: '#bfdbfe',
+  colorInfoText: '#0369a1',
+  colorPurple: '#8b5cf6',
+  colorOrange: '#f97316',
+};
+
 const TEST_USERS: AppUser[] = [
   { uid: 'dev-srachal', email: 'srachal@tectonicfinancial.com', role: 'Admin', displayName: 'Shane Rachal', createdAt: new Date() },
   { uid: 'dev-user-2', email: 'jdoe@tectonicfinancial.com', role: 'BDO', displayName: 'Jane Doe', createdAt: new Date() },
+];
+
+interface BorrowerFormField {
+  fieldId: string;
+  label: string;
+  type: 'text' | 'date' | 'currency' | 'percentage' | 'number' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'ssn' | 'address';
+  required: boolean;
+  section?: string;
+  applicationPath: string;
+}
+
+interface BorrowerFormTemplate {
+  id: string;
+  name: string;
+  description: string;
+  applicantType: 'business' | 'individual' | 'seller' | 'project';
+  projectPurposes?: string[];
+  fields: BorrowerFormField[];
+}
+
+const BORROWER_FORM_TEMPLATES: BorrowerFormTemplate[] = [
+  {
+    id: 'business-information',
+    name: 'Business Information',
+    description: 'Business entity details including legal name, formation, address, and industry classification.',
+    applicantType: 'business',
+    fields: [
+      { fieldId: 'legalName', label: 'Legal Name', type: 'text', required: true, section: 'Entity Details', applicationPath: 'businessApplicant.legalName' },
+      { fieldId: 'dba', label: 'DBA Name', type: 'text', required: false, section: 'Entity Details', applicationPath: 'businessApplicant.dba' },
+      { fieldId: 'ein', label: 'EIN', type: 'text', required: true, section: 'Entity Details', applicationPath: 'businessApplicant.ein' },
+      { fieldId: 'entityType', label: 'Entity Type', type: 'select', required: true, section: 'Entity Details', applicationPath: 'businessApplicant.entityType' },
+      { fieldId: 'formationDate', label: 'Formation Date', type: 'date', required: true, section: 'Entity Details', applicationPath: 'businessApplicant.formationDate' },
+      { fieldId: 'stateOfFormation', label: 'State of Formation', type: 'text', required: true, section: 'Entity Details', applicationPath: 'businessApplicant.stateOfFormation' },
+      { fieldId: 'phone', label: 'Phone', type: 'phone', required: false, section: 'Contact', applicationPath: 'businessApplicant.phone' },
+      { fieldId: 'email', label: 'Email', type: 'email', required: false, section: 'Contact', applicationPath: 'businessApplicant.email' },
+      { fieldId: 'website', label: 'Website', type: 'text', required: false, section: 'Contact', applicationPath: 'businessApplicant.website' },
+      { fieldId: 'address', label: 'Business Address', type: 'address', required: true, section: 'Address', applicationPath: 'businessApplicant.address' },
+      { fieldId: 'naicsCode', label: 'NAICS Code', type: 'text', required: false, section: 'Industry', applicationPath: 'businessApplicant.naicsCode' },
+      { fieldId: 'industryType', label: 'Industry Type', type: 'text', required: false, section: 'Industry', applicationPath: 'businessApplicant.industryType' },
+      { fieldId: 'yearEstablished', label: 'Year Established', type: 'text', required: false, section: 'Operations', applicationPath: 'businessApplicant.yearEstablished' },
+      { fieldId: 'existingEmployees', label: 'Existing Employees', type: 'number', required: false, section: 'Operations', applicationPath: 'businessApplicant.existingEmployees' },
+      { fieldId: 'newFTEJobsCreated', label: 'New FTE Jobs Created', type: 'number', required: false, section: 'Operations', applicationPath: 'businessApplicant.newFTEJobsCreated' },
+    ],
+  },
+  {
+    id: 'tbank-loan-application',
+    name: 'T Bank Loan Application (Consolidated)',
+    description: 'Fillable PDF generated per individual applicant. Includes Applicant Info, Ownership Structure, Businesses Owned/Controlled, Project Information, and Borrower Personal Information (Citizenship).',
+    applicantType: 'individual',
+    fields: [
+      { fieldId: 'firstName', label: 'First Name', type: 'text', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.firstName' },
+      { fieldId: 'middleName', label: 'Middle Name', type: 'text', required: false, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.middleName' },
+      { fieldId: 'lastName', label: 'Last Name', type: 'text', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.lastName' },
+      { fieldId: 'ssn', label: 'SSN', type: 'ssn', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.ssn' },
+      { fieldId: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.dateOfBirth' },
+      { fieldId: 'email', label: 'Email', type: 'email', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.email' },
+      { fieldId: 'phone', label: 'Phone', type: 'phone', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.phone' },
+      { fieldId: 'address', label: 'Home Address', type: 'address', required: true, section: 'Applicant Info', applicationPath: 'individualApplicants.{index}.address' },
+      { fieldId: 'ownershipPercentage', label: 'Ownership %', type: 'percentage', required: true, section: 'Ownership Structure', applicationPath: 'individualApplicants.{index}.ownershipPercentage' },
+      { fieldId: 'ownershipType', label: 'Ownership Type', type: 'select', required: false, section: 'Ownership Structure', applicationPath: 'individualApplicants.{index}.ownershipType' },
+      { fieldId: 'title', label: 'Title', type: 'text', required: false, section: 'Ownership Structure', applicationPath: 'individualApplicants.{index}.title' },
+      { fieldId: 'businessRole', label: 'Role in Business', type: 'text', required: false, section: 'Ownership Structure', applicationPath: 'individualApplicants.{index}.businessRole' },
+      { fieldId: 'gender', label: 'Gender', type: 'select', required: false, section: 'Personal Information', applicationPath: 'individualApplicants.{index}.gender' },
+      { fieldId: 'experience', label: 'Industry Experience', type: 'textarea', required: false, section: 'Personal Information', applicationPath: 'individualApplicants.{index}.experience' },
+      { fieldId: 'yearsOfExperience', label: 'Years of Experience', type: 'text', required: false, section: 'Personal Information', applicationPath: 'individualApplicants.{index}.yearsOfExperience' },
+    ],
+  },
+  {
+    id: 'personal-information',
+    name: 'Personal Information',
+    description: 'Individual applicant personal details, contact information, and background data.',
+    applicantType: 'individual',
+    fields: [
+      { fieldId: 'firstName', label: 'First Name', type: 'text', required: true, applicationPath: 'individualApplicants.{index}.firstName' },
+      { fieldId: 'lastName', label: 'Last Name', type: 'text', required: true, applicationPath: 'individualApplicants.{index}.lastName' },
+      { fieldId: 'ssn', label: 'SSN', type: 'ssn', required: true, applicationPath: 'individualApplicants.{index}.ssn' },
+      { fieldId: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, applicationPath: 'individualApplicants.{index}.dateOfBirth' },
+      { fieldId: 'address', label: 'Home Address', type: 'address', required: true, applicationPath: 'individualApplicants.{index}.address' },
+      { fieldId: 'phone', label: 'Phone', type: 'phone', required: true, applicationPath: 'individualApplicants.{index}.phone' },
+      { fieldId: 'email', label: 'Email', type: 'email', required: true, applicationPath: 'individualApplicants.{index}.email' },
+    ],
+  },
+  {
+    id: 'sba-eligibility',
+    name: 'SBA Eligibility',
+    description: 'SBA eligibility questionnaire covering criminal history, pending lawsuits, tax liens, and federal debt.',
+    applicantType: 'individual',
+    fields: [
+      { fieldId: 'convicted', label: 'Convicted of a crime?', type: 'select', required: true, applicationPath: 'sbaEligibility.convicted' },
+      { fieldId: 'arrested', label: 'Currently under arrest/indictment?', type: 'select', required: true, applicationPath: 'sbaEligibility.arrested' },
+      { fieldId: 'pendingLawsuits', label: 'Pending lawsuits?', type: 'select', required: true, applicationPath: 'sbaEligibility.pendingLawsuits' },
+      { fieldId: 'childSupport', label: 'Delinquent child support?', type: 'select', required: true, applicationPath: 'sbaEligibility.childSupport' },
+      { fieldId: 'taxLiens', label: 'Tax liens?', type: 'select', required: true, applicationPath: 'sbaEligibility.taxLiens' },
+      { fieldId: 'bankruptcy', label: 'Bankruptcy?', type: 'select', required: true, applicationPath: 'sbaEligibility.bankruptcy' },
+      { fieldId: 'federalDebt', label: 'Delinquent federal debt?', type: 'select', required: true, applicationPath: 'sbaEligibility.federalDebt' },
+    ],
+  },
+  {
+    id: 'personal-financial-statement',
+    name: 'Personal Financial Statement',
+    description: 'SBA Form 413 — personal assets, liabilities, and net worth for each individual applicant.',
+    applicantType: 'individual',
+    fields: [
+      { fieldId: 'firstName', label: 'First Name', type: 'text', required: true, applicationPath: 'individualApplicants.{index}.firstName' },
+      { fieldId: 'lastName', label: 'Last Name', type: 'text', required: true, applicationPath: 'individualApplicants.{index}.lastName' },
+      { fieldId: 'netWorth', label: 'Net Worth', type: 'currency', required: false, applicationPath: 'individualApplicants.{index}.netWorth' },
+      { fieldId: 'pcLiquidity', label: 'Personal Cash / Liquidity', type: 'currency', required: false, applicationPath: 'individualApplicants.{index}.pcLiquidity' },
+      { fieldId: 'creditScore', label: 'Credit Score', type: 'text', required: false, applicationPath: 'individualApplicants.{index}.creditScore' },
+    ],
+  },
+  {
+    id: 'seller-information',
+    name: 'Seller Information',
+    description: 'Seller details for business acquisition projects — business name, contact, and acquisition terms.',
+    applicantType: 'seller',
+    projectPurposes: ['Business Acquisition'],
+    fields: [
+      { fieldId: 'businessName', label: 'Business Name', type: 'text', required: true, section: 'Business Details', applicationPath: 'sellerInfo.businessName' },
+      { fieldId: 'sellerName', label: 'Seller Name', type: 'text', required: true, section: 'Business Details', applicationPath: 'sellerInfo.sellerName' },
+      { fieldId: 'sellerPhone', label: 'Phone', type: 'phone', required: false, section: 'Contact', applicationPath: 'sellerInfo.sellerPhone' },
+      { fieldId: 'sellerEmail', label: 'Email', type: 'email', required: false, section: 'Contact', applicationPath: 'sellerInfo.sellerEmail' },
+      { fieldId: 'sellerAddress', label: 'Address', type: 'address', required: true, section: 'Contact', applicationPath: 'sellerInfo.sellerAddress' },
+      { fieldId: 'yearsInBusiness', label: 'Years in Business', type: 'number', required: false, section: 'Acquisition Details', applicationPath: 'sellerInfo.yearsInBusiness' },
+      { fieldId: 'reasonForSale', label: 'Reason for Sale', type: 'textarea', required: false, section: 'Acquisition Details', applicationPath: 'sellerInfo.reasonForSale' },
+      { fieldId: 'acquisitionType', label: 'Acquisition Type', type: 'select', required: false, section: 'Acquisition Details', applicationPath: 'sellerInfo.acquisitionType' },
+      { fieldId: 'hasSellerCarryNote', label: 'Seller Carry Note?', type: 'select', required: false, section: 'Acquisition Details', applicationPath: 'sellerInfo.hasSellerCarryNote' },
+    ],
+  },
+  {
+    id: 'business-questionnaire',
+    name: 'Business Questionnaire',
+    description: 'Dynamic fillable PDF based on admin-configured questionnaire rules, filtered by project purpose and NAICS code. BDO can delete individual questions per project and regenerate.',
+    applicantType: 'project',
+    fields: [
+      { fieldId: 'projectPurpose', label: 'Project Purpose', type: 'text', required: true, applicationPath: 'projectOverview.projectPurpose' },
+      { fieldId: 'naicsCode', label: 'NAICS Code', type: 'text', required: false, applicationPath: 'businessApplicant.naicsCode' },
+      { fieldId: 'businessDescription', label: 'Business Description', type: 'textarea', required: false, applicationPath: 'projectOverview.projectDescription' },
+    ],
+  },
+];
+
+interface FullFormField {
+  fieldId: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options?: string[];
+  dataPath: string;
+  perApplicant?: boolean;
+  conditional?: string;
+  bdoLabel?: string;
+}
+
+interface FullFormSection {
+  sectionId: number;
+  sectionName: string;
+  borrowerLabel: string;
+  description: string;
+  perApplicant: boolean;
+  conditionalOn?: string;
+  fields: FullFormField[];
+}
+
+const BORROWER_FULL_FORM_SECTIONS: FullFormSection[] = [
+  {
+    sectionId: 3,
+    sectionName: 'Business Applicant',
+    borrowerLabel: 'Business Applicant',
+    description: 'Business entity details, address, and ownership table. Fields are hidden if "Entity to be Formed" is checked.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'entityToBeFormed', label: 'Entity to be Formed', type: 'checkbox', required: false, dataPath: 'businessApplicant.entityToBeFormed' },
+      { fieldId: 'legalName', label: 'Legal Business Name', type: 'text', required: true, dataPath: 'businessApplicant.legalName', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'dba', label: 'DBA or Trade Name', type: 'text', required: false, dataPath: 'businessApplicant.dba', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'entityType', label: 'Entity Type', type: 'select', required: true, options: ['cooperative', 'corporation', 'llc', 'llp', 'partnership', 'sole-proprietor', 's-corp', 'trust'], dataPath: 'businessApplicant.entityType', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'ein', label: 'Business TIN (EIN/SSN)', type: 'password', required: true, dataPath: 'businessApplicant.ein', conditional: 'Hidden if entityToBeFormed = true', bdoLabel: 'EIN' },
+      { fieldId: 'yearEstablished', label: 'Year Established', type: 'select', required: true, options: ['(current year back to 1900)'], dataPath: 'businessApplicant.yearEstablished', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'website', label: 'Business Website Address', type: 'url', required: false, dataPath: 'businessApplicant.website', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'businessAddress', label: 'Business Address', type: 'address', required: true, dataPath: 'businessApplicant.businessAddress', conditional: 'Hidden if entityToBeFormed = true' },
+      { fieldId: 'projectAddress', label: 'Project Address (if different)', type: 'address', required: false, dataPath: 'businessApplicant.projectAddress', conditional: 'Hidden if entityToBeFormed = true' },
+    ],
+  },
+  {
+    sectionId: 4,
+    sectionName: 'Individual Applicants',
+    borrowerLabel: 'Individual Applicants',
+    description: 'Personal information, contact details, project role, and business involvement for each individual applicant/owner.',
+    perApplicant: true,
+    fields: [
+      { fieldId: 'firstName', label: 'First Name', type: 'text', required: true, perApplicant: true, dataPath: 'individualApplicants[i].firstName' },
+      { fieldId: 'middleName', label: 'Middle Name', type: 'text', required: false, perApplicant: true, dataPath: 'individualApplicants[i].middleName' },
+      { fieldId: 'lastName', label: 'Last Name', type: 'text', required: true, perApplicant: true, dataPath: 'individualApplicants[i].lastName' },
+      { fieldId: 'suffix', label: 'Suffix', type: 'text', required: false, perApplicant: true, dataPath: 'individualApplicants[i].suffix' },
+      { fieldId: 'ssn', label: 'Social Security Number', type: 'password', required: true, perApplicant: true, dataPath: 'individualApplicants[i].ssn' },
+      { fieldId: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, perApplicant: true, dataPath: 'individualApplicants[i].dateOfBirth' },
+      { fieldId: 'phone', label: 'Phone', type: 'tel', required: true, perApplicant: true, dataPath: 'individualApplicants[i].phone', bdoLabel: 'Mobile Phone Number' },
+      { fieldId: 'email', label: 'Email', type: 'email', required: true, perApplicant: true, dataPath: 'individualApplicants[i].email', bdoLabel: 'Email Address' },
+      { fieldId: 'homeAddress', label: 'Home Address', type: 'address', required: true, perApplicant: true, dataPath: 'individualApplicants[i].homeAddress' },
+      { fieldId: 'estimatedCreditScore', label: 'Estimated Credit Score', type: 'select', required: false, options: ['750+', '700-749', '650-699', '600-649', 'below-600'], perApplicant: true, dataPath: 'individualApplicants[i].estimatedCreditScore' },
+      { fieldId: 'projectRole', label: 'Project Role', type: 'select', required: false, options: ['owner-guarantor', 'owner-non-guarantor', 'non-owner-key-manager', 'other'], perApplicant: true, dataPath: 'individualApplicants[i].projectRole' },
+      { fieldId: 'ownershipPercentage', label: 'Ownership %', type: 'number', required: false, perApplicant: true, dataPath: 'individualApplicants[i].ownershipPercentage' },
+      { fieldId: 'ownershipType', label: 'Ownership Type', type: 'select', required: false, options: ['direct', 'indirect'], perApplicant: true, dataPath: 'individualApplicants[i].ownershipType' },
+      { fieldId: 'title', label: 'Title', type: 'text', required: false, perApplicant: true, dataPath: 'individualApplicants[i].title' },
+      { fieldId: 'indirectOwnershipDescription', label: 'Indirect Ownership Description', type: 'textarea', required: false, perApplicant: true, dataPath: 'individualApplicants[i].indirectOwnershipDescription', conditional: 'Shown if ownershipType = "indirect"' },
+      { fieldId: 'businessRole', label: 'Role in Business Operations', type: 'select', required: false, options: ['active-full-time', 'active-part-time', 'passive'], perApplicant: true, dataPath: 'individualApplicants[i].businessRole' },
+      { fieldId: 'travelTime', label: 'Travel Time to Business', type: 'select', required: false, options: ['less than 30 minutes', '30 to 60 minutes', '60 to 120 minutes', 'more than 120 minutes'], perApplicant: true, dataPath: 'individualApplicants[i].travelTime' },
+      { fieldId: 'experience', label: 'Relevant Experience', type: 'select', required: false, options: ['Direct', 'Transferrable', 'None'], perApplicant: true, dataPath: 'individualApplicants[i].experience' },
+      { fieldId: 'yearsOfExperience', label: 'Years of Experience', type: 'select', required: false, options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'More than 10'], perApplicant: true, dataPath: 'individualApplicants[i].yearsOfExperience' },
+      { fieldId: 'businessRoleDescription', label: 'Describe your role and qualifications', type: 'textarea', required: false, perApplicant: true, dataPath: 'individualApplicants[i].businessRoleDescription', bdoLabel: 'Role & Qualifications Description' },
+      { fieldId: 'planToBeOnSite', label: 'Plan to be On-Site', type: 'textarea', required: false, perApplicant: true, dataPath: 'individualApplicants[i].planToBeOnSite', bdoLabel: 'On-Site Plan' },
+    ],
+  },
+  {
+    sectionId: 5,
+    sectionName: 'Personal Financial Statements',
+    borrowerLabel: 'Personal Financial Statements (SBA 413)',
+    description: 'Assets, liabilities, net worth, source of income, and detailed schedules for notes payable, stocks/bonds, real estate, and descriptive sections. Per individual applicant.',
+    perApplicant: true,
+    fields: [
+      { fieldId: 'pfs-name', label: 'Name', type: 'text', required: true, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].name' },
+      { fieldId: 'pfs-asOfDate', label: 'As of Date', type: 'date', required: true, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].asOfDate' },
+      // Assets
+      { fieldId: 'pfs-cashOnHand', label: 'Cash on Hand & in Banks', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.cashOnHand' },
+      { fieldId: 'pfs-savingsAccounts', label: 'Savings Accounts', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.savingsAccounts' },
+      { fieldId: 'pfs-iraRetirement', label: 'IRA or Other Retirement Account', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.iraRetirement' },
+      { fieldId: 'pfs-accountsReceivable', label: 'Accounts & Notes Receivable', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.accountsReceivable' },
+      { fieldId: 'pfs-lifeInsuranceCashValue', label: 'Life Insurance – Cash Surrender Value Only', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.lifeInsuranceCashValue' },
+      { fieldId: 'pfs-stocksAndBonds', label: 'Stocks and Bonds', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.stocksAndBonds' },
+      { fieldId: 'pfs-realEstate', label: 'Real Estate', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.realEstate' },
+      { fieldId: 'pfs-automobiles', label: 'Automobiles', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.automobiles' },
+      { fieldId: 'pfs-otherPersonalProperty', label: 'Other Personal Property', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.otherPersonalProperty' },
+      { fieldId: 'pfs-otherAssets', label: 'Other Assets', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].assets.otherAssets' },
+      // Liabilities
+      { fieldId: 'pfs-accountsPayable', label: 'Accounts Payable', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.accountsPayable' },
+      { fieldId: 'pfs-notesPayableToBanks', label: 'Notes Payable to Banks and Others', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.notesPayableToBanks' },
+      { fieldId: 'pfs-installmentAccountAuto', label: 'Installment Account (Auto)', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.installmentAccountAuto' },
+      { fieldId: 'pfs-installmentAccountOther', label: 'Installment Account (Other)', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.installmentAccountOther' },
+      { fieldId: 'pfs-loansAgainstLifeInsurance', label: 'Loan(s) Against Life Insurance', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.loansAgainstLifeInsurance' },
+      { fieldId: 'pfs-mortgagesOnRealEstate', label: 'Mortgages on Real Estate', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.mortgagesOnRealEstate' },
+      { fieldId: 'pfs-unpaidTaxes', label: 'Unpaid Taxes', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.unpaidTaxes' },
+      { fieldId: 'pfs-otherLiabilities', label: 'Other Liabilities', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].liabilities.otherLiabilities' },
+      // Source of Income
+      { fieldId: 'pfs-salary', label: 'Salary', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].income.salary' },
+      { fieldId: 'pfs-netInvestmentIncome', label: 'Net Investment Income', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].income.netInvestmentIncome' },
+      { fieldId: 'pfs-realEstateIncome', label: 'Real Estate Income', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].income.realEstateIncome' },
+      { fieldId: 'pfs-otherIncome', label: 'Other Income', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].income.otherIncome' },
+      // Contingent Liabilities
+      { fieldId: 'pfs-contingent-endorser', label: 'As Endorser/Co-Maker', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].contingent.asEndorserOrCoMaker' },
+      { fieldId: 'pfs-contingent-legalClaims', label: 'Legal Claims & Judgments', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].contingent.legalClaimsJudgments' },
+      { fieldId: 'pfs-contingent-federalTax', label: 'Federal Income Tax', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].contingent.provisionFederalIncomeTax' },
+      { fieldId: 'pfs-contingent-otherDebt', label: 'Other Special Debt', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].contingent.otherSpecialDebt' },
+      // Notes Payable schedule
+      { fieldId: 'pfs-noteNoteholder', label: 'Noteholder', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].noteholder' },
+      { fieldId: 'pfs-noteOrigBal', label: 'Original Balance', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].originalBalance' },
+      { fieldId: 'pfs-noteCurrBal', label: 'Current Balance', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].currentBalance' },
+      { fieldId: 'pfs-notePayment', label: 'Payment Amount', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].paymentAmount' },
+      { fieldId: 'pfs-noteFrequency', label: 'Payment Frequency', type: 'select', required: false, options: ['weekly', 'bi-weekly', 'monthly', 'quarterly', 'annually'], perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].frequency' },
+      { fieldId: 'pfs-noteCollateral', label: 'Collateral', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].notesPayable[].collateral' },
+      // Securities schedule
+      { fieldId: 'pfs-secShares', label: 'Number of Shares', type: 'number', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].numberOfShares' },
+      { fieldId: 'pfs-secName', label: 'Name of Securities', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].nameOfSecurities' },
+      { fieldId: 'pfs-secCost', label: 'Cost', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].cost' },
+      { fieldId: 'pfs-secMarketValue', label: 'Market Value', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].marketValue' },
+      { fieldId: 'pfs-secDate', label: 'Date of Quotation', type: 'date', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].dateOfQuotation' },
+      { fieldId: 'pfs-secTotal', label: 'Total Value', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].securities[].totalValue' },
+      // Real Estate schedule
+      { fieldId: 'pfs-reType', label: 'Property Type', type: 'select', required: false, options: ['primary_residence', 'other_residence', 'rental_property', 'land', 'commercial'], perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].type' },
+      { fieldId: 'pfs-reAddress', label: 'Property Address', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].address' },
+      { fieldId: 'pfs-reDatePurchased', label: 'Date Purchased', type: 'date', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].datePurchased' },
+      { fieldId: 'pfs-reOrigCost', label: 'Original Cost', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].originalCost' },
+      { fieldId: 'pfs-reMarketValue', label: 'Present Market Value', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].presentMarketValue' },
+      { fieldId: 'pfs-reMortgageHolder', label: 'Mortgage Holder', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].mortgageHolder' },
+      { fieldId: 'pfs-reMortgageAcct', label: 'Mortgage Account Number', type: 'text', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].mortgageAccountNumber' },
+      { fieldId: 'pfs-reMortgageBal', label: 'Mortgage Balance', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].mortgageBalance' },
+      { fieldId: 'pfs-reMonthlyPayment', label: 'Monthly Payment', type: 'currency', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].monthlyPayment' },
+      { fieldId: 'pfs-reStatus', label: 'Status', type: 'select', required: false, options: ['current', 'delinquent', 'paid_off'], perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].realEstateOwned[].status' },
+      // Descriptive sections
+      { fieldId: 'pfs-otherPropertyDesc', label: 'Other Personal Property & Assets Description', type: 'textarea', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].otherPersonalPropertyDescription' },
+      { fieldId: 'pfs-unpaidTaxesDesc', label: 'Unpaid Taxes Description', type: 'textarea', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].unpaidTaxesDescription' },
+      { fieldId: 'pfs-otherLiabilitiesDesc', label: 'Other Liabilities Description', type: 'textarea', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].otherLiabilitiesDescription' },
+      { fieldId: 'pfs-lifeInsuranceDesc', label: 'Life Insurance Held Description', type: 'textarea', required: false, perApplicant: true, dataPath: 'personalFinancialStatements[applicantId].lifeInsuranceDescription' },
+    ],
+  },
+  {
+    sectionId: 6,
+    sectionName: 'Other Owned Businesses',
+    borrowerLabel: 'Other Owned Businesses',
+    description: 'Discloses ownership, control, or financial involvement in other businesses by any owner of the applicant business.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'hasOtherBusinesses', label: 'Do you or any owner have ownership in other businesses?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'otherOwnedBusinesses.hasOtherBusinesses' },
+      { fieldId: 'businessName', label: 'Business Name', type: 'text', required: false, dataPath: 'otherOwnedBusinesses.businesses[].businessName', conditional: 'Shown if hasOtherBusinesses = "yes"' },
+      { fieldId: 'ownerName', label: 'Owner Name', type: 'select', required: false, options: ['(populated from individual applicants)'], dataPath: 'otherOwnedBusinesses.businesses[].ownershipPercentages[].ownerName', conditional: 'Shown if hasOtherBusinesses = "yes"' },
+      { fieldId: 'ownershipPct', label: 'Ownership %', type: 'number', required: false, dataPath: 'otherOwnedBusinesses.businesses[].ownershipPercentages[].percentage', conditional: 'Shown if hasOtherBusinesses = "yes"' },
+      { fieldId: 'roleInBusiness', label: 'Role in Business', type: 'select', required: false, options: ['active-full-time', 'active-part-time', 'passive'], dataPath: 'otherOwnedBusinesses.businesses[].ownershipPercentages[].roleInBusiness', conditional: 'Shown if hasOtherBusinesses = "yes"' },
+      { fieldId: 'industry', label: 'Industry', type: 'text', required: false, dataPath: 'otherOwnedBusinesses.businesses[].industry', conditional: 'Shown if hasOtherBusinesses = "yes"' },
+    ],
+  },
+  {
+    sectionId: 7,
+    sectionName: 'SBA Eligibility',
+    borrowerLabel: 'SBA Eligibility',
+    description: 'Seven yes/no eligibility questions with conditional explanation text areas. Each "yes" answer requires a detailed explanation.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'convicted', label: 'Have any applicants been convicted of a criminal offense?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.convicted' },
+      { fieldId: 'convictedExplanation', label: 'Conviction Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.convictedExplanation', conditional: 'Shown if convicted = "yes"' },
+      { fieldId: 'arrested', label: 'Currently under indictment or criminal charge?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.arrested' },
+      { fieldId: 'arrestedExplanation', label: 'Arrest/Indictment Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.arrestedExplanation', conditional: 'Shown if arrested = "yes"' },
+      { fieldId: 'pendingLawsuits', label: 'Parties to any pending lawsuits?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.pendingLawsuits' },
+      { fieldId: 'pendingLawsuitsExplanation', label: 'Pending Lawsuits Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.pendingLawsuitsExplanation', conditional: 'Shown if pendingLawsuits = "yes"' },
+      { fieldId: 'childSupport', label: 'Delinquent on child support obligations?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.childSupport' },
+      { fieldId: 'childSupportExplanation', label: 'Child Support Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.childSupportExplanation', conditional: 'Shown if childSupport = "yes"' },
+      { fieldId: 'taxLiens', label: 'Subject to any tax liens?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.taxLiens' },
+      { fieldId: 'taxLiensExplanation', label: 'Tax Liens Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.taxLiensExplanation', conditional: 'Shown if taxLiens = "yes"' },
+      { fieldId: 'bankruptcy', label: 'Involved in a bankruptcy proceeding?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.bankruptcy' },
+      { fieldId: 'bankruptcyExplanation', label: 'Bankruptcy Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.bankruptcyExplanation', conditional: 'Shown if bankruptcy = "yes"' },
+      { fieldId: 'federalDebt', label: 'Delinquent on any federal debt?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sbaEligibility.federalDebt' },
+      { fieldId: 'federalDebtExplanation', label: 'Federal Debt Explanation', type: 'textarea', required: false, dataPath: 'sbaEligibility.federalDebtExplanation', conditional: 'Shown if federalDebt = "yes"' },
+    ],
+  },
+  {
+    sectionId: 8,
+    sectionName: 'Project Information',
+    borrowerLabel: 'Project Information (Seller Info)',
+    description: 'Business acquisition details including seller contact, acquisition type, contract status, seller carry note, and document uploads.',
+    perApplicant: false,
+    conditionalOn: 'Project purpose includes "Business Acquisition"',
+    fields: [
+      { fieldId: 'legalName', label: 'Legal Name of Business Being Acquired', type: 'text', required: true, dataPath: 'sellerInfo.legalName', bdoLabel: 'Seller Legal Name' },
+      { fieldId: 'dbaName', label: 'DBA Name', type: 'text', required: false, dataPath: 'sellerInfo.dbaName' },
+      { fieldId: 'address', label: 'Business Address', type: 'address', required: true, dataPath: 'sellerInfo.address' },
+      { fieldId: 'website', label: 'Business Website', type: 'url', required: false, dataPath: 'sellerInfo.website' },
+      { fieldId: 'acquisitionType', label: 'Type of Acquisition', type: 'radio', required: false, options: ['stock', 'asset'], dataPath: 'sellerInfo.acquisitionType' },
+      { fieldId: 'isPurchasing100Percent', label: 'Purchasing 100% of the business?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sellerInfo.isPurchasing100Percent', bdoLabel: '100% Purchase?' },
+      { fieldId: 'otherOwnersDescription', label: 'Other owners post-acquisition', type: 'textarea', required: false, dataPath: 'sellerInfo.otherOwnersDescription', conditional: 'Shown if isPurchasing100Percent = "no"' },
+      { fieldId: 'contractStatus', label: 'Purchase Contract Status', type: 'select', required: false, options: ['No LOI or contract yet', 'LOI signed', 'Contract under negotiation', 'Contract signed', 'In due diligence'], dataPath: 'sellerInfo.contractStatus' },
+      { fieldId: 'hasSellerCarryNote', label: 'Will the seller carry a note?', type: 'radio', required: false, options: ['yes', 'no'], dataPath: 'sellerInfo.hasSellerCarryNote', bdoLabel: 'Seller Carry Note?' },
+      { fieldId: 'sellerCarryNoteTerms', label: 'Seller carry note terms', type: 'textarea', required: false, dataPath: 'sellerInfo.sellerCarryNoteTerms', conditional: 'Shown if hasSellerCarryNote = "yes"' },
+      { fieldId: 'businessDescription', label: 'Business Description', type: 'textarea', required: false, dataPath: 'sellerInfo.businessDescription' },
+      { fieldId: 'realEstatePurchaseDescription', label: 'Real Estate Purchase Description', type: 'textarea', required: false, dataPath: 'sellerInfo.realEstatePurchaseDescription' },
+      { fieldId: 'loiContract', label: 'LOI / Purchase Contract', type: 'file', required: false, dataPath: 'sellerInfo.loiContractIds' },
+      { fieldId: 'taxReturns', label: 'Business Federal Tax Returns (3 years)', type: 'file', required: false, dataPath: 'sellerInfo.taxReturnIds' },
+      { fieldId: 'otherFiles', label: 'Other Files', type: 'file', required: false, dataPath: 'sellerInfo.otherDocumentIds' },
+    ],
+  },
+  {
+    sectionId: 9,
+    sectionName: 'File Uploads',
+    borrowerLabel: 'File Uploads',
+    description: 'Document uploads organized by category — business applicant files, individual applicant files, other business files, and project files.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'businessTaxReturns', label: 'Business Tax Returns', type: 'file', required: false, dataPath: 'files.businessApplicant.taxReturns' },
+      { fieldId: 'businessFinancials', label: 'Business Financial Statements', type: 'file', required: false, dataPath: 'files.businessApplicant.financials' },
+      { fieldId: 'individualTaxReturns', label: 'Individual Tax Returns', type: 'file', required: false, perApplicant: true, dataPath: 'files.individualApplicants[i].taxReturns' },
+      { fieldId: 'individualFinancials', label: 'Individual Financial Statements', type: 'file', required: false, perApplicant: true, dataPath: 'files.individualApplicants[i].financials' },
+      { fieldId: 'individualResumes', label: 'Resumes', type: 'file', required: false, perApplicant: true, dataPath: 'files.individualApplicants[i].resumes' },
+      { fieldId: 'projectFiles', label: 'Project Files', type: 'file', required: false, dataPath: 'files.project' },
+    ],
+  },
+  {
+    sectionId: 10,
+    sectionName: 'Business Questionnaire',
+    borrowerLabel: 'Business Questionnaire',
+    description: 'Dynamic questionnaire generated based on project purpose, NAICS code, and admin-configured rules. Opens in a separate page. BDO can delete/regenerate questions per project.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'dynamicQuestions', label: 'Dynamic Questions (admin-configured)', type: 'dynamic', required: false, dataPath: 'questionnaire.responses[]' },
+    ],
+  },
+  {
+    sectionId: 11,
+    sectionName: 'Review & Submit',
+    borrowerLabel: 'Review & Submit',
+    description: 'Final review of all entered data with validation summary. Borrower confirms accuracy and submits the application.',
+    perApplicant: false,
+    fields: [
+      { fieldId: 'confirmAccuracy', label: 'I confirm all information is accurate', type: 'checkbox', required: true, dataPath: 'submission.confirmed' },
+      { fieldId: 'submissionDate', label: 'Submission Date', type: 'date', required: false, dataPath: 'submission.submittedAt' },
+    ],
+  },
 ];
 
 const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
@@ -222,6 +707,9 @@ Example format:
 
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  // Theme settings state
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings>(defaultTheme);
 
   // Add User Modal State
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -869,7 +1357,11 @@ Example format:
           <TabsTrigger value="note-tags" data-testid="tab-note-tags">Note Tags</TabsTrigger>
           <TabsTrigger value="file-upload-instructions" data-testid="tab-file-upload-instructions">File Upload Instructions</TabsTrigger>
           <TabsTrigger value="project-type-rules" data-testid="tab-project-type-rules">Risk Assessment</TabsTrigger>
-          <TabsTrigger value="users" data-testid="tab-users">User Management</TabsTrigger>
+          <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">BDO Directory</TabsTrigger>
+          <TabsTrigger value="borrower-forms" data-testid="tab-borrower-forms">Borrower Forms</TabsTrigger>
+          <TabsTrigger value="borrower-forms-full" data-testid="tab-borrower-forms-full">Borrower Forms - Full Form</TabsTrigger>
+          <TabsTrigger value="label-comparison" data-testid="tab-label-comparison">Field Label Comparison</TabsTrigger>
+          <TabsTrigger value="theme" data-testid="tab-theme">Theme / CSS</TabsTrigger>
         </TabsList>
 
         {/* Default Values Tab */}
@@ -2111,14 +2603,14 @@ Example format:
           </DialogContent>
         </Dialog>
 
-        {/* Users Tab */}
-        <TabsContent value="users" className="space-y-6">
+        {/* BDO Directory Tab */}
+        <TabsContent value="bdo-directory" className="space-y-6">
           <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">User Management</h2>
+                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">BDO Directory</h2>
                 <p className="text-sm text-[color:var(--t-color-text-muted)]">
-                  Manage team members and their roles for the loan application system.
+                  Manage team members and their contact information for loan applications and proposal letters.
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -2129,9 +2621,9 @@ Example format:
                 >
                   {isLoadingUsers ? 'Refreshing...' : 'Refresh'}
                 </Button>
-                <Button onClick={() => setAddUserModalOpen(true)} data-testid="button-add-user">
+                <Button onClick={() => setAddUserModalOpen(true)} data-testid="button-add-bdo">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add User
+                  Add BDO
                 </Button>
               </div>
             </div>
@@ -2144,7 +2636,7 @@ Example format:
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
                   className="max-w-md"
-                  data-testid="input-user-search"
+                  data-testid="input-bdo-search"
                 />
               </div>
             )}
@@ -2156,11 +2648,10 @@ Example format:
               </div>
             ) : appUsers.length === 0 ? (
               <div className="text-center py-12 bg-[var(--t-color-page-bg)] rounded-lg border border-dashed border-[var(--t-color-border)]">
-                <Users className="w-12 h-12 text-[color:var(--t-color-text-muted)] mx-auto mb-3" />
-                <p className="text-[color:var(--t-color-text-muted)] mb-4">No users found.</p>
-                <Button onClick={() => setAddUserModalOpen(true)} variant="outline" data-testid="button-add-first-user">
+                <p className="text-[color:var(--t-color-text-muted)] mb-4">No BDOs have been added yet.</p>
+                <Button onClick={() => setAddUserModalOpen(true)} variant="outline" data-testid="button-add-first-bdo">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Your First User
+                  Add Your First BDO
                 </Button>
               </div>
             ) : (
@@ -2170,8 +2661,9 @@ Example format:
                     <tr className="bg-[var(--t-color-page-bg)] border-b border-[var(--t-color-border)]">
                       <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Name</th>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Email</th>
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Phone</th>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Role</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Created</th>
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Title</th>
                       <th className="text-right px-4 py-3 text-sm font-semibold text-[color:var(--t-color-text-body)]">Actions</th>
                     </tr>
                   </thead>
@@ -2187,25 +2679,20 @@ Example format:
                         );
                       })
                       .map((user) => (
-                      <tr key={user.uid} className="border-b border-[var(--t-color-border)] hover:bg-[var(--t-color-page-bg)]" data-testid={`row-user-${user.uid}`}>
+                      <tr key={user.uid} className="border-b border-[var(--t-color-border)] hover:bg-[var(--t-color-page-bg)]" data-testid={`row-bdo-${user.uid}`}>
                         <td className="px-4 py-3 text-sm text-[color:var(--t-color-text-body)]">
                           {user.displayName || 'No name'}
                         </td>
                         <td className="px-4 py-3 text-sm text-[color:var(--t-color-text-muted)]">
                           {user.email || 'No email'}
                         </td>
+                        <td className="px-4 py-3 text-sm text-[color:var(--t-color-text-muted)]">-</td>
                         <td className="px-4 py-3">
-                          <Badge variant={user.role === 'Admin' ? 'default' : user.role === 'PQ Committee' ? 'secondary' : 'outline'}>
+                          <Badge variant={user.role === 'Credit Executive' ? 'default' : user.role === 'BDO Manager' ? 'secondary' : 'outline'}>
                             {user.role}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-sm text-[color:var(--t-color-text-muted)]">
-                          {user.createdAt.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-[color:var(--t-color-text-muted)]">-</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button
@@ -2213,7 +2700,7 @@ Example format:
                               size="icon"
                               onClick={() => deleteAppUser(user.uid, user.email)}
                               disabled={isDeletingUser === user.uid || user.uid === userInfo?.uid}
-                              data-testid={`button-delete-user-${user.uid}`}
+                              data-testid={`button-delete-bdo-${user.uid}`}
                             >
                               {isDeletingUser === user.uid ? (
                                 <span className="animate-spin">&#10227;</span>
@@ -2454,6 +2941,671 @@ Example format:
                   placeholder="Enter instructions for project file uploads..."
                   data-testid="textarea-instructions-project-files"
                 />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Borrower Forms Tab */}
+        <TabsContent value="borrower-forms" className="space-y-6">
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-borrower-forms-title">
+                Borrower Form Templates
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                These are the PDF forms generated when a BDO clicks &quot;Borrower Forms&quot; on a project. Each form is pre-filled with data from the loan application. Forms are generated based on the rules below.
+              </p>
+            </div>
+
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2" data-testid="text-generation-rules-title">Generation Rules</h3>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li><span className="font-medium">Business Information</span> — Always generated (1 per project)</li>
+                <li><span className="font-medium">T Bank Loan Application (Consolidated)</span> — Fillable PDF generated once per individual applicant. Includes Applicant Info, Ownership Structure, Businesses Owned/Controlled, Project Information, and Borrower Personal Information (Citizenship). Pre-fills from application data where available.</li>
+                <li><span className="font-medium">Personal Information, SBA Eligibility, Personal Financial Statement</span> — Generated once per individual applicant</li>
+                <li><span className="font-medium">Seller Information</span> — Only generated when project purpose includes &quot;Business Acquisition&quot;</li>
+                <li><span className="font-medium">Business Questionnaire</span> — Always generated (1 per project). Dynamic fillable PDF based on admin-configured questionnaire rules, filtered by project purpose and NAICS code. BDO can delete individual questions per project and regenerate them.</li>
+              </ul>
+            </div>
+
+            <div className="space-y-4">
+              {BORROWER_FORM_TEMPLATES.map((template) => {
+                const fieldsBySection: Record<string, typeof template.fields> = {};
+                template.fields.forEach(f => {
+                  const section = f.section || 'General';
+                  if (!fieldsBySection[section]) fieldsBySection[section] = [];
+                  fieldsBySection[section].push(f);
+                });
+
+                const typeLabel = template.applicantType === 'individual' ? 'Per Individual Applicant' :
+                  template.applicantType === 'business' ? 'Per Project (Always)' :
+                  template.applicantType === 'seller' ? 'Conditional' : 'Per Project';
+
+                const typeBadgeVariant = template.applicantType === 'individual' ? 'default' :
+                  template.applicantType === 'seller' ? 'secondary' : 'outline';
+
+                return (
+                  <div
+                    key={template.id}
+                    className="border border-[var(--t-color-border)] rounded-lg overflow-hidden"
+                    data-testid={`card-form-template-${template.id}`}
+                  >
+                    <div className="bg-[var(--t-color-page-bg)] px-5 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--t-color-border)]">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)]" data-testid={`text-template-name-${template.id}`}>
+                          {template.name}
+                        </h3>
+                        <Badge variant={typeBadgeVariant} data-testid={`badge-template-type-${template.id}`}>
+                          {typeLabel}
+                        </Badge>
+                        {template.projectPurposes && template.projectPurposes.length > 0 && (
+                          <span className="text-xs text-[color:var(--t-color-text-muted)]">
+                            Requires: {template.projectPurposes.join(' or ')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-[color:var(--t-color-text-muted)]" data-testid={`text-field-count-${template.id}`}>
+                        {template.fields.length} fields
+                      </span>
+                    </div>
+                    <div className="px-5 py-3">
+                      <p className="text-sm text-[color:var(--t-color-text-muted)] mb-3">{template.description}</p>
+                      <div className="space-y-3">
+                        {Object.entries(fieldsBySection).map(([section, fields]) => (
+                          <div key={section}>
+                            {section !== 'General' && (
+                              <p className="text-xs font-semibold text-[color:var(--t-color-text-body)] uppercase tracking-wide mb-1">{section}</p>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                              {fields.map(field => (
+                                <div
+                                  key={field.fieldId}
+                                  className="flex items-center justify-between py-1 border-b border-dashed border-[var(--t-color-border)] last:border-0"
+                                  data-testid={`row-field-${template.id}-${field.fieldId}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-[color:var(--t-color-text-body)]">{field.label}</span>
+                                    {field.required && (
+                                      <span className="text-[length:var(--t-font-size-sm)] text-red-500 font-medium">REQ</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[length:var(--t-font-size-sm)] font-mono py-0 px-1.5">
+                                      {field.type}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-[var(--t-color-border)]">
+                        <p className="text-xs text-[color:var(--t-color-primary-pale)]">
+                          Data source: <span className="font-mono text-[color:var(--t-color-text-muted)]">{template.fields[0]?.applicationPath.split('.{index}')[0].split('.')[0] || 'applicationData'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Borrower Forms - Full Form Tab */}
+        <TabsContent value="borrower-forms-full" className="space-y-6">
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-full-form-title">
+                Borrower Forms - Full Form Field Reference
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                Complete mapping of all fields visible to the Borrower across sections 3-11.
+                This reference shows every field label, input type, dropdown options, data path, and conditional logic.
+                Use this to plan dynamically produced Borrower documents.
+              </p>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-xs text-[color:var(--t-color-text-muted)]">Per Applicant</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
+                <span className="text-xs text-[color:var(--t-color-text-muted)]">Per Project</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-amber-500" />
+                <span className="text-xs text-[color:var(--t-color-text-muted)]">Conditional</span>
+              </div>
+              <div className="text-xs text-[color:var(--t-color-primary-pale)] ml-auto">
+                {BORROWER_FULL_FORM_SECTIONS.reduce((sum, s) => sum + s.fields.length, 0)} total fields across {BORROWER_FULL_FORM_SECTIONS.length} sections
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {BORROWER_FULL_FORM_SECTIONS.map((section) => {
+                const groupedFields: Record<string, typeof section.fields> = {};
+                section.fields.forEach(f => {
+                  let group = 'General';
+                  if (f.fieldId.startsWith('pfs-')) {
+                    if (f.fieldId.includes('contingent')) group = 'Contingent Liabilities';
+                    else if (f.fieldId.startsWith('pfs-note')) group = 'Schedule: Notes Payable';
+                    else if (f.fieldId.startsWith('pfs-sec')) group = 'Schedule: Stocks & Bonds';
+                    else if (f.fieldId.startsWith('pfs-re')) group = 'Schedule: Real Estate Owned';
+                    else if (f.fieldId.includes('Desc')) group = 'Descriptive Fields';
+                    else if (f.dataPath.includes('.income.')) group = 'Source of Income';
+                    else if (f.dataPath.includes('.liabilities.')) group = 'Liabilities';
+                    else if (f.dataPath.includes('.assets.')) group = 'Assets';
+                    else group = 'General';
+                  }
+                  if (!groupedFields[group]) groupedFields[group] = [];
+                  groupedFields[group].push(f);
+                });
+
+                return (
+                  <div
+                    key={section.sectionId}
+                    className="border border-[var(--t-color-border)] rounded-lg overflow-hidden"
+                    data-testid={`card-full-section-${section.sectionId}`}
+                  >
+                    <div className="bg-[var(--t-color-page-bg)] px-5 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--t-color-border)]">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)]" data-testid={`text-section-name-${section.sectionId}`}>
+                          {section.borrowerLabel}
+                        </h3>
+                        <span className="text-xs text-[color:var(--t-color-text-muted)]">
+                          (Internal ID: {section.sectionId})
+                        </span>
+                        <Badge variant={section.perApplicant ? 'default' : 'outline'} data-testid={`badge-section-scope-${section.sectionId}`}>
+                          {section.perApplicant ? 'Per Individual Applicant' : 'Per Project'}
+                        </Badge>
+                        {section.conditionalOn && (
+                          <Badge variant="secondary" data-testid={`badge-section-condition-${section.sectionId}`}>
+                            Conditional
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-[color:var(--t-color-text-muted)]" data-testid={`text-section-field-count-${section.sectionId}`}>
+                        {section.fields.length} fields
+                      </span>
+                    </div>
+                    <div className="px-5 py-3">
+                      <p className="text-sm text-[color:var(--t-color-text-muted)] mb-3">{section.description}</p>
+                      {section.conditionalOn && (
+                        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                          Condition: {section.conditionalOn}
+                        </div>
+                      )}
+                      {section.sectionId === 4 && (
+                        <div className="mb-4 border border-[var(--t-color-info-border)] bg-[var(--t-color-info-bg)] rounded-lg p-4" data-testid="info-indirect-ownership">
+                          <h4 className="text-sm font-semibold text-[color:var(--t-color-primary)] mb-3">Indirect Ownership (Borrower Help Content)</h4>
+                          <p className="text-xs text-[color:var(--t-color-text-body)] mb-3">
+                            This visual and explanation is shown to borrowers via a &quot;Learn More About Indirect Ownership&quot; link inside the &quot;About This Section&quot; panel on the Individual Applicants step.
+                          </p>
+                          <IndirectOwnershipExplainer />
+                        </div>
+                      )}
+                      <div className="space-y-4">
+                        {Object.entries(groupedFields).map(([group, fields]) => (
+                          <div key={group}>
+                            {group !== 'General' && (
+                              <p className="text-xs font-semibold text-[color:var(--t-color-text-body)] uppercase tracking-wide mb-2 mt-2">{group}</p>
+                            )}
+                            <div className="border border-[var(--t-color-border)] rounded overflow-hidden">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-[var(--t-color-input-bg)] text-left">
+                                    <th className="px-3 py-1.5 text-xs font-medium text-[color:var(--t-color-text-body)] w-[30%]">Field Label</th>
+                                    <th className="px-3 py-1.5 text-xs font-medium text-[color:var(--t-color-text-body)] w-[10%]">Type</th>
+                                    <th className="px-3 py-1.5 text-xs font-medium text-[color:var(--t-color-text-body)] w-[30%]">Options / Values</th>
+                                    <th className="px-3 py-1.5 text-xs font-medium text-[color:var(--t-color-text-body)] w-[30%]">Data Path</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {fields.map((field, idx) => (
+                                    <tr
+                                      key={field.fieldId}
+                                      className={idx % 2 === 0 ? 'bg-white' : 'bg-[#fafafa]'}
+                                      data-testid={`row-full-field-${section.sectionId}-${field.fieldId}`}
+                                    >
+                                      <td className="px-3 py-2 align-top">
+                                        <div className="flex items-start gap-1.5 flex-wrap">
+                                          <span className="text-[color:var(--t-color-text-body)]">{field.label}</span>
+                                          {field.required && (
+                                            <span className="text-[length:var(--t-font-size-sm)] text-red-500 font-medium mt-0.5">REQ</span>
+                                          )}
+                                          {field.perApplicant && (
+                                            <span className="text-[length:var(--t-font-size-sm)] text-blue-500 font-medium mt-0.5">x N</span>
+                                          )}
+                                        </div>
+                                        {field.conditional && (
+                                          <p className="text-[length:var(--t-font-size-sm)] text-amber-600 mt-0.5">{field.conditional}</p>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 align-top">
+                                        <Badge variant="outline" className="text-[length:var(--t-font-size-sm)] font-mono py-0 px-1.5">
+                                          {field.type}
+                                        </Badge>
+                                      </td>
+                                      <td className="px-3 py-2 align-top">
+                                        {field.options && field.options.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {field.options.map((opt, oi) => (
+                                              <span
+                                                key={oi}
+                                                className="inline-block text-[length:var(--t-font-size-sm)] bg-[var(--t-color-info-bg)] text-[color:var(--t-color-primary)] border border-[var(--t-color-info-border)] rounded px-1.5 py-0.5"
+                                              >
+                                                {opt}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[color:var(--t-color-primary-pale)] text-xs">&mdash;</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 align-top">
+                                        <code className="text-[length:var(--t-font-size-sm)] text-[color:var(--t-color-text-muted)] font-mono break-all">{field.dataPath}</code>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Field Label Comparison Tab */}
+        <TabsContent value="label-comparison" className="space-y-6">
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-label-comparison-title">
+                Field Label Comparison &mdash; BDO vs. Borrower
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                Side-by-side view of how field labels appear to the BDO versus the Borrower.
+                Only sections with mapped dual labels are shown. Fields without a BDO label defined will show &ldquo;&mdash;&rdquo; in the BDO column.
+              </p>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-xs text-[color:var(--t-color-text-muted)]">Has dual label</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-gray-300" />
+                <span className="text-xs text-[color:var(--t-color-text-muted)]">Same label (no BDO override)</span>
+              </div>
+              <div className="text-xs text-[color:var(--t-color-primary-pale)] ml-auto">
+                {BORROWER_FULL_FORM_SECTIONS.filter(s => s.fields.some(f => f.bdoLabel)).length} section(s) with dual labels
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {BORROWER_FULL_FORM_SECTIONS.filter(s => s.fields.some(f => f.bdoLabel)).map((section) => (
+                <div
+                  key={section.sectionId}
+                  className="border border-[var(--t-color-border)] rounded-lg overflow-hidden"
+                  data-testid={`card-label-comparison-${section.sectionId}`}
+                >
+                  <div className="bg-[var(--t-color-page-bg)] px-5 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--t-color-border)]">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)]" data-testid={`text-comparison-section-${section.sectionId}`}>
+                        Section {section.sectionId}: {section.sectionName}
+                      </h3>
+                      <Badge variant="outline">
+                        {section.fields.filter(f => f.bdoLabel).length} / {section.fields.length} fields mapped
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="px-5 py-3">
+                    <div className="border border-[var(--t-color-border)] rounded overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-[var(--t-color-input-bg)] text-left">
+                            <th className="px-3 py-2 text-xs font-medium text-[color:var(--t-color-text-body)] w-[40%]">
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block w-2 h-2 rounded-full bg-[var(--t-color-accent)]" />
+                                Borrower Label
+                              </span>
+                            </th>
+                            <th className="px-3 py-2 text-xs font-medium text-[color:var(--t-color-text-body)] w-[40%]">
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block w-2 h-2 rounded-full bg-[var(--t-color-success)]" />
+                                BDO Label
+                              </span>
+                            </th>
+                            <th className="px-3 py-2 text-xs font-medium text-[color:var(--t-color-text-body)] w-[20%]">Data Path</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.fields.map((field, idx) => {
+                            const hasDual = !!field.bdoLabel;
+                            return (
+                              <tr
+                                key={field.fieldId}
+                                className={idx % 2 === 0 ? 'bg-white' : 'bg-[#fafafa]'}
+                                data-testid={`row-comparison-${section.sectionId}-${field.fieldId}`}
+                              >
+                                <td className="px-3 py-2.5 align-top">
+                                  <div className="flex items-start gap-1.5">
+                                    {hasDual && <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />}
+                                    {!hasDual && <span className="inline-block w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />}
+                                    <span className="text-[color:var(--t-color-text-body)]">{field.label}</span>
+                                  </div>
+                                  {field.conditional && (
+                                    <p className="text-[length:var(--t-font-size-sm)] text-amber-600 mt-0.5 ml-3.5">{field.conditional}</p>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 align-top">
+                                  {field.bdoLabel ? (
+                                    <span className={field.bdoLabel !== field.label ? 'text-[color:var(--t-color-success)] font-medium' : 'text-[color:var(--t-color-text-body)]'}>
+                                      {field.bdoLabel}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[color:var(--t-color-primary-pale)] text-xs">&mdash;</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 align-top">
+                                  <code className="text-[length:var(--t-font-size-sm)] text-[color:var(--t-color-text-muted)] font-mono break-all">{field.dataPath}</code>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Theme / CSS Tab */}
+        <TabsContent value="theme" className="space-y-6">
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-theme-title">
+                Theme / CSS Settings
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                Customize the application&apos;s visual appearance. Changes apply globally to all pages after saving.
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-2 border-b border-[var(--t-color-border)]">Typography</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-family">Font Family</Label>
+                    <Input
+                      id="theme-font-family"
+                      value={themeSettings.fontFamily}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontFamily: e.target.value })}
+                      data-testid="input-theme-font-family"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-size-base">Base Font Size</Label>
+                    <Input
+                      id="theme-font-size-base"
+                      value={themeSettings.fontSizeBase}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeBase: e.target.value })}
+                      data-testid="input-theme-font-size-base"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-size-small">Small Font Size</Label>
+                    <Input
+                      id="theme-font-size-small"
+                      value={themeSettings.fontSizeSmall}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeSmall: e.target.value })}
+                      data-testid="input-theme-font-size-small"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-size-large">Large Font Size</Label>
+                    <Input
+                      id="theme-font-size-large"
+                      value={themeSettings.fontSizeLarge}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeLarge: e.target.value })}
+                      data-testid="input-theme-font-size-large"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-size-heading">Heading Font Size</Label>
+                    <Input
+                      id="theme-font-size-heading"
+                      value={themeSettings.fontSizeHeading}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeHeading: e.target.value })}
+                      data-testid="input-theme-font-size-heading"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-font-size-section-header">Section Header Font Size</Label>
+                    <Input
+                      id="theme-font-size-section-header"
+                      value={themeSettings.fontSizeSectionHeader}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeSectionHeader: e.target.value })}
+                      data-testid="input-theme-font-size-section-header"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-2 border-b border-[var(--t-color-border)]">Layout</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-border-radius">Border Radius</Label>
+                    <Input
+                      id="theme-border-radius"
+                      value={themeSettings.borderRadius}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, borderRadius: e.target.value })}
+                      data-testid="input-theme-border-radius"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-section-px">Section Padding X</Label>
+                    <Input
+                      id="theme-section-px"
+                      value={themeSettings.sectionPaddingX}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionPaddingX: e.target.value })}
+                      data-testid="input-theme-section-px"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-section-py">Section Padding Y</Label>
+                    <Input
+                      id="theme-section-py"
+                      value={themeSettings.sectionPaddingY}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionPaddingY: e.target.value })}
+                      data-testid="input-theme-section-py"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-section-mb">Section Margin Bottom</Label>
+                    <Input
+                      id="theme-section-mb"
+                      value={themeSettings.sectionMarginBottom}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionMarginBottom: e.target.value })}
+                      data-testid="input-theme-section-mb"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-field-spacing">Field Spacing</Label>
+                    <Input
+                      id="theme-field-spacing"
+                      value={themeSettings.fieldSpacing}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, fieldSpacing: e.target.value })}
+                      data-testid="input-theme-field-spacing"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-input-px">Input Padding X</Label>
+                    <Input
+                      id="theme-input-px"
+                      value={themeSettings.inputPaddingX}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, inputPaddingX: e.target.value })}
+                      data-testid="input-theme-input-px"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="theme-input-py">Input Padding Y</Label>
+                    <Input
+                      id="theme-input-py"
+                      value={themeSettings.inputPaddingY}
+                      onChange={(e) => setThemeSettings({ ...themeSettings, inputPaddingY: e.target.value })}
+                      data-testid="input-theme-input-py"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {([
+                ['Brand Colors', [
+                  ['colorPrimary', 'Primary (Navy)'],
+                  ['colorPrimaryLight', 'Primary Light'],
+                  ['colorPrimaryLighter', 'Primary Lighter'],
+                  ['colorPrimaryPale', 'Primary Pale'],
+                  ['colorPrimaryPalest', 'Primary Palest'],
+                  ['colorAccent', 'Accent'],
+                ]],
+                ['Surface Colors', [
+                  ['colorPageBg', 'Page Background'],
+                  ['colorCardBg', 'Card Background'],
+                  ['colorInputBg', 'Input / Field Background'],
+                  ['colorHighlightBg', 'Highlight Background'],
+                  ['colorHighlightBorder', 'Highlight Border'],
+                ]],
+                ['Border & Disabled', [
+                  ['colorBorder', 'Default Border'],
+                  ['colorDisabled', 'Disabled State'],
+                ]],
+                ['Text Colors', [
+                  ['colorTextPrimary', 'Headings / Primary'],
+                  ['colorTextBody', 'Body Text'],
+                  ['colorTextSecondary', 'Secondary Text'],
+                  ['colorTextMuted', 'Muted Text'],
+                ]],
+                ['Success Colors', [
+                  ['colorSuccess', 'Success (Dark)'],
+                  ['colorSuccessLight', 'Success (Light)'],
+                  ['colorSuccessBg', 'Success Background'],
+                  ['colorSuccessText', 'Success Text'],
+                  ['colorSuccessBorder', 'Success Border'],
+                ]],
+                ['Warning Colors', [
+                  ['colorWarning', 'Warning (Dark)'],
+                  ['colorWarningLight', 'Warning (Light)'],
+                  ['colorWarningBg', 'Warning Background'],
+                  ['colorWarningText', 'Warning Text'],
+                ]],
+                ['Danger Colors', [
+                  ['colorDanger', 'Danger (Dark)'],
+                  ['colorDangerLight', 'Danger (Light)'],
+                  ['colorDangerBg', 'Danger Background'],
+                  ['colorDangerText', 'Danger Text'],
+                ]],
+                ['Info Colors', [
+                  ['colorInfoBg', 'Info Background'],
+                  ['colorInfoBorder', 'Info Border'],
+                  ['colorInfoText', 'Info Text'],
+                ]],
+                ['Special Colors', [
+                  ['colorPurple', 'Purple'],
+                  ['colorOrange', 'Orange'],
+                ]],
+              ] as [string, [keyof ThemeSettings, string][]][]).map(([sectionTitle, fields]) => (
+                <div key={sectionTitle}>
+                  <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-2 border-b border-[var(--t-color-border)]">{sectionTitle}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {fields.map(([key, label]) => (
+                      <div key={key} className="space-y-1.5">
+                        <Label htmlFor={`theme-${key}`}>{label}</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={themeSettings[key]}
+                            onChange={(e) => setThemeSettings({ ...themeSettings, [key]: e.target.value })}
+                            className="w-9 h-9 rounded-md border border-[var(--t-color-border)] cursor-pointer p-0.5"
+                            data-testid={`color-theme-${key}`}
+                          />
+                          <Input
+                            id={`theme-${key}`}
+                            value={themeSettings[key]}
+                            onChange={(e) => setThemeSettings({ ...themeSettings, [key]: e.target.value })}
+                            className="flex-1"
+                            data-testid={`input-theme-${key}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="pt-4 border-t border-[var(--t-color-border)]">
+                <button
+                  onClick={() => setThemeSettings(defaultTheme)}
+                  className="px-4 py-2 text-[length:var(--t-font-size-base)] rounded-md border border-[var(--t-color-border)] text-[color:var(--t-color-text-secondary)] hover:bg-[var(--t-color-page-bg)]"
+                  data-testid="button-reset-theme-defaults"
+                >
+                  Reset to Defaults
+                </button>
+              </div>
+
+              <div className="p-4 rounded-md border border-[var(--t-color-border)] bg-[var(--t-color-page-bg)]">
+                <h4 className="text-[length:var(--t-font-size-base)] font-semibold text-[color:var(--t-color-primary)] mb-3">Preview</h4>
+                <div className="space-y-3" style={{ fontFamily: themeSettings.fontFamily + ', sans-serif' }}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className="font-semibold uppercase tracking-wider"
+                      style={{ fontSize: themeSettings.fontSizeHeading, color: themeSettings.colorTextPrimary }}
+                    >
+                      Heading Text
+                    </span>
+                  </div>
+                  <p style={{ fontSize: themeSettings.fontSizeLarge, color: themeSettings.colorTextBody }}>
+                    Large body text sample
+                  </p>
+                  <p style={{ fontSize: themeSettings.fontSizeBase, color: themeSettings.colorTextBody }}>
+                    Base body text sample &mdash; this is the default size used across most of the application.
+                  </p>
+                  <p style={{ fontSize: themeSettings.fontSizeSmall, color: themeSettings.colorTextSecondary }}>
+                    Small secondary text sample
+                  </p>
+                  <p style={{ fontSize: themeSettings.fontSizeSmall, color: themeSettings.colorTextMuted }}>
+                    Small muted text sample
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="px-3 py-1 rounded-md text-white text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorPrimary, borderRadius: themeSettings.borderRadius }}>Primary</span>
+                    <span className="px-3 py-1 rounded-md text-white text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorPrimaryLight, borderRadius: themeSettings.borderRadius }}>Light</span>
+                    <span className="px-3 py-1 rounded-md text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorPrimaryPalest, color: themeSettings.colorPrimary, borderRadius: themeSettings.borderRadius }}>Palest</span>
+                    <span className="px-3 py-1 rounded-md text-white text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorSuccess, borderRadius: themeSettings.borderRadius }}>Success</span>
+                    <span className="px-3 py-1 rounded-md text-white text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorWarning, borderRadius: themeSettings.borderRadius }}>Warning</span>
+                    <span className="px-3 py-1 rounded-md text-white text-[length:var(--t-font-size-sm)] font-medium" style={{ backgroundColor: themeSettings.colorDanger, borderRadius: themeSettings.borderRadius }}>Danger</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <div className="w-8 h-8 rounded-md border" style={{ backgroundColor: themeSettings.colorPageBg, borderColor: themeSettings.colorBorder }} title="Page BG" />
+                    <div className="w-8 h-8 rounded-md border" style={{ backgroundColor: themeSettings.colorCardBg, borderColor: themeSettings.colorBorder }} title="Card BG" />
+                    <div className="w-8 h-8 rounded-md border" style={{ backgroundColor: themeSettings.colorBorder, borderColor: themeSettings.colorBorder }} title="Border" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

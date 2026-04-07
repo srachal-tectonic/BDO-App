@@ -25,6 +25,8 @@ interface ProjectWithSummary extends Project {
   industry?: string;
   projectTotal?: number;
   loanAmountFromApp?: number;
+  sbaStructure?: string;
+  primaryPurpose?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -42,46 +44,15 @@ const PROJECT_STATUSES: ProjectStatus[] = [
   'Withdrawn',
 ];
 
-const FILTER_TABS = [
-  { key: 'All', label: 'All' },
-  ...PROJECT_STATUSES.map(s => ({ key: s, label: s })),
+const FILTER_TABS: { key: string; label: string; statuses: ProjectStatus[] }[] = [
+  { key: 'All', label: 'All', statuses: [] },
+  { key: 'Leads', label: 'Leads', statuses: ['Watch List', 'Warmer Leads', 'Active Lead'] },
+  { key: 'Prequal', label: 'Prequal', statuses: ['PQ Advance', 'PQ More Info'] },
+  { key: 'UW', label: 'UW', statuses: ['UW'] },
+  { key: 'Closing', label: 'Closing', statuses: ['Closing'] },
+  { key: 'Withdraw | Decline', label: 'Withdraw | Decline', statuses: ['Adverse Action', 'Withdrawn'] },
+  { key: 'Archive', label: 'Archive', statuses: [] },
 ];
-
-function getBDOInitials(name: string): string {
-  const parts = name.split(' ').filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return '';
-}
-
-function getPriorityFromRisk(riskLevel: string): { label: string; color: string } {
-  switch (riskLevel) {
-    case 'low':
-      return { label: 'Low', color: 'text-[#059669] bg-[#ecfdf5]' };
-    case 'low-medium':
-    case 'medium':
-      return { label: 'Med', color: 'text-[#d97706] bg-[#fef3c7]' };
-    case 'medium-high':
-    case 'high':
-      return { label: 'High', color: 'text-[#dc2626] bg-[#fee2e2]' };
-    case 'very-high':
-      return { label: 'Very High', color: 'text-[#dc2626] bg-[#fee2e2]' };
-    default:
-      return { label: '', color: '' };
-  }
-}
-
-function formatCompactCurrency(amount: number): string {
-  if (amount >= 1_000_000) {
-    const m = amount / 1_000_000;
-    return `$${m.toFixed(2)}M`;
-  }
-  if (amount >= 1_000) {
-    const k = amount / 1_000;
-    return `$${k.toFixed(0)}K`;
-  }
-  return `$${amount.toFixed(0)}`;
-}
 
 const getStatusColor = (stage: string) => {
   switch (stage) {
@@ -153,11 +124,25 @@ export default function ProjectsPage() {
           projectsData.map(async (project) => {
             try {
               const loanApp = await getLoanApplication(project.id);
+              // Derive SBA structure from loan1/loan2 type
+              const loanType = loanApp?.loan1?.type || loanApp?.loan2?.type || '';
+              let sbaStructure = '';
+              if (loanType.includes('7a') || loanType.includes('7(a)')) sbaStructure = '7(a)';
+              else if (loanType.includes('504')) sbaStructure = '504';
+              else if (loanType.includes('USDA') || loanType.includes('usda')) sbaStructure = 'USDA B&I';
+              else if (loanType) sbaStructure = loanType;
+
+              // Derive primary purpose
+              const purposes = loanApp?.projectOverview?.primaryProjectPurpose || [];
+              const primaryPurpose = purposes.length > 0 ? purposes.join(', ') : '';
+
               return {
                 ...project,
                 industry: loanApp?.projectOverview?.industry || project.businessType,
                 projectTotal: loanApp?.sourcesUses?.totalUses,
                 loanAmountFromApp: loanApp?.sourcesUses?.loanAmount,
+                sbaStructure,
+                primaryPurpose,
               };
             } catch {
               return {
@@ -276,19 +261,6 @@ export default function ProjectsPage() {
     }
   };
 
-  const formatDate = (date: Date | undefined | null): string => {
-    if (!date) return '-';
-    try {
-      return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return '-';
-    }
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -302,8 +274,14 @@ export default function ProjectsPage() {
   const filteredProjects = useMemo(() => {
     let filtered = projects;
 
-    if (activeFilter !== 'All') {
-      filtered = filtered.filter(p => p.stage === activeFilter);
+    if (activeFilter === 'Archive') {
+      filtered = filtered.filter(p => !!p.deletedAt);
+    } else {
+      filtered = filtered.filter(p => !p.deletedAt);
+      const tab = FILTER_TABS.find(t => t.key === activeFilter);
+      if (tab && tab.statuses.length > 0) {
+        filtered = filtered.filter(p => tab.statuses.includes(p.stage));
+      }
     }
 
     if (searchQuery.trim()) {
@@ -328,65 +306,30 @@ export default function ProjectsPage() {
     setCurrentPage(1);
   }, [activeFilter, searchQuery]);
 
-  // Status counts for filter tabs (exclude deleted)
-  const statusCounts = useMemo(() => {
+  // Counts for filter tabs
+  const filterCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    projects.filter(p => !p.deletedAt).forEach(p => {
-      counts[p.stage] = (counts[p.stage] || 0) + 1;
+    const active = projects.filter(p => !p.deletedAt);
+    const archived = projects.filter(p => !!p.deletedAt);
+
+    FILTER_TABS.forEach(tab => {
+      if (tab.key === 'All') {
+        counts[tab.key] = active.length;
+      } else if (tab.key === 'Archive') {
+        counts[tab.key] = archived.length;
+      } else {
+        counts[tab.key] = active.filter(p => tab.statuses.includes(p.stage)).length;
+      }
     });
     return counts;
   }, [projects]);
 
-  // Summary stats for cards
-  const summaryStats = useMemo(() => {
-    let totalPipeline = 0;
-    let activeLeadsTotal = 0;
-    let activeLeadsCount = 0;
-    let pqAdvanceTotal = 0;
-    let pqAdvanceCount = 0;
-    let infoReqCount = 0;
-    let uwCount = 0;
-
-    const activeProjects = projects.filter(p => !p.deletedAt);
-    activeProjects.forEach(p => {
-      const loanAmt = p.loanAmountFromApp || p.loanAmount || 0;
-      totalPipeline += loanAmt;
-      if (p.stage === 'Active Lead') {
-        activeLeadsTotal += loanAmt;
-        activeLeadsCount++;
-      }
-      if (p.stage === 'PQ Advance') {
-        pqAdvanceTotal += loanAmt;
-        pqAdvanceCount++;
-      }
-      if (p.stage === 'PQ More Info') infoReqCount++;
-      if (p.stage === 'UW') uwCount++;
-    });
-
-    return {
-      totalPipeline,
-      activeProjectsCount: activeProjects.length,
-      activeLeadsTotal,
-      activeLeadsCount,
-      pqAdvanceTotal,
-      pqAdvanceCount,
-      infoReqCount,
-      uwCount,
-      needsAttentionCount: infoReqCount + uwCount,
-    };
-  }, [projects]);
-
-  const showBDO = viewMode === 'all-projects';
-
   return (
     <BDOLayout title="My Pipeline">
       <div className="space-y-6">
-        {/* Title + Toggle + New Project */}
+        {/* Toggle + New Project */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-[28px] font-bold text-[#1a1a1a] italic">
-              {viewMode === 'my-pipeline' ? 'My Pipeline' : 'All Projects'}
-            </h1>
             <div className="flex border border-[#d1d5db] rounded-lg overflow-visible">
               <button
                 onClick={() => setViewMode('my-pipeline')}
@@ -419,49 +362,6 @@ export default function ProjectsPage() {
           </button>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-5">
-            <p className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider mb-1">Total Pipeline</p>
-            <p className="text-[28px] font-bold text-[#1a1a1a]">{formatCompactCurrency(summaryStats.totalPipeline)}</p>
-            <p className="text-[12px] text-[#9ca3af] mt-1">{summaryStats.activeProjectsCount} active projects</p>
-          </div>
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 relative">
-            <div className="flex items-start justify-between">
-              <p className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider mb-1">Active Leads</p>
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#2563eb] text-white text-[11px] font-bold">{summaryStats.activeLeadsCount}</span>
-            </div>
-            <p className="text-[28px] font-bold text-[#1a1a1a]">{formatCompactCurrency(summaryStats.activeLeadsTotal)}</p>
-            <div className="mt-3 h-1 bg-[#e5e7eb] rounded-full">
-              <div
-                className="h-1 bg-[#2563eb] rounded-full transition-all"
-                style={{ width: summaryStats.totalPipeline > 0 ? `${(summaryStats.activeLeadsTotal / summaryStats.totalPipeline) * 100}%` : '0%' }}
-              />
-            </div>
-          </div>
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 relative">
-            <div className="flex items-start justify-between">
-              <p className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider mb-1">PQ Advance</p>
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#059669] text-white text-[11px] font-bold">{summaryStats.pqAdvanceCount}</span>
-            </div>
-            <p className="text-[28px] font-bold text-[#1a1a1a]">{formatCompactCurrency(summaryStats.pqAdvanceTotal)}</p>
-            <div className="mt-3 h-1 bg-[#e5e7eb] rounded-full">
-              <div
-                className="h-1 bg-[#059669] rounded-full transition-all"
-                style={{ width: summaryStats.totalPipeline > 0 ? `${(summaryStats.pqAdvanceTotal / summaryStats.totalPipeline) * 100}%` : '0%' }}
-              />
-            </div>
-          </div>
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 relative">
-            <div className="flex items-start justify-between">
-              <p className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider mb-1">Needs Attention</p>
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#dc2626] text-white text-[11px] font-bold">{summaryStats.needsAttentionCount}</span>
-            </div>
-            <p className="text-[28px] font-bold text-[#1a1a1a]">{summaryStats.infoReqCount} Info Req.</p>
-            <p className="text-[12px] text-[#9ca3af] mt-1">{summaryStats.uwCount} in Underwriting</p>
-          </div>
-        </div>
-
         {/* Search + Filter Tabs + Table */}
         <div className="bg-white border border-[#e5e7eb] rounded-xl">
           {/* Search */}
@@ -480,7 +380,7 @@ export default function ProjectsPage() {
           {/* Filter Tabs */}
           <div className="flex items-center gap-1 px-5 pb-0">
             {FILTER_TABS.map(tab => {
-              const count = tab.key === 'All' ? projects.length : (statusCounts[tab.key] || 0);
+              const count = filterCounts[tab.key] || 0;
               const isActive = activeFilter === tab.key;
               return (
                 <button
@@ -530,28 +430,17 @@ export default function ProjectsPage() {
                   <thead>
                     <tr className="border-t border-b border-[#e5e7eb]">
                       <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Project Name</th>
-                      <th className="px-5 py-3 text-center text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Status</th>
-                      {showBDO && (
-                        <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">BDO</th>
-                      )}
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Industry</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Project Total</th>
                       <th className="px-5 py-3 text-right text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Loan Amount</th>
-                      <th className="px-5 py-3 text-center text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Priority</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Last Updated</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">SBA Structure</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Primary Purpose</th>
+                      <th className="px-5 py-3 text-center text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Status</th>
                       <th className="px-5 py-3 text-right text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f3f4f6]">
                     {paginatedProjects.map((project) => {
-                      const industry = project.industry || '-';
                       const loanAmount = project.loanAmountFromApp || project.loanAmount || 0;
-                      const projectTotal = project.projectTotal || 0;
-                      const bdo1 = project.bdoUserName || '';
                       const clientName = project.businessName || '';
-                      const riskLevel = '';
-                      const priority = getPriorityFromRisk(riskLevel);
-
                       const isDeleted = !!project.deletedAt;
 
                       return (
@@ -574,6 +463,18 @@ export default function ProjectsPage() {
                               )}
                             </div>
                           </td>
+                          {/* Loan Amount */}
+                          <td className="px-5 py-3.5 text-right text-[14px] font-medium text-[#1a1a1a]">
+                            {loanAmount > 0 ? formatCurrency(loanAmount) : '-'}
+                          </td>
+                          {/* SBA Structure */}
+                          <td className="px-5 py-3.5 text-[13px] text-[#374151]">
+                            {project.sbaStructure || '-'}
+                          </td>
+                          {/* Primary Purpose */}
+                          <td className="px-5 py-3.5 text-[13px] text-[#374151]">
+                            {project.primaryPurpose || '-'}
+                          </td>
                           {/* Status Dropdown */}
                           <td className="px-5 py-3.5 text-center">
                             <select
@@ -591,47 +492,6 @@ export default function ProjectsPage() {
                                 </option>
                               ))}
                             </select>
-                          </td>
-                          {/* BDO (only on All Projects) */}
-                          {showBDO && (
-                            <td className="px-5 py-3.5">
-                              {bdo1 ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-full bg-[#e5e7eb] flex items-center justify-center text-[10px] font-semibold text-[#374151] flex-shrink-0">
-                                    {getBDOInitials(bdo1)}
-                                  </div>
-                                  <span className="text-[13px] text-[#374151]">{bdo1}</span>
-                                </div>
-                              ) : (
-                                <span className="text-[13px] text-[#9ca3af]">-</span>
-                              )}
-                            </td>
-                          )}
-                          {/* Industry */}
-                          <td className="px-5 py-3.5 text-[13px] text-[#374151]">
-                            {industry}
-                          </td>
-                          {/* Project Total */}
-                          <td className="px-5 py-3.5 text-right text-[14px] font-medium text-[#1a1a1a]">
-                            {projectTotal > 0 ? formatCurrency(projectTotal) : '-'}
-                          </td>
-                          {/* Loan Amount */}
-                          <td className="px-5 py-3.5 text-right text-[14px] font-medium text-[#1a1a1a]">
-                            {loanAmount > 0 ? formatCurrency(loanAmount) : '-'}
-                          </td>
-                          {/* Priority */}
-                          <td className="px-5 py-3.5 text-center">
-                            {priority.label ? (
-                              <span className={`inline-block px-3 py-0.5 rounded-full text-[12px] font-medium ${priority.color}`}>
-                                {priority.label}
-                              </span>
-                            ) : (
-                              <span className="text-[13px] text-[#9ca3af]">-</span>
-                            )}
-                          </td>
-                          {/* Last Updated */}
-                          <td className="px-5 py-3.5 text-[13px] text-[#6b7280]">
-                            {formatDate(project.updatedAt)}
                           </td>
                           {/* Actions */}
                           <td className="px-5 py-3.5">
