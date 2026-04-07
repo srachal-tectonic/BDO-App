@@ -1,0 +1,550 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775498192724,
+  "projectRoot": "/mnt/c/Users/srachal/Desktop/SBA Loan Prequalifier New",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "next",
+        "version": "16.0.10",
+        "category": "fullstack"
+      },
+      {
+        "name": "react",
+        "version": "19.2.1",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.1",
+        "category": "frontend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "next dev -p 3001",
+      "build": "next build",
+      "start": "next start",
+      "lint": "eslint",
+      "build:dev": "env-cmd -f .env.development next build",
+      "build:staging": "env-cmd -f .env.staging next build",
+      "build:prod": "env-cmd -f .env.production next build",
+      "deploy:dev": "firebase use dev && npm run build:dev && firebase deploy",
+      "deploy:staging": "firebase use staging && npm run build:staging && firebase deploy",
+      "deploy:prod": "firebase use prod && npm run build:prod && firebase deploy",
+      "deploy:staging:ci": "gcloud builds submit --config=cloudbuild.staging.yaml .",
+      "deploy:prod:ci": "gcloud builds submit --config=cloudbuild.yaml ."
+    }
+  },
+  "conventions": {
+    "namingStyle": "camelCase",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "components",
+      "docs",
+      "lib",
+      "public",
+      "scripts"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 4,
+      "lastAccessed": 1775498192575,
+      "keyFiles": [
+        "favicon.ico",
+        "globals.css",
+        "layout.tsx",
+        "page.tsx"
+      ]
+    },
+    "components": {
+      "path": "components",
+      "purpose": "UI components",
+      "fileCount": 7,
+      "lastAccessed": 1775498192585,
+      "keyFiles": [
+        "CreditMatrixScoring.tsx",
+        "LearnMorePanel.tsx",
+        "PQMemoForm.tsx",
+        "ProposalLetterForm.tsx",
+        "nav-main.tsx"
+      ]
+    },
+    "contexts": {
+      "path": "contexts",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775498192593,
+      "keyFiles": [
+        "Auth0Context.tsx",
+        "FirebaseAuthContext.tsx"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1775498192602,
+      "keyFiles": [
+        "SOURCE_OF_TRUTH.md"
+      ]
+    },
+    "hooks": {
+      "path": "hooks",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775498192611,
+      "keyFiles": [
+        "use-mobile.tsx",
+        "use-toast.ts"
+      ]
+    },
+    "lib": {
+      "path": "lib",
+      "purpose": "Library code",
+      "fileCount": 24,
+      "lastAccessed": 1775498192618,
+      "keyFiles": [
+        "apiAuth.ts",
+        "apiSecurityHeaders.ts",
+        "applicationStore.ts",
+        "auditLog.ts",
+        "authenticatedFetch.ts"
+      ]
+    },
+    "openspec": {
+      "path": "openspec",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775498192623,
+      "keyFiles": [
+        "AGENTS.md",
+        "project.md"
+      ]
+    },
+    "pdfs": {
+      "path": "pdfs",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775498192631,
+      "keyFiles": [
+        "SBA_Form_159_-_Fee_Disclosure_Form (1).pdf",
+        "Testing.pdf"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 7,
+      "lastAccessed": 1775498192638,
+      "keyFiles": [
+        "404.html",
+        "file.svg",
+        "globe.svg",
+        "index.html",
+        "next.svg"
+      ]
+    },
+    "replit": {
+      "path": "replit",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1775498192645,
+      "keyFiles": [
+        "OtherOwnedBusinessesSection.tsx.bak"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 7,
+      "lastAccessed": 1775498192652,
+      "keyFiles": [
+        "diagnose-pdf-extraction.mjs",
+        "extract-pdf-fields.ts",
+        "quick-extract-test.mjs",
+        "test-base64-flow.mjs",
+        "test-sba-159-extraction.mjs"
+      ]
+    },
+    "services": {
+      "path": "services",
+      "purpose": "Business logic services",
+      "fileCount": 6,
+      "lastAccessed": 1775498192660,
+      "keyFiles": [
+        "FIRESTORE_STRUCTURE.md",
+        "brokerTokens.ts",
+        "firestore.ts",
+        "firestoreAdmin.ts",
+        "sharepoint.ts"
+      ]
+    },
+    "sheets": {
+      "path": "sheets",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775498192667,
+      "keyFiles": [
+        "BDO Spread Template Newest.xlsx",
+        "Spreads Template.xlsx"
+      ]
+    },
+    "types": {
+      "path": "types",
+      "purpose": "Type definitions",
+      "fileCount": 1,
+      "lastAccessed": 1775498192674,
+      "keyFiles": [
+        "index.ts"
+      ]
+    },
+    "app/api": {
+      "path": "app/api",
+      "purpose": "API routes",
+      "fileCount": 0,
+      "lastAccessed": 1775498192680,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "app/bdo/admin/page.tsx",
+      "accessCount": 151,
+      "lastAccessed": 1775508364352,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 18,
+      "lastAccessed": 1775508426894,
+      "type": "directory"
+    },
+    {
+      "path": "contexts/FirebaseAuthContext.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1775508280163,
+      "type": "file"
+    },
+    {
+      "path": "app/bdo/borrower-portal/[id]/questionnaire/page.tsx",
+      "accessCount": 8,
+      "lastAccessed": 1775508405682,
+      "type": "file"
+    },
+    {
+      "path": "lib/apiAuth.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775508257993,
+      "type": "file"
+    },
+    {
+      "path": "app/api/broker/tokens/route.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775508304210,
+      "type": "file"
+    },
+    {
+      "path": "app",
+      "accessCount": 4,
+      "lastAccessed": 1775501284588,
+      "type": "directory"
+    },
+    {
+      "path": "app/layout.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1775508157515,
+      "type": "directory"
+    },
+    {
+      "path": "lib/firebase.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775508214578,
+      "type": "file"
+    },
+    {
+      "path": "app/bdo/login/page.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1775508286237,
+      "type": "file"
+    },
+    {
+      "path": "app/api/projects/[id]/pdf-imports/route.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775508315016,
+      "type": "file"
+    },
+    {
+      "path": "app/api/projects/[id]/borrower-uploads/route.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775508319229,
+      "type": "file"
+    },
+    {
+      "path": "app/api/generated-forms/[id]/download/route.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775508332976,
+      "type": "file"
+    },
+    {
+      "path": "app/api/pdf-templates/route.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508166802,
+      "type": "file"
+    },
+    {
+      "path": "app/api/forms/[token]/route.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508175076,
+      "type": "file"
+    },
+    {
+      "path": "lib/firebaseAdmin.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508219240,
+      "type": "file"
+    },
+    {
+      "path": "services/firestoreAdmin.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508223976,
+      "type": "file"
+    },
+    {
+      "path": "services/brokerTokens.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508229000,
+      "type": "file"
+    },
+    {
+      "path": "lib/auditLog.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508241891,
+      "type": "file"
+    },
+    {
+      "path": "lib/brokerAuth.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775508248961,
+      "type": "file"
+    },
+    {
+      "path": "components/loan-sections/SpreadsManager.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1775508346359,
+      "type": "file"
+    },
+    {
+      "path": ".env.local.example",
+      "accessCount": 2,
+      "lastAccessed": 1775498836897,
+      "type": "file"
+    },
+    {
+      "path": "lib/secrets.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775498845499,
+      "type": "file"
+    },
+    {
+      "path": "app/api/zoho-sheets/sync/route.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775499135321,
+      "type": "file"
+    },
+    {
+      "path": "app/borrower/login/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1775500492786,
+      "type": "directory"
+    },
+    {
+      "path": ".env.development",
+      "accessCount": 2,
+      "lastAccessed": 1775502392140,
+      "type": "file"
+    },
+    {
+      "path": "lib/applicationStore.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775508160677,
+      "type": "file"
+    },
+    {
+      "path": "app/api/auth/zoho/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498826741,
+      "type": "file"
+    },
+    {
+      "path": "lib/zohoJwt.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498826914,
+      "type": "file"
+    },
+    {
+      "path": "app/api/auth/zoho/exchange/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498827768,
+      "type": "file"
+    },
+    {
+      "path": "app/api/auth/zoho/callback/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498827834,
+      "type": "file"
+    },
+    {
+      "path": "services/zohoSheets.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498830359,
+      "type": "file"
+    },
+    {
+      "path": "app/api/zoho-sheets/create-from-template/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498830718,
+      "type": "file"
+    },
+    {
+      "path": "lib/spreadsReverseMapper.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498831108,
+      "type": "file"
+    },
+    {
+      "path": "lib/spreadsDataMapper.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498831499,
+      "type": "file"
+    },
+    {
+      "path": "ZOHO_OIDC_LOGIN_SETUP.md",
+      "accessCount": 1,
+      "lastAccessed": 1775498835749,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1775498836464,
+      "type": "file"
+    },
+    {
+      "path": ".env",
+      "accessCount": 1,
+      "lastAccessed": 1775498836823,
+      "type": "file"
+    },
+    {
+      "path": "lib/spreadsTemplateConfig.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498841262,
+      "type": "file"
+    },
+    {
+      "path": ".env.production",
+      "accessCount": 1,
+      "lastAccessed": 1775498847384,
+      "type": "file"
+    },
+    {
+      "path": "next.config.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775498848061,
+      "type": "file"
+    },
+    {
+      "path": "firebase.json",
+      "accessCount": 1,
+      "lastAccessed": 1775498995881,
+      "type": "file"
+    },
+    {
+      "path": ".firebaserc",
+      "accessCount": 1,
+      "lastAccessed": 1775498996094,
+      "type": "file"
+    },
+    {
+      "path": ".firebase/sba-loan-prequalifier/functions/.env.local.example",
+      "accessCount": 1,
+      "lastAccessed": 1775499351293,
+      "type": "file"
+    },
+    {
+      "path": ".env.staging",
+      "accessCount": 1,
+      "lastAccessed": 1775499351579,
+      "type": "file"
+    },
+    {
+      "path": ".env.local",
+      "accessCount": 1,
+      "lastAccessed": 1775499351682,
+      "type": "file"
+    },
+    {
+      "path": "app/api/recaptcha/verify/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775500487464,
+      "type": "directory"
+    },
+    {
+      "path": "CLAUDE.md",
+      "accessCount": 1,
+      "lastAccessed": 1775500551047,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1775500582897,
+      "type": "directory"
+    },
+    {
+      "path": "components",
+      "accessCount": 1,
+      "lastAccessed": 1775501071127,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

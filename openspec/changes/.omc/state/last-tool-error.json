@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"rm -rf \\\"/mnt/c/Users/srachal/Desktop/BDO App April/.firebase\\\" \\\"/mnt/c/Users/srachal/Desktop/BDO App April/.firebaserc\\\" && echo \\\"Removed .firebase/ and .firebaserc\\\"\",\"description\":\"Re...",
+  "error": "Exit code 1\nrm: cannot remove '/mnt/c/Users/srachal/Desktop/BDO App April/.firebase/sba-loan-prequalifier/functions/node_modules/firebase': Directory not empty",
+  "timestamp": "2026-04-06T19:00:45.818Z",
+  "retry_count": 1
+}
