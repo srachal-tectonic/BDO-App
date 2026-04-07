@@ -38,18 +38,9 @@ yarn-error.log*
 lerna-debug.log*
 
 # Environment files
-# Base environment files (committed - contain non-sensitive defaults)
-# .env                    - Shared defaults (COMMITTED)
-# .env.development        - Dev environment config (COMMITTED)
-# .env.staging            - Staging environment config (COMMITTED)
-# .env.production         - Production environment config (COMMITTED)
-#
-# Local/secret files (gitignored - contain sensitive credentials)
-.env.local
-.env.development.local
-.env.staging.local
-.env.test.local
-.env.production.local
+.env
+.env.*
+!.env.local.example
 
 # Firebase
 .firebase/
