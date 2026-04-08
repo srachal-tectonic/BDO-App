@@ -83,7 +83,7 @@ export function CurrencyInput({
 
   return (
     <div className="relative">
-      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6b7280] pointer-events-none">
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--t-color-text-secondary)] pointer-events-none">
         $
       </span>
       <input
@@ -96,9 +96,9 @@ export function CurrencyInput({
         placeholder={placeholder}
         disabled={disabled}
         className={cn(
-          'w-full pl-8 pr-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] transition-all',
-          'focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none',
-          disabled && 'bg-[#f9fafb] text-[#6b7280] cursor-not-allowed',
+          'w-full pl-8 pr-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all',
+          'focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none',
+          disabled && 'bg-[#f9fafb] text-[color:var(--t-color-text-secondary)] cursor-not-allowed',
           className
         )}
         data-testid={testId}

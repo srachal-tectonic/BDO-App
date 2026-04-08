@@ -255,35 +255,35 @@ export default function FileUploadWithYearTags({
 
   return (
     <div className="mb-7">
-      <label className="block text-sm font-medium text-[#374151] mb-2">{label}</label>
+      <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">{label}</label>
       {description && (
-        <p className="text-sm text-[#6b7280] mb-3">{description}</p>
+        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-3">{description}</p>
       )}
 
       <div
         onClick={() => !isUploading && document.getElementById(`file-input-${testId}`)?.click()}
-        className={`border-2 border-dashed border-[#d1d5db] rounded-lg p-6 text-center bg-[#f8f9fb] transition-all ${
+        className={`border-2 border-dashed border-[var(--t-color-border)] rounded-lg p-6 text-center bg-[#f8f9fb] transition-all ${
           isUploading
             ? 'cursor-wait opacity-60'
-            : 'cursor-pointer hover:border-[#2563eb] hover:bg-[#eff6ff]'
+            : 'cursor-pointer hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff]'
         }`}
         data-testid={`upload-area-${testId}`}
       >
         {isUploading ? (
           <>
-            <Loader2 className="w-12 h-12 mx-auto mb-2 text-[#2563eb] animate-spin" />
-            <div className="text-[15px] text-[#1f2937] font-medium mb-1">
+            <Loader2 className="w-12 h-12 mx-auto mb-2 text-[color:var(--t-color-accent)] animate-spin" />
+            <div className="text-[15px] text-[color:var(--t-color-text-body)] font-medium mb-1">
               Uploading to SharePoint...
             </div>
-            <div className="text-sm text-[#9ca3af]">Please wait</div>
+            <div className="text-sm text-[color:var(--t-color-text-muted)]">Please wait</div>
           </>
         ) : (
           <>
-            <FileText className="w-12 h-12 mx-auto mb-2 text-[#6b7280]" />
-            <div className="text-[15px] text-[#1f2937] font-medium mb-1">
+            <FileText className="w-12 h-12 mx-auto mb-2 text-[color:var(--t-color-text-secondary)]" />
+            <div className="text-[15px] text-[color:var(--t-color-text-body)] font-medium mb-1">
               Click to upload {multiple ? 'files' : 'file'}
             </div>
-            <div className="text-sm text-[#9ca3af]">PDF, XLSX, Images, Word (max. 10MB)</div>
+            <div className="text-sm text-[color:var(--t-color-text-muted)]">PDF, XLSX, Images, Word (max. 10MB)</div>
           </>
         )}
         <input
@@ -307,8 +307,8 @@ export default function FileUploadWithYearTags({
 
       {/* Description Input (for Other Files) */}
       {showDescription && currentFile && (
-        <div className="mt-4 p-4 bg-[#f9fafb] border border-[#d1d5db] rounded-lg">
-          <p className="text-sm font-medium text-[#374151] mb-2">
+        <div className="mt-4 p-4 bg-[#f9fafb] border border-[var(--t-color-border)] rounded-lg">
+          <p className="text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
             Add a description for: {currentFile.name}
           </p>
           <input
@@ -316,20 +316,20 @@ export default function FileUploadWithYearTags({
             value={currentDescription}
             onChange={(e) => setCurrentDescription(e.target.value)}
             placeholder="Enter file description..."
-            className="w-full px-4 py-2 border border-[#d1d5db] rounded-lg text-[15px] mb-3"
+            className="w-full px-4 py-2 border border-[var(--t-color-border)] rounded-lg text-[15px] mb-3"
             data-testid="input-file-description"
           />
           <div className="flex gap-2">
             <button
               onClick={handleAddWithDescription}
-              className="px-4 py-2 bg-[#2563eb] text-white rounded-md text-sm font-medium hover-elevate active-elevate-2"
+              className="px-4 py-2 bg-[var(--t-color-accent)] text-white rounded-md text-sm font-medium hover-elevate active-elevate-2"
               data-testid="button-add-with-description"
             >
               Add File
             </button>
             <button
               onClick={() => setCurrentFile(null)}
-              className="px-4 py-2 bg-[#f3f4f6] text-[#4b5563] rounded-md text-sm font-medium hover-elevate active-elevate-2"
+              className="px-4 py-2 bg-[var(--t-color-input-bg)] text-[#4b5563] rounded-md text-sm font-medium hover-elevate active-elevate-2"
               data-testid="button-cancel-description"
             >
               Cancel
@@ -348,12 +348,12 @@ export default function FileUploadWithYearTags({
             return (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 bg-white border border-[#e5e7eb] rounded-lg"
+                className="flex items-center justify-between p-3 bg-white border border-[var(--t-color-border)] rounded-lg"
                 data-testid={`file-item-${testId}-${index}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#1f2937] truncate">
+                    <span className="text-sm font-medium text-[color:var(--t-color-text-body)] truncate">
                       {fileName}
                     </span>
                     {isUploaded && (
@@ -367,7 +367,7 @@ export default function FileUploadWithYearTags({
                       {fileData.years.map((year) => (
                         <span
                           key={year}
-                          className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-[#2563eb] text-white"
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-[var(--t-color-accent)] text-white"
                           data-testid={`year-badge-${year}`}
                         >
                           {year}
@@ -376,14 +376,14 @@ export default function FileUploadWithYearTags({
                     </div>
                   )}
                   {fileData.description && (
-                    <div className="text-xs text-[#6b7280] mt-1">
+                    <div className="text-xs text-[color:var(--t-color-text-secondary)] mt-1">
                       {fileData.description}
                     </div>
                   )}
                 </div>
                 <button
                   onClick={() => handleRemoveFile(index)}
-                  className="ml-3 text-[#ef4444] hover:text-[#dc2626] cursor-pointer"
+                  className="ml-3 text-[#ef4444] hover:text-[color:var(--t-color-danger-text)] cursor-pointer"
                   data-testid={`button-remove-file-${index}`}
                 >
                   <X className="w-5 h-5" />

@@ -139,37 +139,37 @@ export default function CreditMatrixScoring({
   return (
     <div>
       {/* Total Score at the top */}
-      <div className="bg-white border border-[#d1d5db] rounded-lg px-6 py-4 mb-4">
+      <div className="bg-white border border-[var(--t-color-border)] rounded-lg px-6 py-4 mb-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-[#6b7280] text-sm font-medium">Total Score:</span>
-            <span className="text-2xl font-bold text-[#1a1a1a]" data-testid="text-total-risk-score">{totalScore}</span>
-            <span className="text-[#9ca3af] text-lg">/27</span>
+            <span className="text-[color:var(--t-color-text-secondary)] text-sm font-medium">Total Score:</span>
+            <span className="text-2xl font-bold text-[color:var(--t-color-text-body)]" data-testid="text-total-risk-score">{totalScore}</span>
+            <span className="text-[color:var(--t-color-text-muted)] text-lg">/27</span>
           </div>
           <div className="flex items-center gap-4 text-sm flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Repayment:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.repayment}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Repayment:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.repayment}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Management:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.management}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Management:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.management}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Credit:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.credit}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Credit:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.credit}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Equity:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.equity}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Equity:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.equity}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Collateral:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.collateral}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Collateral:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.collateral}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280]">Liquidity:</span>
-              <span className="font-medium text-[#1a1a1a]">{scores.liquidity}</span>
+              <span className="text-[color:var(--t-color-text-secondary)]">Liquidity:</span>
+              <span className="font-medium text-[color:var(--t-color-text-body)]">{scores.liquidity}</span>
             </div>
           </div>
         </div>
@@ -186,13 +186,13 @@ export default function CreditMatrixScoring({
           return (
             <div
               key={category.key}
-              className="bg-white border border-[#d1d5db] rounded-lg overflow-hidden"
+              className="bg-white border border-[var(--t-color-border)] rounded-lg overflow-hidden"
               data-testid={`category-${category.key}`}
             >
               <div className="p-4">
                 {/* Header row with label and score buttons */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                  <h3 className="text-base font-semibold text-[#1a1a1a]">{category.label}</h3>
+                  <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)]">{category.label}</h3>
 
                   {/* Score Buttons */}
                   <div className="flex items-center gap-2">
@@ -210,12 +210,12 @@ export default function CreditMatrixScoring({
                           disabled={isButtonDisabled}
                           className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
                             isScoreNA
-                              ? 'bg-[#f3f4f6] text-[#d1d5db] cursor-not-allowed'
+                              ? 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-border)] cursor-not-allowed'
                               : isSelected
-                              ? 'bg-[#2563eb] text-white shadow-md scale-105'
+                              ? 'bg-[var(--t-color-accent)] text-white shadow-md scale-105'
                               : disabled
-                              ? 'bg-[#f3f4f6] text-[#9ca3af] cursor-not-allowed'
-                              : 'bg-white border border-[#d1d5db] text-[#374151] hover:border-[#2563eb] hover:bg-[#eff6ff]'
+                              ? 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-text-muted)] cursor-not-allowed'
+                              : 'bg-white border border-[var(--t-color-border)] text-[color:var(--t-color-text-body)] hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff]'
                           }`}
                           title={isScoreNA ? 'Not Applicable' : criteriaText}
                           data-testid={`score-button-${category.key}-${score}`}
@@ -231,7 +231,7 @@ export default function CreditMatrixScoring({
                 <button
                   type="button"
                   onClick={() => toggleExpand(category.key)}
-                  className="flex items-center gap-1 text-xs text-[#2563eb] hover:text-[#1d4ed8] font-medium mb-3"
+                  className="flex items-center gap-1 text-xs text-[color:var(--t-color-accent)] hover:text-[color:var(--t-color-primary)] font-medium mb-3"
                   data-testid={`expand-${category.key}`}
                 >
                   {isExpanded ? 'Hide all criteria' : 'View all criteria'}
@@ -240,7 +240,7 @@ export default function CreditMatrixScoring({
 
                 {/* Expanded criteria list */}
                 {isExpanded && (
-                  <div className="space-y-2 mb-3 border-t border-[#e5e7eb] pt-3">
+                  <div className="space-y-2 mb-3 border-t border-[var(--t-color-border)] pt-3">
                     {[0, 1, 2, 3, 4, 5]
                       .filter((score) => category.scores[score] !== 'N/A')
                       .map((score) => {
@@ -252,21 +252,21 @@ export default function CreditMatrixScoring({
                             key={score}
                             className={`p-3 rounded-lg border ${
                               isSelected
-                                ? 'bg-[#eff6ff] border-[#2563eb]'
-                                : 'bg-white border-[#e5e7eb]'
+                                ? 'bg-[#eff6ff] border-[var(--t-color-accent)]'
+                                : 'bg-white border-[var(--t-color-border)]'
                             }`}
                           >
                             <div className="flex items-start gap-3">
                               <span
                                 className={`w-6 h-6 rounded flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
                                   isSelected
-                                    ? 'bg-[#2563eb] text-white'
-                                    : 'bg-[#f3f4f6] text-[#374151]'
+                                    ? 'bg-[var(--t-color-accent)] text-white'
+                                    : 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-text-body)]'
                                 }`}
                               >
                                 {score}
                               </span>
-                              <p className="text-sm text-[#374151]">{criteriaText}</p>
+                              <p className="text-sm text-[color:var(--t-color-text-body)]">{criteriaText}</p>
                             </div>
                           </div>
                         );
@@ -276,7 +276,7 @@ export default function CreditMatrixScoring({
 
                 {/* Explanation textarea */}
                 <div>
-                  <label className="block text-xs font-medium text-[#6b7280] mb-1.5">
+                  <label className="block text-xs font-medium text-[color:var(--t-color-text-secondary)] mb-1.5">
                     Explanation
                   </label>
                   <textarea
@@ -284,7 +284,7 @@ export default function CreditMatrixScoring({
                     onChange={(e) => onExplanationChange?.(category.key, e.target.value)}
                     placeholder={`Enter explanation for ${category.label.toLowerCase()} score...`}
                     disabled={disabled}
-                    className={`w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-sm resize-none focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none ${
+                    className={`w-full px-3 py-2 border border-[var(--t-color-border)] rounded-lg text-sm resize-none focus:border-[var(--t-color-accent)] focus:ring-1 focus:ring-[var(--t-color-accent)] outline-none ${
                       disabled ? 'bg-[#f9fafb] cursor-not-allowed' : 'bg-white'
                     }`}
                     rows={2}

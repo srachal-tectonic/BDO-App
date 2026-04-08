@@ -38,18 +38,18 @@ export function CollapsibleCard({
   };
 
   return (
-    <div className="border border-[#e5e7eb] rounded-lg overflow-hidden bg-white">
+    <div className="border border-[var(--t-color-border)] rounded-lg overflow-hidden bg-white">
       <div
-        className="flex items-center justify-between px-4 py-3 bg-[#f9fafb] border-b border-[#e5e7eb] cursor-pointer hover:bg-[#f3f4f6] transition-colors"
+        className="flex items-center justify-between px-4 py-3 bg-[#f9fafb] border-b border-[var(--t-color-border)] cursor-pointer hover:bg-[var(--t-color-input-bg)] transition-colors"
         onClick={handleToggle}
       >
         <div className="flex items-center gap-2">
           {isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-[#6b7280]" />
+            <ChevronDown className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
           ) : (
-            <ChevronRight className="w-5 h-5 text-[#6b7280]" />
+            <ChevronRight className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
           )}
-          <h3 className="text-sm font-semibold text-[#374151]">{title}</h3>
+          <h3 className="text-sm font-semibold text-[color:var(--t-color-text-body)]">{title}</h3>
         </div>
         {headerContent && (
           <div onClick={(e) => e.stopPropagation()}>

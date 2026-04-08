@@ -380,7 +380,7 @@ export default function AddressInput({ value, onChange, idPrefix, disabled = fal
           onChange={handleInputChange}
           placeholder="Enter street address"
           disabled={disabled}
-          className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+          className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
           data-testid={`input-${idPrefix}-street`}
           autoComplete="street-address"
         />
@@ -403,7 +403,7 @@ export default function AddressInput({ value, onChange, idPrefix, disabled = fal
         onChange={handleInputChange}
         placeholder="Enter street address"
         disabled={disabled}
-        className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+        className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
         data-testid={`input-${idPrefix}-street`}
         autoComplete="off"
       />

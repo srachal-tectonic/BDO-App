@@ -161,9 +161,9 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
   const netWorth = totalAssets - totalLiabilities;
 
   return (
-    <div className="bg-white border border-[#e5e7eb] rounded-lg overflow-hidden">
+    <div className="bg-white border border-[var(--t-color-border)] rounded-lg overflow-hidden">
       <div
-        className="flex items-center justify-between p-3 cursor-pointer bg-[#f8fafc] border-b border-[#e5e7eb]"
+        className="flex items-center justify-between p-3 cursor-pointer bg-[#f8fafc] border-b border-[var(--t-color-border)]"
         onClick={onToggle}
         data-testid={`toggle-pfs-${index + 1}`}
       >
@@ -171,26 +171,26 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
           <div className="w-7 h-7 rounded-full bg-[#1e3a5f] text-white flex items-center justify-center text-xs font-semibold">
             {index + 1}
           </div>
-          <h3 className="text-sm font-semibold text-[#1f2937]">{applicantName || `Applicant ${index + 1}`}</h3>
+          <h3 className="text-sm font-semibold text-[color:var(--t-color-text-body)]">{applicantName || `Applicant ${index + 1}`}</h3>
         </div>
-        <ChevronDown className={`w-4 h-4 text-[#6b7280] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-[color:var(--t-color-text-secondary)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </div>
 
       {isExpanded && (
         <div className="p-4">
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1">Name</label>
-              <input type="text" value={pfsData.name} onChange={(e) => updatePFS('name', e.target.value)} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-sm" data-testid={`input-pfs-name-${index}`} />
+              <label className="block text-xs font-medium text-[color:var(--t-color-text-body)] mb-1">Name</label>
+              <input type="text" value={pfsData.name} onChange={(e) => updatePFS('name', e.target.value)} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-sm" data-testid={`input-pfs-name-${index}`} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1">As of Date</label>
-              <input type="date" value={pfsData.asOfDate} onChange={(e) => updatePFS('asOfDate', e.target.value)} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-sm" data-testid={`input-pfs-date-${index}`} />
+              <label className="block text-xs font-medium text-[color:var(--t-color-text-body)] mb-1">As of Date</label>
+              <input type="date" value={pfsData.asOfDate} onChange={(e) => updatePFS('asOfDate', e.target.value)} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-sm" data-testid={`input-pfs-date-${index}`} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-[#f9fafb] rounded-lg p-3 border border-[#e5e7eb]">
+            <div className="bg-[#f9fafb] rounded-lg p-3 border border-[var(--t-color-border)]">
               <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#1e3a5f]">ASSETS</h4>
               {[
                 { field: 'cashOnHand', label: 'Cash on Hand & in Banks', helper: '' },
@@ -206,10 +206,10 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
               ].map(({ field, label, helper }) => (
                 <div key={field} className="flex items-center justify-between py-1.5 border-b border-[#f3f4f6]">
                   <div className="flex-1 min-w-0 pr-2">
-                    <span className="text-xs text-[#374151] block">{label}</span>
-                    {helper && <span className="text-[10px] text-[#6b7280] italic block">{helper}</span>}
+                    <span className="text-xs text-[color:var(--t-color-text-body)] block">{label}</span>
+                    {helper && <span className="text-[10px] text-[color:var(--t-color-text-secondary)] italic block">{helper}</span>}
                   </div>
-                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[#d1d5db] rounded text-xs text-right flex-shrink-0" placeholder="$" data-testid={`input-${field}-${index}`} />
+                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[var(--t-color-border)] rounded text-xs text-right flex-shrink-0" placeholder="$" data-testid={`input-${field}-${index}`} />
                 </div>
               ))}
               <div className="flex items-center justify-between pt-2 mt-1 border-t-2 border-[#1e3a5f]">
@@ -218,7 +218,7 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
               </div>
             </div>
 
-            <div className="bg-[#f9fafb] rounded-lg p-3 border border-[#e5e7eb]">
+            <div className="bg-[#f9fafb] rounded-lg p-3 border border-[var(--t-color-border)]">
               <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#1e3a5f]">LIABILITIES</h4>
               {[
                 { field: 'accountsPayable', label: 'Accounts Payable', helper: '' },
@@ -232,10 +232,10 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
               ].map(({ field, label, helper }) => (
                 <div key={field} className="flex items-center justify-between py-1.5 border-b border-[#f3f4f6]">
                   <div className="flex-1 min-w-0 pr-2">
-                    <span className="text-xs text-[#374151] block">{label}</span>
-                    {helper && <span className="text-[10px] text-[#6b7280] italic block">{helper}</span>}
+                    <span className="text-xs text-[color:var(--t-color-text-body)] block">{label}</span>
+                    {helper && <span className="text-[10px] text-[color:var(--t-color-text-secondary)] italic block">{helper}</span>}
                   </div>
-                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[#d1d5db] rounded text-xs text-right flex-shrink-0" placeholder="$" data-testid={`input-${field}-${index}`} />
+                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[var(--t-color-border)] rounded text-xs text-right flex-shrink-0" placeholder="$" data-testid={`input-${field}-${index}`} />
                 </div>
               ))}
               <div className="flex items-center justify-between pt-2 mt-1 border-t-2 border-[#1e3a5f]">
@@ -243,15 +243,15 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                 <span className="text-sm font-bold text-[#1e3a5f] bg-[#e0f2fe] px-2 py-1 rounded">${totalLiabilities.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between pt-2 mt-2">
-                <span className="text-xs font-bold text-[#374151]">Net Worth</span>
-                <span className={`text-sm font-bold px-2 py-1 rounded ${netWorth >= 0 ? 'text-[#059669] bg-[#f0fdf4]' : 'text-[#dc2626] bg-[#fef2f2]'}`}>${netWorth.toLocaleString()}</span>
+                <span className="text-xs font-bold text-[color:var(--t-color-text-body)]">Net Worth</span>
+                <span className={`text-sm font-bold px-2 py-1 rounded ${netWorth >= 0 ? 'text-[#059669] bg-[#f0fdf4]' : 'text-[color:var(--t-color-danger-text)] bg-[#fef2f2]'}`}>${netWorth.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">1</span>
                 Source of Income
               </h4>
@@ -262,13 +262,13 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                 { field: 'otherIncome', label: 'Other Income' },
               ].map(({ field, label }) => (
                 <div key={field} className="flex items-center justify-between py-1 border-b border-[#f3f4f6]">
-                  <span className="text-xs text-[#374151]">{label}</span>
-                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" data-testid={`input-${field}-${index}`} />
+                  <span className="text-xs text-[color:var(--t-color-text-body)]">{label}</span>
+                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" data-testid={`input-${field}-${index}`} />
                 </div>
               ))}
             </div>
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">1</span>
                 Contingent Liabilities
               </h4>
@@ -279,22 +279,22 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                 { field: 'otherSpecialDebt', label: 'Other Special Debt' },
               ].map(({ field, label }) => (
                 <div key={field} className="flex items-center justify-between py-1 border-b border-[#f3f4f6]">
-                  <span className="text-xs text-[#374151]">{label}</span>
-                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" data-testid={`input-${field}-${index}`} />
+                  <span className="text-xs text-[color:var(--t-color-text-body)]">{label}</span>
+                  <input type="number" value={pfsData[field as keyof PFSData] as string} onChange={(e) => updatePFS(field as keyof PFSData, e.target.value)} className="w-24 px-2 py-1 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" data-testid={`input-${field}-${index}`} />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-3 border border-[#e5e7eb] mb-4">
-            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+          <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)] mb-4">
+            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">2</span>
               Notes Payable to Banks and Others
             </h4>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#f3f4f6]">
+                  <tr className="bg-[var(--t-color-input-bg)]">
                     <th className="px-2 py-1 text-left font-semibold">Noteholder</th>
                     <th className="px-2 py-1 text-left font-semibold">Original Bal</th>
                     <th className="px-2 py-1 text-left font-semibold">Current Bal</th>
@@ -306,13 +306,13 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                 </thead>
                 <tbody>
                   {pfsData.notesPayable.map((note, idx) => (
-                    <tr key={idx} className="border-b border-[#e5e7eb]">
-                      <td className="p-1"><input type="text" value={note.noteholder} onChange={(e) => handleArrayChange('notesPayable', idx, 'noteholder', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" /></td>
-                      <td className="p-1"><input type="number" value={note.originalBalance} onChange={(e) => handleArrayChange('notesPayable', idx, 'originalBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" /></td>
-                      <td className="p-1"><input type="number" value={note.currentBalance} onChange={(e) => handleArrayChange('notesPayable', idx, 'currentBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" /></td>
-                      <td className="p-1"><input type="number" value={note.paymentAmount} onChange={(e) => handleArrayChange('notesPayable', idx, 'paymentAmount', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" /></td>
+                    <tr key={idx} className="border-b border-[var(--t-color-border)]">
+                      <td className="p-1"><input type="text" value={note.noteholder} onChange={(e) => handleArrayChange('notesPayable', idx, 'noteholder', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" /></td>
+                      <td className="p-1"><input type="number" value={note.originalBalance} onChange={(e) => handleArrayChange('notesPayable', idx, 'originalBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" /></td>
+                      <td className="p-1"><input type="number" value={note.currentBalance} onChange={(e) => handleArrayChange('notesPayable', idx, 'currentBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" /></td>
+                      <td className="p-1"><input type="number" value={note.paymentAmount} onChange={(e) => handleArrayChange('notesPayable', idx, 'paymentAmount', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" /></td>
                       <td className="p-1">
-                        <select value={note.frequency} onChange={(e) => handleArrayChange('notesPayable', idx, 'frequency', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs">
+                        <select value={note.frequency} onChange={(e) => handleArrayChange('notesPayable', idx, 'frequency', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs">
                           <option value="">Select</option>
                           <option value="weekly">Weekly</option>
                           <option value="bi-weekly">Bi-Weekly</option>
@@ -321,10 +321,10 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                           <option value="annually">Annually</option>
                         </select>
                       </td>
-                      <td className="p-1"><input type="text" value={note.collateral} onChange={(e) => handleArrayChange('notesPayable', idx, 'collateral', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" /></td>
+                      <td className="p-1"><input type="text" value={note.collateral} onChange={(e) => handleArrayChange('notesPayable', idx, 'collateral', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" /></td>
                       <td className="p-1 text-center">
                         {pfsData.notesPayable.length > 1 && (
-                          <button type="button" onClick={() => removeArrayItem('notesPayable', idx)} className="text-[#dc2626] hover:bg-[#fee2e2] rounded p-0.5"><X className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => removeArrayItem('notesPayable', idx)} className="text-[color:var(--t-color-danger-text)] hover:bg-[#fee2e2] rounded p-0.5"><X className="w-3 h-3" /></button>
                         )}
                       </td>
                     </tr>
@@ -337,15 +337,15 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
             </button>
           </div>
 
-          <div className="bg-white rounded-lg p-3 border border-[#e5e7eb] mb-4">
-            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+          <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)] mb-4">
+            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">3</span>
               Stocks and Bonds
             </h4>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#f3f4f6]">
+                  <tr className="bg-[var(--t-color-input-bg)]">
                     <th className="px-2 py-1 text-left font-semibold"># Shares</th>
                     <th className="px-2 py-1 text-left font-semibold">Name of Securities</th>
                     <th className="px-2 py-1 text-left font-semibold">Cost</th>
@@ -357,16 +357,16 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                 </thead>
                 <tbody>
                   {pfsData.securities.map((sec, idx) => (
-                    <tr key={idx} className="border-b border-[#e5e7eb]">
-                      <td className="p-1"><input type="number" value={sec.numberOfShares} onChange={(e) => handleArrayChange('securities', idx, 'numberOfShares', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" /></td>
-                      <td className="p-1"><input type="text" value={sec.nameOfSecurities} onChange={(e) => handleArrayChange('securities', idx, 'nameOfSecurities', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" /></td>
-                      <td className="p-1"><input type="number" value={sec.cost} onChange={(e) => handleArrayChange('securities', idx, 'cost', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" /></td>
-                      <td className="p-1"><input type="text" value={sec.marketValue} onChange={(e) => handleArrayChange('securities', idx, 'marketValue', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" /></td>
-                      <td className="p-1"><input type="date" value={sec.dateOfQuotation} onChange={(e) => handleArrayChange('securities', idx, 'dateOfQuotation', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" /></td>
-                      <td className="p-1"><input type="number" value={sec.totalValue} onChange={(e) => handleArrayChange('securities', idx, 'totalValue', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" /></td>
+                    <tr key={idx} className="border-b border-[var(--t-color-border)]">
+                      <td className="p-1"><input type="number" value={sec.numberOfShares} onChange={(e) => handleArrayChange('securities', idx, 'numberOfShares', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" /></td>
+                      <td className="p-1"><input type="text" value={sec.nameOfSecurities} onChange={(e) => handleArrayChange('securities', idx, 'nameOfSecurities', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" /></td>
+                      <td className="p-1"><input type="number" value={sec.cost} onChange={(e) => handleArrayChange('securities', idx, 'cost', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" /></td>
+                      <td className="p-1"><input type="text" value={sec.marketValue} onChange={(e) => handleArrayChange('securities', idx, 'marketValue', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" /></td>
+                      <td className="p-1"><input type="date" value={sec.dateOfQuotation} onChange={(e) => handleArrayChange('securities', idx, 'dateOfQuotation', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" /></td>
+                      <td className="p-1"><input type="number" value={sec.totalValue} onChange={(e) => handleArrayChange('securities', idx, 'totalValue', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" /></td>
                       <td className="p-1 text-center">
                         {pfsData.securities.length > 1 && (
-                          <button type="button" onClick={() => removeArrayItem('securities', idx)} className="text-[#dc2626] hover:bg-[#fee2e2] rounded p-0.5"><X className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => removeArrayItem('securities', idx)} className="text-[color:var(--t-color-danger-text)] hover:bg-[#fee2e2] rounded p-0.5"><X className="w-3 h-3" /></button>
                         )}
                       </td>
                     </tr>
@@ -379,19 +379,19 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
             </button>
           </div>
 
-          <div className="bg-white rounded-lg p-3 border border-[#e5e7eb] mb-4">
-            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+          <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)] mb-4">
+            <h4 className="text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">4</span>
               Real Estate Owned
             </h4>
             <div className="grid grid-cols-3 gap-3">
               {['Property A', 'Property B', 'Property C'].map((label, idx) => (
-                <div key={idx} className="bg-[#f9fafb] rounded p-2 border border-[#e5e7eb]">
-                  <h5 className="text-xs font-semibold text-[#1e3a5f] mb-2 pb-1 border-b border-[#d1d5db]">{label}</h5>
+                <div key={idx} className="bg-[#f9fafb] rounded p-2 border border-[var(--t-color-border)]">
+                  <h5 className="text-xs font-semibold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">{label}</h5>
                   <div className="space-y-1.5">
                     <div>
-                      <label className="block text-[10px] text-[#6b7280]">Type</label>
-                      <select value={pfsData.realEstateOwned[idx]?.type || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'type', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs">
+                      <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Type</label>
+                      <select value={pfsData.realEstateOwned[idx]?.type || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'type', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs">
                         <option value="">Select</option>
                         <option value="primary_residence">Primary Residence</option>
                         <option value="other_residence">Other Residence</option>
@@ -401,32 +401,32 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] text-[#6b7280]">Address</label>
-                      <input type="text" value={pfsData.realEstateOwned[idx]?.address || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'address', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs" />
+                      <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Address</label>
+                      <input type="text" value={pfsData.realEstateOwned[idx]?.address || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'address', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs" />
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                       <div>
-                        <label className="block text-[10px] text-[#6b7280]">Original Cost</label>
-                        <input type="number" value={pfsData.realEstateOwned[idx]?.originalCost || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'originalCost', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" />
+                        <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Original Cost</label>
+                        <input type="number" value={pfsData.realEstateOwned[idx]?.originalCost || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'originalCost', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-[#6b7280]">Market Value</label>
-                        <input type="number" value={pfsData.realEstateOwned[idx]?.presentMarketValue || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'presentMarketValue', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" />
+                        <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Market Value</label>
+                        <input type="number" value={pfsData.realEstateOwned[idx]?.presentMarketValue || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'presentMarketValue', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                       <div>
-                        <label className="block text-[10px] text-[#6b7280]">Mortgage Bal</label>
-                        <input type="number" value={pfsData.realEstateOwned[idx]?.mortgageBalance || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'mortgageBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" />
+                        <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Mortgage Bal</label>
+                        <input type="number" value={pfsData.realEstateOwned[idx]?.mortgageBalance || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'mortgageBalance', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-[#6b7280]">Mo. Payment</label>
-                        <input type="number" value={pfsData.realEstateOwned[idx]?.monthlyPayment || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'monthlyPayment', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs text-right" placeholder="$" />
+                        <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Mo. Payment</label>
+                        <input type="number" value={pfsData.realEstateOwned[idx]?.monthlyPayment || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'monthlyPayment', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs text-right" placeholder="$" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] text-[#6b7280]">Status</label>
-                      <select value={pfsData.realEstateOwned[idx]?.status || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-[#d1d5db] rounded text-xs">
+                      <label className="block text-[10px] text-[color:var(--t-color-text-secondary)]">Status</label>
+                      <select value={pfsData.realEstateOwned[idx]?.status || ''} onChange={(e) => handleArrayChange('realEstateOwned', idx, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-[var(--t-color-border)] rounded text-xs">
                         <option value="">Select</option>
                         <option value="current">Current</option>
                         <option value="delinquent">Delinquent</option>
@@ -440,33 +440,33 @@ function ApplicantPFS({ applicantId, applicantName, index, isExpanded, onToggle 
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">5</span>
                 Other Personal Property & Other Assets
               </label>
-              <textarea value={pfsData.otherPersonalPropertyDescription} onChange={(e) => updatePFS('otherPersonalPropertyDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-xs resize-none" placeholder="Describe automobiles (Year/Make/Model), retirement accounts, and other assets..." data-testid={`input-otherPropertyDesc-${index}`} />
+              <textarea value={pfsData.otherPersonalPropertyDescription} onChange={(e) => updatePFS('otherPersonalPropertyDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-xs resize-none" placeholder="Describe automobiles (Year/Make/Model), retirement accounts, and other assets..." data-testid={`input-otherPropertyDesc-${index}`} />
             </div>
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">6</span>
                 Unpaid Taxes
               </label>
-              <textarea value={pfsData.unpaidTaxesDescription} onChange={(e) => updatePFS('unpaidTaxesDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-xs resize-none" placeholder="Type of tax, to whom payable, when due, amount, property to which lien attaches..." data-testid={`input-unpaidTaxesDesc-${index}`} />
+              <textarea value={pfsData.unpaidTaxesDescription} onChange={(e) => updatePFS('unpaidTaxesDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-xs resize-none" placeholder="Type of tax, to whom payable, when due, amount, property to which lien attaches..." data-testid={`input-unpaidTaxesDesc-${index}`} />
             </div>
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">7</span>
                 Other Liabilities
               </label>
-              <textarea value={pfsData.otherLiabilitiesDescription} onChange={(e) => updatePFS('otherLiabilitiesDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-xs resize-none" placeholder="Student loans, personal loans, credit card debt, other obligations..." data-testid={`input-otherLiabilitiesDesc-${index}`} />
+              <textarea value={pfsData.otherLiabilitiesDescription} onChange={(e) => updatePFS('otherLiabilitiesDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-xs resize-none" placeholder="Student loans, personal loans, credit card debt, other obligations..." data-testid={`input-otherLiabilitiesDesc-${index}`} />
             </div>
-            <div className="bg-white rounded-lg p-3 border border-[#e5e7eb]">
-              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[#e5e7eb]">
+            <div className="bg-white rounded-lg p-3 border border-[var(--t-color-border)]">
+              <label className="flex items-center text-xs font-bold text-[#1e3a5f] mb-2 pb-1 border-b border-[var(--t-color-border)]">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1e3a5f] text-white text-[10px] mr-1.5">8</span>
                 Life Insurance Held
               </label>
-              <textarea value={pfsData.lifeInsuranceDescription} onChange={(e) => updatePFS('lifeInsuranceDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[#d1d5db] rounded text-xs resize-none" placeholder="Insurance company, face amount, cash surrender value, beneficiaries..." data-testid={`input-lifeInsuranceDesc-${index}`} />
+              <textarea value={pfsData.lifeInsuranceDescription} onChange={(e) => updatePFS('lifeInsuranceDescription', e.target.value)} rows={3} className="w-full px-2 py-1.5 border border-[var(--t-color-border)] rounded text-xs resize-none" placeholder="Insurance company, face amount, cash surrender value, beneficiaries..." data-testid={`input-lifeInsuranceDesc-${index}`} />
             </div>
           </div>
         </div>
@@ -502,16 +502,16 @@ export default function PersonalFinancialStatementsSection() {
   return (
     <div>
       <div className="p-4 sm:p-6 pb-3">
-        <h1 className="text-[28px] font-bold text-[#1a1a1a]">Personal Financial Statements</h1>
-        <p className="text-sm text-[#6b7280] mt-1">SBA Form 413</p>
+        <h1 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">Personal Financial Statements</h1>
+        <p className="text-sm text-[color:var(--t-color-text-secondary)] mt-1">SBA Form 413</p>
       </div>
 
       <div className="px-4 sm:px-6 mb-4">
-        <div className="bg-[#f8fafc] border border-[#e5e7eb] rounded-lg p-3">
+        <div className="bg-[#f8fafc] border border-[var(--t-color-border)] rounded-lg p-3">
           <div className="flex items-start gap-2 cursor-pointer" onClick={() => setDescriptionExpanded(!descriptionExpanded)}>
-            <ChevronDown className={`w-4 h-4 text-[#6b7280] transition-transform flex-shrink-0 mt-0.5 ${descriptionExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-[color:var(--t-color-text-secondary)] transition-transform flex-shrink-0 mt-0.5 ${descriptionExpanded ? 'rotate-180' : ''}`} />
             <div className="flex-1">
-              <h3 className="text-xs font-semibold text-[#374151]">About This Section</h3>
+              <h3 className="text-xs font-semibold text-[color:var(--t-color-text-body)]">About This Section</h3>
               {descriptionExpanded && (
                 <p className="text-xs text-[#4b5563] mt-1 leading-relaxed">
                   Complete a Personal Financial Statement for each individual applicant who owns 20% or more of the business. This form provides a snapshot of your personal assets, liabilities, and net worth as required by the SBA.
@@ -535,8 +535,8 @@ export default function PersonalFinancialStatementsSection() {
             />
           ))
         ) : (
-          <div className="bg-[#f8f9fb] rounded-lg border border-[#e5e7eb] p-6 text-center">
-            <p className="text-sm text-[#6b7280]">
+          <div className="bg-[#f8f9fb] rounded-lg border border-[var(--t-color-border)] p-6 text-center">
+            <p className="text-sm text-[color:var(--t-color-text-secondary)]">
               Please add individual applicants in the previous step to complete their Personal Financial Statements.
             </p>
           </div>

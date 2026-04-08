@@ -16,7 +16,7 @@ import ReviewSection from '@/components/loan-sections/ReviewSection';
 import VideoMessageSection from '@/components/loan-sections/VideoMessageSection';
 import SBAEligibilitySection from '@/components/loan-sections/SBAEligibilitySection';
 import SellerInfoSection from '@/components/loan-sections/SellerInfoSection';
-import SpreadsSection from '@/components/loan-sections/SpreadsSection';
+import FinancialsSection from '@/components/loan-sections/FinancialsSection';
 import PQMemoForm from '@/components/PQMemoForm';
 import ProposalLetterForm from '@/components/ProposalLetterForm';
 import { Button } from '@/components/ui/button';
@@ -63,8 +63,9 @@ export default function BDOToolsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('loan-application');
+  const [activeTab, setActiveTab] = useState('project-overview');
   const [currentSection, setCurrentSection] = useState(1);
+  const [loanAppSubTab, setLoanAppSubTab] = useState<'business-applicant' | 'individual-applicants' | 'other-businesses' | 'project-info'>('business-applicant');
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSavedData, setLastSavedData] = useState<string>('');
@@ -146,52 +147,15 @@ export default function BDOToolsPage() {
       });
 
       if (data) {
-        let projectData = data;
-
-        // If project doesn't have a SharePoint folder, create one
-        if (!data.sharepointFolderId) {
-          console.log('[SharePoint] Project missing SharePoint folder, creating one...');
-          try {
-            const folderResponse = await authenticatedPost('/api/sharepoint/create-folder', {
-              projectName: data.projectName,
-            });
-
-            if (folderResponse.ok) {
-              const folderData = await folderResponse.json();
-              console.log('[SharePoint] Folder created:', folderData);
-
-              // Update project in database with the new folder ID
-              await updateProject(projectId, {
-                sharepointFolderId: folderData.folderId,
-                sharepointFolderUrl: folderData.folderUrl,
-              });
-
-              // Update local project data
-              projectData = {
-                ...data,
-                sharepointFolderId: folderData.folderId,
-                sharepointFolderUrl: folderData.folderUrl,
-              };
-              console.log('[SharePoint] Project updated with folder ID');
-            } else {
-              const errorData = await folderResponse.json();
-              console.error('[SharePoint] Failed to create folder:', errorData);
-            }
-          } catch (folderError) {
-            console.error('[SharePoint] Error creating folder:', folderError);
-          }
-        }
-
-        setProject(projectData);
+        setProject(data);
 
         // Migrate legacy spreads workbook fields to new array format if needed
         try {
-          const migrated = await migrateLegacySpreadsWorkbook(projectId, projectData);
+          const migrated = await migrateLegacySpreadsWorkbook(projectId, data);
           if (migrated) {
             // Re-fetch project to get updated data after migration
             const updatedProject = await getProject(projectId);
             if (updatedProject) {
-              projectData = updatedProject;
               setProject(updatedProject);
             }
           }
@@ -200,8 +164,8 @@ export default function BDOToolsPage() {
         }
 
         // Set spreads workbooks from project data
-        setSpreadsWorkbooks(projectData.spreadsWorkbooks || []);
-        setPrimarySpreadId(projectData.primarySpreadId);
+        setSpreadsWorkbooks(data.spreadsWorkbooks || []);
+        setPrimarySpreadId(data.primarySpreadId);
 
         // Try to load existing loan application data from database
         const loanAppData = await getLoanApplication(projectId);
@@ -213,16 +177,16 @@ export default function BDOToolsPage() {
           console.log('Loaded existing loan application data from database');
         } else {
           // No existing data, pre-fill the application form with project data
-          initializeFromProject(projectData);
+          initializeFromProject(data);
           setLastSavedData(JSON.stringify(applicationData));
           setHasUnsavedChanges(false);
           console.log('Initialized new loan application with project data');
         }
 
         // If a primary spread is set, load the synced data into the tables
-        if (projectData.primarySpreadId) {
-          console.log('Loading primary spread data for:', projectData.primarySpreadId);
-          await loadPrimarySpreadData(projectId, projectData.primarySpreadId);
+        if (data.primarySpreadId) {
+          console.log('Loading primary spread data for:', data.primarySpreadId);
+          await loadPrimarySpreadData(projectId, data.primarySpreadId);
         }
       }
     } catch (error) {
@@ -309,17 +273,7 @@ export default function BDOToolsPage() {
       case 1:
         return <ProjectOverviewSection />;
       case 2:
-        return (
-          <FundingStructureSection
-            projectId={projectId}
-            existingWorkbooks={spreadsWorkbooks}
-            currentUser={userInfo ? { uid: userInfo.uid, displayName: userInfo.displayName } : undefined}
-            onWorkbookCreated={handleWorkbookCreated}
-            onWorkbookDeleted={handleWorkbookDeleted}
-            primarySpreadId={primarySpreadId}
-            onPrimarySpreadChanged={handlePrimarySpreadChanged}
-          />
-        );
+        return <FundingStructureSection isReadOnly={false} />;
       case 3:
         return <BusinessApplicantSection />;
       case 4:
@@ -371,34 +325,30 @@ export default function BDOToolsPage() {
   return (
     <BDOLayout title={project.projectName} stage={project.stage}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex items-center gap-4 mb-6 border-b border-[#e5e7eb]">
+        <div className="flex items-center gap-4 mb-6 border-b border-[var(--t-color-border)]">
           <TabsList className="bg-transparent border-none p-0 h-auto gap-0 w-full justify-start">
-            <TabsTrigger value="loan-application" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <FileText className="w-4 h-4" />
+            <TabsTrigger value="project-overview" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+              Project Overview
+            </TabsTrigger>
+            <TabsTrigger value="loan-application" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Loan Application
             </TabsTrigger>
-            <TabsTrigger value="spreads" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <Table2 className="w-4 h-4" />
+            <TabsTrigger value="spreads" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Spreads
             </TabsTrigger>
-            <TabsTrigger value="pq-memo" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <FileEdit className="w-4 h-4" />
+            <TabsTrigger value="pq-memo" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               PQ Memo
             </TabsTrigger>
-            <TabsTrigger value="proposal-letter" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <Send className="w-4 h-4" />
+            <TabsTrigger value="proposal-letter" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Proposal Letter
             </TabsTrigger>
-            <TabsTrigger value="notes" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <StickyNote className="w-4 h-4" />
+            <TabsTrigger value="notes" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Notes
             </TabsTrigger>
-            <TabsTrigger value="borrower-forms" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <FileText className="w-4 h-4" />
+            <TabsTrigger value="borrower-forms" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Borrower Forms and Files
             </TabsTrigger>
-            <TabsTrigger value="broker-access" className="px-4 py-2.5 text-[14px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold gap-1.5">
-              <Link2 className="w-4 h-4" />
+            <TabsTrigger value="broker-access" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Broker Access
             </TabsTrigger>
           </TabsList>
@@ -412,136 +362,82 @@ export default function BDOToolsPage() {
           </Button>
         </div>
 
-        <TabsContent value="loan-application" className="mt-0">
-          {/* Horizontal Stepper */}
-          <div className="mb-6">
-            <div className="flex items-center py-5 px-4">
-              {LOAN_APPLICATION_STEPS.map((step, index) => {
-                const isActive = currentSection === step.id;
-                const isCompleted = completedSections.includes(step.id);
-                const isLast = index === LOAN_APPLICATION_STEPS.length - 1;
-                const lineIsBlue = isCompleted;
-                return (
-                  <div key={step.id} className="flex items-center" style={{ flex: isLast ? '0 0 auto' : '1 1 0' }}>
-                    <div
-                      className="flex flex-col items-center cursor-pointer relative"
-                      onClick={() => setCurrentSection(step.id)}
-                    >
-                      <div
-                        className={`
-                          w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0 transition-all
-                          ${isActive ? 'bg-[#2563eb] text-white ring-[3px] ring-[#2563eb]/20' : ''}
-                          ${isCompleted && !isActive ? 'bg-[#2563eb] text-white' : ''}
-                          ${!isActive && !isCompleted ? 'bg-[#e5e7eb] text-[#9ca3af]' : ''}
-                        `}
-                      >
-                        {isCompleted && !isActive ? <Check className="w-4 h-4" /> : index + 1}
-                      </div>
-                      {isActive && (
-                        <span className="text-[#2563eb] text-[11px] font-medium mt-1 text-center whitespace-nowrap absolute top-full">
-                          {step.title}
-                        </span>
-                      )}
-                    </div>
-                    {!isLast && (
-                      <div className={`flex-1 h-[3px] mx-1 rounded-full ${lineIsBlue ? 'bg-[#2563eb]' : 'bg-[#e5e7eb]'}`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        <TabsContent value="project-overview" className="mt-0">
+          <ProjectOverviewSection />
+        </TabsContent>
+
+        <TabsContent value="loan-application" className="mt-0 pt-0">
+          {/* Sub-tab navigation bar */}
+          <div className="bg-[var(--t-color-primary)] pt-3 pl-6 flex items-end gap-0 overflow-x-auto">
+            {([
+              { key: 'business-applicant', label: 'Business Applicant' },
+              { key: 'individual-applicants', label: 'Individual Applicants' },
+              { key: 'other-businesses', label: 'Other Owned Businesses' },
+              { key: 'project-info', label: 'Project Information' },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setLoanAppSubTab(tab.key)}
+                className={`px-4 py-2 text-[length:var(--t-font-size-base)] font-medium whitespace-nowrap transition-colors text-white/90 ${
+                  loanAppSubTab === tab.key
+                    ? 'bg-[var(--t-color-primary-light)]'
+                    : 'bg-transparent hover:bg-white/10'
+                }`}
+                data-testid={`stepper-step-${tab.key}`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Main Content */}
-          <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-            {/* Section Header */}
-            <div className="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-[18px] font-bold text-[#1a1a1a]">
-                  {LOAN_APPLICATION_STEPS[currentSection - 1]?.title}
-                </h2>
-                {hasUnsavedChanges && (
-                  <span className="text-xs text-amber-600 font-medium">Unsaved changes</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {process.env.NODE_ENV === 'development' && (
-                  <button
-                    onClick={handleFillDummyData}
-                    className="px-3 py-1.5 border border-amber-400 text-amber-600 text-[13px] font-medium rounded-lg hover:bg-amber-50 transition-colors flex items-center gap-2"
-                  >
-                    <Beaker className="w-4 h-4" />
-                    Fill Dummy Data
-                  </button>
-                )}
-                <button
-                  onClick={() => handleSave(true)}
-                  disabled={isSaving}
-                  className="px-4 py-1.5 border border-[#d1d5db] text-[#374151] text-[13px] font-medium rounded-lg hover:bg-[#f3f4f6] transition-colors flex items-center gap-2 disabled:opacity-50"
-                >
-                  {!isSaving && <Save className="w-4 h-4" />}
-                  {isSaving ? 'Saving...' : 'Save Progress'}
-                </button>
-              </div>
-            </div>
-
-            {/* Section Content */}
-            <div className="min-h-[400px]">
-              {renderSectionContent()}
+          {/* Sub-tab content */}
+          <div className="min-h-[calc(100vh-240px)]">
+            <div className="px-7">
+              {loanAppSubTab === 'business-applicant' && (
+                <>
+                  <BusinessApplicantSection />
+                  <SBAEligibilitySection />
+                </>
+              )}
+              {loanAppSubTab === 'individual-applicants' && <IndividualApplicantsSection />}
+              {loanAppSubTab === 'other-businesses' && <OtherOwnedBusinessesSection />}
+              {loanAppSubTab === 'project-info' && <SellerInfoSection />}
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 px-4 sm:px-6 pt-4 pb-6 border-t border-[#e5e7eb]">
-              {currentSection > 1 && (
+            <div className="flex gap-3 px-6 pt-4 pb-6 border-t border-[var(--t-color-border)]">
+              {loanAppSubTab !== 'business-applicant' && (
                 <button
-                  onClick={handlePrevious}
-                  className="w-full sm:w-auto px-6 py-3 bg-white border border-[#d1d5db] text-[#374151] text-[15px] font-medium rounded-lg cursor-pointer transition-all hover:bg-[#f3f4f6]"
+                  onClick={() => {
+                    const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info'] as const;
+                    const idx = tabs.indexOf(loanAppSubTab);
+                    if (idx > 0) setLoanAppSubTab(tabs[idx - 1]);
+                  }}
+                  className="px-6 py-3 bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] text-[color:var(--t-color-primary)] text-[length:var(--t-font-size-base)] font-medium rounded-md cursor-pointer transition-all hover-elevate active-elevate-2"
                 >
                   Previous
                 </button>
               )}
-              {currentSection < 9 ? (
-                <button
-                  onClick={handleNext}
-                  disabled={isSaving}
-                  className="w-full sm:w-auto px-6 py-3 bg-[#2563eb] text-white text-[15px] font-medium rounded-lg cursor-pointer transition-all border-none hover:bg-[#1d4ed8] flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isSaving ? 'Saving...' : 'Continue'}
-                  {!isSaving && <ChevronRight className="w-4 h-4" />}
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleSave(true)}
-                  disabled={isSaving}
-                  className="w-full sm:w-auto px-6 py-3 bg-[#10b981] text-white text-[15px] font-medium rounded-lg cursor-pointer transition-all border-none hover:bg-[#059669] flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4" />
-                  {isSaving ? 'Saving...' : 'Save All Changes'}
-                </button>
-              )}
-              {hasUnsavedChanges && !isSaving && (
-                <span className="text-sm text-amber-600 self-center ml-auto">Unsaved changes</span>
-              )}
-              {isSaving && (
-                <span className="text-sm text-[#6b7280] self-center ml-auto">Saving...</span>
-              )}
+              <button
+                onClick={() => {
+                  const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info'] as const;
+                  const idx = tabs.indexOf(loanAppSubTab);
+                  if (idx < tabs.length - 1) setLoanAppSubTab(tabs[idx + 1]);
+                }}
+                className="px-6 py-3 bg-[var(--t-color-primary)] text-white text-[length:var(--t-font-size-base)] font-medium rounded-md cursor-pointer transition-all border-none hover-elevate active-elevate-2 flex items-center gap-2"
+              >
+                Continue
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="spreads" className="mt-0">
-          <Card>
-            <CardContent className="pt-6">
-              <SpreadsSection
-                projectId={projectId}
-                projectName={project?.projectName}
-                existingWorkbooks={spreadsWorkbooks}
-                currentUser={userInfo ? { uid: userInfo.uid, displayName: userInfo.displayName } : undefined}
-                onWorkbookCreated={handleWorkbookCreated}
-                onWorkbookDeleted={handleWorkbookDeleted}
-              />
-            </CardContent>
-          </Card>
+          <FundingStructureSection isReadOnly={false} />
+          <div className="mt-6">
+            <FinancialsSection projectId={projectId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="pq-memo" className="mt-0">
@@ -562,11 +458,11 @@ export default function BDOToolsPage() {
 
         <TabsContent value="borrower-forms" className="mt-0">
           <Tabs defaultValue="borrower-forms-sub" className="w-full">
-            <TabsList className="bg-transparent border-none p-0 h-auto gap-0 mb-4 border-b border-[#e5e7eb] w-full justify-start">
-              <TabsTrigger value="borrower-forms-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold">
+            <TabsList className="bg-transparent border-none p-0 h-auto gap-0 mb-4 border-b border-[var(--t-color-border)] w-full justify-start">
+              <TabsTrigger value="borrower-forms-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
                 Borrower Forms
               </TabsTrigger>
-              <TabsTrigger value="borrower-files-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[#2563eb] data-[state=active]:text-[#2563eb] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[#6b7280] data-[state=active]:font-semibold">
+              <TabsTrigger value="borrower-files-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
                 Borrower Files
               </TabsTrigger>
             </TabsList>

@@ -32,15 +32,15 @@ export default function LearnMorePanel({ isOpen, onClose, title, children }: Lea
         data-testid="learn-more-panel"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#e5e7eb] bg-white">
-          <h2 className="text-xl font-semibold text-[#1a1a1a]">{title}</h2>
+        <div className="flex items-center justify-between p-6 border-b border-[var(--t-color-border)] bg-white">
+          <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)]">{title}</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 transition-all flex-shrink-0"
             data-testid="button-close-learn-more"
             aria-label="Close"
           >
-            <X className="w-6 h-6 text-[#6b7280]" />
+            <X className="w-6 h-6 text-[color:var(--t-color-text-secondary)]" />
           </button>
         </div>
 
@@ -57,14 +57,14 @@ export function IndirectOwnershipExplainer() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[#6b7280] text-[15px] mb-6">
+        <p className="text-[color:var(--t-color-text-secondary)] text-[15px] mb-6">
           SBA requires disclosure of all natural persons who own 20% or more — including those who own through other entities.
         </p>
       </div>
 
       {/* Example Diagram */}
-      <div className="bg-white border border-[#e5e7eb] rounded-lg p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-[#6b7280] mb-4">
+      <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--t-color-text-secondary)] mb-4">
           Example: ABC Restaurant LLC
         </div>
 
@@ -80,10 +80,10 @@ export function IndirectOwnershipExplainer() {
           {/* Connector lines */}
           <div className="h-8 relative w-full max-w-[280px] flex justify-center mb-3">
             <div className="relative w-full h-full">
-              <div className="absolute top-0 left-1/2 w-0.5 h-1/2 bg-[#cbd5e1] -translate-x-1/2"></div>
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#cbd5e1]"></div>
-              <div className="absolute bottom-0 left-0 w-0.5 h-1/2 bg-[#cbd5e1]"></div>
-              <div className="absolute bottom-0 right-0 w-0.5 h-1/2 bg-[#cbd5e1]"></div>
+              <div className="absolute top-0 left-1/2 w-0.5 h-1/2 bg-[var(--t-color-disabled)] -translate-x-1/2"></div>
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[var(--t-color-disabled)]"></div>
+              <div className="absolute bottom-0 left-0 w-0.5 h-1/2 bg-[var(--t-color-disabled)]"></div>
+              <div className="absolute bottom-0 right-0 w-0.5 h-1/2 bg-[var(--t-color-disabled)]"></div>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export function IndirectOwnershipExplainer() {
           </div>
 
           {/* Drill down notice */}
-          <div className="flex items-start gap-2 mb-3 px-3 py-2.5 bg-[#eff6ff] border-l-[3px] border-[#2563eb] rounded-r-lg text-xs text-[#1e40af] w-full">
+          <div className="flex items-start gap-2 mb-3 px-3 py-2.5 bg-[#eff6ff] border-l-[3px] border-[var(--t-color-accent)] rounded-r-lg text-xs text-[color:var(--t-color-primary)] w-full">
             <ChevronDown className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>
               <strong>Drill down required:</strong> Who are the natural persons behind Smith Holdings LLC?
@@ -112,9 +112,9 @@ export function IndirectOwnershipExplainer() {
           {/* Second level connector */}
           <div className="h-8 relative w-full max-w-[200px] ml-auto mr-2 mb-3">
             <div className="relative w-full h-full">
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#cbd5e1]"></div>
-              <div className="absolute bottom-0 left-0 w-0.5 h-1/2 bg-[#cbd5e1]"></div>
-              <div className="absolute bottom-0 right-0 w-0.5 h-1/2 bg-[#cbd5e1]"></div>
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[var(--t-color-disabled)]"></div>
+              <div className="absolute bottom-0 left-0 w-0.5 h-1/2 bg-[var(--t-color-disabled)]"></div>
+              <div className="absolute bottom-0 right-0 w-0.5 h-1/2 bg-[var(--t-color-disabled)]"></div>
             </div>
           </div>
 
@@ -135,37 +135,37 @@ export function IndirectOwnershipExplainer() {
 
         {/* Calculation Box */}
         <div className="bg-[#f8fafc] rounded-lg p-4 mt-6 text-sm">
-          <div className="font-semibold mb-3 text-[#1a1a1a]">Calculating Indirect Ownership</div>
+          <div className="font-semibold mb-3 text-[color:var(--t-color-text-body)]">Calculating Indirect Ownership</div>
           <div className="flex justify-between py-2 border-b border-dashed border-[#e2e8f0]">
-            <span className="text-[#6b7280]">John Smith&apos;s indirect ownership:</span>
-            <span className="font-mono text-[#1e40af]">40% × 75% = <strong>30%</strong></span>
+            <span className="text-[color:var(--t-color-text-secondary)]">John Smith&apos;s indirect ownership:</span>
+            <span className="font-mono text-[color:var(--t-color-primary)]">40% × 75% = <strong>30%</strong></span>
           </div>
           <div className="flex justify-between py-2">
-            <span className="text-[#6b7280]">Jane Smith&apos;s indirect ownership:</span>
-            <span className="font-mono text-[#1e40af]">40% × 25% = <strong>10%</strong></span>
+            <span className="text-[color:var(--t-color-text-secondary)]">Jane Smith&apos;s indirect ownership:</span>
+            <span className="font-mono text-[color:var(--t-color-primary)]">40% × 25% = <strong>10%</strong></span>
           </div>
         </div>
 
         {/* Legend */}
         <div className="flex gap-6 mt-6 pt-6 border-t border-[#e2e8f0] flex-wrap text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-[#2563eb]"></div>
-            <span className="text-[#374151]">Applicant Business</span>
+            <div className="w-4 h-4 rounded bg-[var(--t-color-accent)]"></div>
+            <span className="text-[color:var(--t-color-text-body)]">Applicant Business</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-[#fef3c7] border-2 border-[#f59e0b]"></div>
-            <span className="text-[#374151]">Entity (requires drill-down)</span>
+            <span className="text-[color:var(--t-color-text-body)]">Entity (requires drill-down)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-[#dcfce7] border-2 border-[#22c55e]"></div>
-            <span className="text-[#374151]">Natural Person (individual)</span>
+            <span className="text-[color:var(--t-color-text-body)]">Natural Person (individual)</span>
           </div>
         </div>
       </div>
 
       {/* Explanation */}
-      <div className="bg-white border border-[#e5e7eb] rounded-lg p-6">
-        <h3 className="text-base font-semibold text-[#1a1a1a] mb-4">Who Must Be Disclosed?</h3>
+      <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-6">
+        <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-4">Who Must Be Disclosed?</h3>
 
         <div className="space-y-4 text-[15px] text-[#475569]">
           <p>

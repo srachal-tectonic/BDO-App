@@ -30,13 +30,13 @@ export default function PasswordToggle({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full px-4 py-3 pr-12 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] ${className}`}
+        className={`w-full px-4 py-3 pr-12 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] ${className}`}
         data-testid={testId}
       />
       <button
         type="button"
         onClick={() => setShowPassword(!showPassword)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#6b7280] hover:text-[#374151] transition-colors"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[color:var(--t-color-text-secondary)] hover:text-[color:var(--t-color-text-body)] transition-colors"
         data-testid={`${testId}-toggle`}
       >
         {showPassword ? (

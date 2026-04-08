@@ -22,7 +22,7 @@ export interface SpreadsWorkbook {
 }
 
 // Project Status Type
-export type ProjectStatus = 'Draft' | 'Watch List' | 'Warmer Leads' | 'Active Lead' | 'PQ Advance' | 'PQ More Info' | 'UW' | 'Closing' | 'Adverse Action' | 'Withdrawn';
+export type ProjectStatus = 'Leads' | 'PQ Prep' | 'PQ Advance' | 'PQ Reject' | 'UW' | 'Closing' | 'Withdraw | Decline';
 
 // Project Types
 export interface Project {

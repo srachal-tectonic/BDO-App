@@ -315,8 +315,8 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
       <CollapsibleSection title="Risk Assessment">
         <div className="space-y-4">
           {/* Q1: Business Stage */}
-          <div className="p-3 border border-[#e5e7eb] rounded-lg bg-[#f9fafb]">
-            <label className="block text-sm font-medium text-[#374151] mb-2">
+          <div className="p-3 border border-[var(--t-color-border)] rounded-lg bg-[#f9fafb]">
+            <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
               Q1 — Which best describes the operating business being financed?
             </label>
             <div className="flex flex-col gap-2">
@@ -333,18 +333,18 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                     checked={classification.businessStage === option.value}
                     onChange={() => updateClassification({ businessStage: option.value as ClassificationState['businessStage'] })}
                     disabled={isReadOnly}
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] focus:ring-[var(--t-color-accent)]"
                     data-testid={`radio-business-stage-${option.value}`}
                   />
-                  <span className="text-[15px] text-[#374151]">{option.label}</span>
+                  <span className="text-[15px] text-[color:var(--t-color-text-body)]">{option.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Q2: Ownership Change */}
-          <div className="p-3 border border-[#e5e7eb] rounded-lg bg-[#f9fafb]">
-            <label className="block text-sm font-medium text-[#374151] mb-2">
+          <div className="p-3 border border-[var(--t-color-border)] rounded-lg bg-[#f9fafb]">
+            <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
               Q2 — Is there an ownership change in the operating business?
             </label>
             <div className="flex flex-col gap-2">
@@ -361,18 +361,18 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                     checked={classification.ownershipChange === option.value}
                     onChange={() => updateClassification({ ownershipChange: option.value as ClassificationState['ownershipChange'] })}
                     disabled={isReadOnly}
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] focus:ring-[var(--t-color-accent)]"
                     data-testid={`radio-ownership-change-${option.value}`}
                   />
-                  <span className="text-[15px] text-[#374151]">{option.label}</span>
+                  <span className="text-[15px] text-[color:var(--t-color-text-body)]">{option.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Q3: Commercial Real Estate */}
-          <div className="p-3 border border-[#e5e7eb] rounded-lg bg-[#f9fafb]">
-            <label className="block text-sm font-medium text-[#374151] mb-2">
+          <div className="p-3 border border-[var(--t-color-border)] rounded-lg bg-[#f9fafb]">
+            <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
               Q3 — Is owner-occupied commercial real estate part of the project?
             </label>
             <div className="flex flex-col gap-2">
@@ -390,18 +390,18 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                     checked={classification.creComponent === option.value}
                     onChange={() => updateClassification({ creComponent: option.value as ClassificationState['creComponent'] })}
                     disabled={isReadOnly}
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] focus:ring-[var(--t-color-accent)]"
                     data-testid={`radio-cre-component-${option.value}`}
                   />
-                  <span className="text-[15px] text-[#374151]">{option.label}</span>
+                  <span className="text-[15px] text-[color:var(--t-color-text-body)]">{option.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Q4: Debt Refinance */}
-          <div className="p-3 border border-[#e5e7eb] rounded-lg bg-[#f9fafb]">
-            <label className="block text-sm font-medium text-[#374151] mb-2">
+          <div className="p-3 border border-[var(--t-color-border)] rounded-lg bg-[#f9fafb]">
+            <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
               Q4 — Will the project refinance existing debt?
             </label>
             <div className="flex flex-col gap-2">
@@ -418,18 +418,18 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                     checked={classification.debtRefinance === option.value}
                     onChange={() => updateClassification({ debtRefinance: option.value as ClassificationState['debtRefinance'] })}
                     disabled={isReadOnly}
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] focus:ring-[var(--t-color-accent)]"
                     data-testid={`radio-debt-refinance-${option.value}`}
                   />
-                  <span className="text-[15px] text-[#374151]">{option.label}</span>
+                  <span className="text-[15px] text-[color:var(--t-color-text-body)]">{option.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {/* Q5: Use of Proceeds */}
-          <div className="p-3 border border-[#e5e7eb] rounded-lg bg-[#f9fafb]">
-            <label className="block text-sm font-medium text-[#374151] mb-2">
+          <div className="p-3 border border-[var(--t-color-border)] rounded-lg bg-[#f9fafb]">
+            <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
               Q5 — Use of proceeds (select all that apply)
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -486,13 +486,13 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                         value={option}
                         checked={isChecked}
                         onChange={handleToggle}
-                        className="w-5 h-5 text-[#2563eb] border-[#d1d5db] rounded focus:ring-2 focus:ring-[#2563eb] focus:ring-offset-0 flex-shrink-0 disabled:cursor-not-allowed"
+                        className="w-5 h-5 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] rounded focus:ring-2 focus:ring-[var(--t-color-accent)] focus:ring-offset-0 flex-shrink-0 disabled:cursor-not-allowed"
                         disabled={isReadOnly || isAutoChecked}
                         data-testid={`checkbox-purpose-${option.toLowerCase().replace(/[\s\/\:]+/g, '-')}`}
                       />
-                      <span className="text-[15px] text-[#1a1a1a]">
+                      <span className="text-[15px] text-[color:var(--t-color-text-body)]">
                         {option}
-                        {isAutoChecked && <span className="text-xs text-[#6b7280] ml-1">(auto)</span>}
+                        {isAutoChecked && <span className="text-xs text-[color:var(--t-color-text-secondary)] ml-1">(auto)</span>}
                       </span>
                     </label>
                   );
@@ -502,14 +502,14 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
           </div>
 
           {/* Risk Result */}
-          <div className="mt-3 p-3 border-2 border-dashed border-[#d1d5db] rounded-lg bg-white">
+          <div className="mt-3 p-3 border-2 border-dashed border-[var(--t-color-border)] rounded-lg bg-white">
             {resolvedProjectType ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-3 flex-wrap">
                   <CheckCircle className="w-5 h-5 text-[#10b981]" />
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-[#6b7280]">Project:</span>
-                    <span className="text-[15px] font-semibold text-[#1a1a1a]" data-testid="text-resolved-project-type">
+                    <span className="text-sm text-[color:var(--t-color-text-secondary)]">Project:</span>
+                    <span className="text-[15px] font-semibold text-[color:var(--t-color-text-body)]" data-testid="text-resolved-project-type">
                       {resolvedProjectType}
                     </span>
                     {(() => {
@@ -524,7 +524,7 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                 </div>
 
                 <div className="mt-2" data-testid="risk-heat-map">
-                  <div className="text-xs text-[#6b7280] mb-1.5">Risk Matrix Position:</div>
+                  <div className="text-xs text-[color:var(--t-color-text-secondary)] mb-1.5">Risk Matrix Position:</div>
                   <div className="relative" data-testid="risk-gradient-bar">
                     <div
                       className="h-5 rounded-full overflow-hidden"
@@ -555,7 +555,7 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
                       );
                     })()}
                   </div>
-                  <div className="flex justify-between mt-6 text-[10px] text-[#9ca3af]">
+                  <div className="flex justify-between mt-6 text-[10px] text-[color:var(--t-color-text-muted)]">
                     <span>Low</span>
                     <span>Very High</span>
                   </div>
@@ -564,7 +564,7 @@ export default function RiskAssessmentSection({ isReadOnly = false }: RiskAssess
             ) : (
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-[#f59e0b]" />
-                <span className="text-sm text-[#6b7280]">
+                <span className="text-sm text-[color:var(--t-color-text-secondary)]">
                   {rules.length === 0
                     ? 'No classification rules have been configured. Contact an administrator to set up risk assessment rules.'
                     : 'Answer all questions above to determine the project type'}

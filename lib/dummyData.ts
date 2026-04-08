@@ -347,6 +347,7 @@ export const dummyApplicationData: ApplicationData = {
     businesses: [],
   },
   feeDisclosure: null,
+  financingSources: [],
   uploadedFiles: [],
 };
 

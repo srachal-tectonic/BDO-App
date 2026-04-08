@@ -495,25 +495,25 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         onClick={() => !isUploading && !disabled && inputRef.current?.click()}
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
           disabled
-            ? 'border-[#e5e7eb] bg-[#f9fafb] cursor-not-allowed opacity-60'
+            ? 'border-[var(--t-color-border)] bg-[#f9fafb] cursor-not-allowed opacity-60'
             : isThisSectionUploading
-            ? 'border-[#d1d5db] bg-[#f8f9fb] cursor-wait opacity-60'
-            : 'border-[#d1d5db] bg-[#f8f9fb] cursor-pointer hover:border-[#2563eb] hover:bg-[#eff6ff]'
+            ? 'border-[var(--t-color-border)] bg-[#f8f9fb] cursor-wait opacity-60'
+            : 'border-[var(--t-color-border)] bg-[#f8f9fb] cursor-pointer hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff]'
         }`}
         data-testid={`upload-area-${section}`}
       >
         {isThisSectionUploading ? (
           <>
-            <Loader2 className="w-12 h-12 mx-auto mb-2 text-[#2563eb] animate-spin" />
-            <div className="text-[15px] text-[#1f2937] font-medium mb-1">
+            <Loader2 className="w-12 h-12 mx-auto mb-2 text-[color:var(--t-color-accent)] animate-spin" />
+            <div className="text-[15px] text-[color:var(--t-color-text-body)] font-medium mb-1">
               Uploading to SharePoint...
             </div>
-            <div className="text-sm text-[#9ca3af]">Please wait</div>
+            <div className="text-sm text-[color:var(--t-color-text-muted)]">Please wait</div>
           </>
         ) : (
           <>
             <div className="text-4xl mb-2">📄</div>
-            <div className="text-[15px] text-[#6b7280]">Click to upload files</div>
+            <div className="text-[15px] text-[color:var(--t-color-text-secondary)]">Click to upload files</div>
           </>
         )}
         <input
@@ -540,9 +540,9 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
       <div className="mt-4 space-y-2">
         {/* Loading indicator */}
         {isLoadingFiles && (
-          <div className="p-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg flex items-center gap-2">
-            <Loader2 className="w-4 h-4 text-[#6b7280] animate-spin" />
-            <span className="text-sm text-[#6b7280]">Loading files...</span>
+          <div className="p-3 bg-[#f9fafb] border border-[var(--t-color-border)] rounded-lg flex items-center gap-2">
+            <Loader2 className="w-4 h-4 text-[color:var(--t-color-text-secondary)] animate-spin" />
+            <span className="text-sm text-[color:var(--t-color-text-secondary)]">Loading files...</span>
           </div>
         )}
 
@@ -550,9 +550,9 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         {existingFiles.map((filename, index) => (
           <div
             key={`existing-${index}`}
-            className="p-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg"
+            className="p-3 bg-[#f9fafb] border border-[var(--t-color-border)] rounded-lg"
           >
-            <span className="text-sm text-[#1f2937]">
+            <span className="text-sm text-[color:var(--t-color-text-body)]">
               {filename}
             </span>
           </div>
@@ -562,9 +562,9 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         {uploadedFiles.map((file, index) => (
           <div
             key={`uploaded-${file.id}-${index}`}
-            className="p-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg"
+            className="p-3 bg-[#f9fafb] border border-[var(--t-color-border)] rounded-lg"
           >
-            <span className="text-sm text-[#1f2937]">
+            <span className="text-sm text-[color:var(--t-color-text-body)]">
               {file.name}
             </span>
           </div>
@@ -576,24 +576,24 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
   return (
     <div>
       <div className="p-4 sm:p-6 pb-3 sm:pb-4">
-        <h1 className="text-[28px] font-bold text-[#1a1a1a]">File Uploads</h1>
+        <h1 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">File Uploads</h1>
       </div>
 
       {/* About This Section */}
       <div className="px-4 sm:px-6 mb-6">
-        <div className="bg-[#f8fafc] border border-[#e5e7eb] rounded-lg p-4">
+        <div className="bg-[#f8fafc] border border-[var(--t-color-border)] rounded-lg p-4">
           <div
             className="flex items-start gap-3 cursor-pointer"
             onClick={() => setIsAboutExpanded(!isAboutExpanded)}
             data-testid="button-toggle-about-section"
           >
             <ChevronDown
-              className={`w-5 h-5 text-[#6b7280] flex-shrink-0 mt-0.5 transition-transform duration-200 ${
+              className={`w-5 h-5 text-[color:var(--t-color-text-secondary)] flex-shrink-0 mt-0.5 transition-transform duration-200 ${
                 isAboutExpanded ? 'rotate-180' : 'rotate-0'
               }`}
             />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-[#374151] mb-1">About This Section</h3>
+              <h3 className="text-sm font-semibold text-[color:var(--t-color-text-body)] mb-1">About This Section</h3>
               {isAboutExpanded && (
                 <div className="mt-2">
                   <p className="text-[15px] text-[#4b5563] leading-relaxed">
@@ -628,14 +628,14 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
 
       <div className="px-4 sm:px-6 space-y-6">
         {/* Business Applicant Section */}
-        <div className="bg-white border border-[#e5e7eb] rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4 pb-3 border-b border-[#e5e7eb]">
+        <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-3 border-b border-[var(--t-color-border)]">
             Business Applicant
           </h2>
 
           {uploadInstructions.businessApplicant && (
             <div className="mb-4">
-              <p className="text-sm text-[#6b7280] whitespace-pre-wrap">
+              <p className="text-sm text-[color:var(--t-color-text-secondary)] whitespace-pre-wrap">
                 {uploadInstructions.businessApplicant}
               </p>
             </div>
@@ -646,8 +646,8 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         </div>
 
         {/* Individual Applicants Section */}
-        <div className="bg-white border border-[#e5e7eb] rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4 pb-3 border-b border-[#e5e7eb]">
+        <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-3 border-b border-[var(--t-color-border)]">
             Individual Applicants
           </h2>
 
@@ -665,7 +665,7 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
             <>
               {uploadInstructions.individualApplicants && (
                 <div className="mb-4">
-                  <p className="text-sm text-[#6b7280] whitespace-pre-wrap">
+                  <p className="text-sm text-[color:var(--t-color-text-secondary)] whitespace-pre-wrap">
                     {uploadInstructions.individualApplicants}
                   </p>
                 </div>
@@ -678,14 +678,14 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         </div>
 
         {/* Other Businesses Section */}
-        <div className="bg-white border border-[#e5e7eb] rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4 pb-3 border-b border-[#e5e7eb]">
+        <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-3 border-b border-[var(--t-color-border)]">
             Other Businesses
           </h2>
 
           {uploadInstructions.otherBusinesses && (
             <div className="mb-4">
-              <p className="text-sm text-[#6b7280] whitespace-pre-wrap">
+              <p className="text-sm text-[color:var(--t-color-text-secondary)] whitespace-pre-wrap">
                 {uploadInstructions.otherBusinesses}
               </p>
             </div>
@@ -696,14 +696,14 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
         </div>
 
         {/* Project Files Section */}
-        <div className="bg-white border border-[#e5e7eb] rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4 pb-3 border-b border-[#e5e7eb]">
+        <div className="bg-white border border-[var(--t-color-border)] rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-4 pb-3 border-b border-[var(--t-color-border)]">
             Project Files
           </h2>
 
           {uploadInstructions.projectFiles && (
             <div className="mb-4">
-              <p className="text-sm text-[#6b7280] whitespace-pre-wrap">
+              <p className="text-sm text-[color:var(--t-color-text-secondary)] whitespace-pre-wrap">
                 {uploadInstructions.projectFiles}
               </p>
             </div>

@@ -23,7 +23,7 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.65rem;
+    --radius: var(--t-border-radius);
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -40,8 +40,8 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 221.2 83.2% 53.3%;
 
-    /* Theme tokens (t-*) — sourced from Replit admin theme settings */
-    --t-font-family: 'Poppins', sans-serif;
+    /* Theme tokens (t-*) — sourced from admin theme settings */
+    --t-font-family: var(--font-poppins), sans-serif;
     --t-font-size-base: 13px;
     --t-font-size-sm: 11px;
     --t-font-size-lg: 15px;
@@ -155,7 +155,49 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--t-font-family);
+    font-size: var(--t-font-size-base);
+    color: var(--t-color-text-body);
   }
+
+  /* Theme-driven element defaults */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--t-color-text-primary);
+  }
+
+  label {
+    color: var(--t-color-text-secondary);
+  }
+
+  input, select, textarea {
+    color: var(--t-color-text-secondary);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--t-color-text-muted);
+  }
+
+  /* Radix/shadcn Select trigger value & dropdown items */
+  [role="combobox"],
+  [role="option"] {
+    color: var(--t-color-text-secondary);
+  }
+
+  th {
+    color: var(--t-color-text-secondary);
+  }
+
+  td {
+    color: var(--t-color-text-body);
+  }
+
+  /* Theme-driven layout defaults */
+  input, select, textarea {
+    border-radius: var(--t-border-radius);
+    padding: var(--t-input-py) var(--t-input-px);
+  }
+
+
 }
 
 /* Theme utility classes used by the Replit-style admin UI */

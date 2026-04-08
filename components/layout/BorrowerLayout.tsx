@@ -60,10 +60,10 @@ export function BorrowerLayout({ children, title }: BorrowerLayoutProps) {
                 alt="T Bank Logo"
                 className="h-10 w-auto"
               />
-              <span className="text-sm text-[#6b7280]">Borrower Portal</span>
+              <span className="text-sm text-[color:var(--t-color-text-secondary)]">Borrower Portal</span>
             </Link>
             {title && <span className="text-muted-foreground">•</span>}
-            {title && <h1 className="text-sm text-[#6b7280]">{title}</h1>}
+            {title && <h1 className="text-sm text-[color:var(--t-color-text-secondary)]">{title}</h1>}
           </div>
           <div className="flex items-center gap-4">
             <FloatingUserCard user={userData} onLogout={handleLogout} />

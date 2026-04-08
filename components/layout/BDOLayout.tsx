@@ -15,23 +15,20 @@ interface BDOLayoutProps {
 
 function getStageColor(stage: string): string {
   switch (stage) {
-    case 'Draft':
-      return 'bg-gray-100 text-gray-800';
-    case 'Watch List':
-    case 'Warmer Leads':
-      return 'bg-blue-100 text-blue-800';
-    case 'Active Lead':
-      return 'bg-green-100 text-green-800';
+    case 'Leads':
+      return 'bg-[#d0dbe9] text-[#133c7f]';
+    case 'PQ Prep':
+      return 'bg-[#a1b3d2] text-[#133c7f]';
     case 'PQ Advance':
-    case 'PQ More Info':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-[#718bbc] text-white';
+    case 'PQ Reject':
+      return 'bg-[#e7edf4] text-[#133c7f]';
     case 'UW':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-[#4362a5] text-white';
     case 'Closing':
-      return 'bg-teal-100 text-teal-800';
-    case 'Adverse Action':
-    case 'Withdrawn':
-      return 'bg-red-100 text-red-800';
+      return 'bg-[#133c7f] text-white';
+    case 'Withdraw | Decline':
+      return 'bg-[#e7edf4] text-[#133c7f]';
     default:
       return 'bg-gray-100 text-gray-800';
   }

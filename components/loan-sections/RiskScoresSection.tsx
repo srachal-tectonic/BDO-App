@@ -137,28 +137,28 @@ export default function RiskScoresSection() {
   return (
     <div>
       <div className="p-4 sm:p-6 pb-3 sm:pb-4">
-        <h1 className="text-[28px] font-bold text-[#1a1a1a]">Risk Scores</h1>
+        <h1 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">Risk Scores</h1>
       </div>
 
       <div className="px-4 sm:px-6 pb-6">
         {/* Total Score Summary */}
-        <div className="bg-white border border-[#d1d5db] rounded-lg px-6 py-4 mb-4">
+        <div className="bg-white border border-[var(--t-color-border)] rounded-lg px-6 py-4 mb-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-[#6b7280] text-sm font-medium">Total Score:</span>
+              <span className="text-[color:var(--t-color-text-secondary)] text-sm font-medium">Total Score:</span>
               <span
-                className="text-2xl font-bold text-[#1a1a1a]"
+                className="text-2xl font-bold text-[color:var(--t-color-text-body)]"
                 data-testid="text-total-risk-score"
               >
                 {totalScore}
               </span>
-              <span className="text-[#9ca3af] text-lg">/{maxScore}</span>
+              <span className="text-[color:var(--t-color-text-muted)] text-lg">/{maxScore}</span>
             </div>
             <div className="flex items-center gap-4 text-sm flex-wrap">
               {riskCategories.map((category) => (
                 <div key={category.key} className="flex items-center gap-2">
-                  <span className="text-[#6b7280]">{category.label.split('/')[0]}:</span>
-                  <span className="font-medium text-[#1a1a1a]">{scores[category.key]}</span>
+                  <span className="text-[color:var(--t-color-text-secondary)]">{category.label.split('/')[0]}:</span>
+                  <span className="font-medium text-[color:var(--t-color-text-body)]">{scores[category.key]}</span>
                 </div>
               ))}
             </div>
@@ -166,7 +166,7 @@ export default function RiskScoresSection() {
         </div>
 
         {/* Risk Categories */}
-        <div className="bg-white rounded-lg border border-[#d1d5db] divide-y divide-[#e5e7eb]">
+        <div className="bg-white rounded-lg border border-[var(--t-color-border)] divide-y divide-[#e5e7eb]">
           {riskCategories.map((category) => {
             const selectedScore = scores[category.key];
             const criteriaDescription = getSelectedCriteriaDescription(category, selectedScore);
@@ -177,7 +177,7 @@ export default function RiskScoresSection() {
                 <div className="px-4 py-3">
                   <div className="flex flex-col md:flex-row md:items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-semibold text-[#1a1a1a]">{category.label}</h3>
+                      <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)]">{category.label}</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       {category.criteria.map((criteria) => {
@@ -192,11 +192,11 @@ export default function RiskScoresSection() {
                             className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
                               criteria.disabled
                                 ? isSelected
-                                  ? 'bg-[#2563eb] text-white shadow-md scale-105'
-                                  : 'bg-[#f3f4f6] text-[#d1d5db] cursor-not-allowed'
+                                  ? 'bg-[var(--t-color-accent)] text-white shadow-md scale-105'
+                                  : 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-border)] cursor-not-allowed'
                                 : isSelected
-                                ? 'bg-[#2563eb] text-white shadow-md scale-105'
-                                : 'bg-white border border-[#d1d5db] text-[#374151] hover:border-[#2563eb] hover:bg-[#eff6ff] hover:scale-105'
+                                ? 'bg-[var(--t-color-accent)] text-white shadow-md scale-105'
+                                : 'bg-white border border-[var(--t-color-border)] text-[color:var(--t-color-text-body)] hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff] hover:scale-105'
                             }`}
                             title={criteria.disabled ? 'Not Applicable' : `Score ${criteria.score}`}
                             data-testid={`button-score-${category.key}-${criteria.score}`}
@@ -210,10 +210,10 @@ export default function RiskScoresSection() {
 
                   {/* Selected criteria description */}
                   {criteriaDescription && (
-                    <div className="mt-3 p-3 bg-white/80 rounded-lg border border-[#e5e7eb]">
+                    <div className="mt-3 p-3 bg-white/80 rounded-lg border border-[var(--t-color-border)]">
                       <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 text-[#2563eb] mt-0.5 flex-shrink-0" />
-                        <p className="text-[#374151] text-sm leading-relaxed">{criteriaDescription}</p>
+                        <Info className="w-4 h-4 text-[color:var(--t-color-accent)] mt-0.5 flex-shrink-0" />
+                        <p className="text-[color:var(--t-color-text-body)] text-sm leading-relaxed">{criteriaDescription}</p>
                       </div>
                     </div>
                   )}
@@ -221,7 +221,7 @@ export default function RiskScoresSection() {
                   {/* View all criteria button */}
                   <button
                     onClick={() => toggleExpanded(category.key)}
-                    className="mt-2 text-xs text-[#2563eb] hover:text-[#1d4ed8] font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-2 text-xs text-[color:var(--t-color-accent)] hover:text-[color:var(--t-color-primary)] font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid={`button-expand-${category.key}`}
                   >
                     {isExpanded ? 'Hide criteria' : 'View all criteria'}
@@ -238,25 +238,25 @@ export default function RiskScoresSection() {
                           key={criteria.score}
                           className={`p-3 rounded-lg border ${
                             criteria.disabled
-                              ? 'bg-[#f9fafb] border-[#e5e7eb] opacity-50'
+                              ? 'bg-[#f9fafb] border-[var(--t-color-border)] opacity-50'
                               : selectedScore === criteria.score
-                              ? 'bg-[#eff6ff] border-[#2563eb]'
-                              : 'bg-white border-[#e5e7eb]'
+                              ? 'bg-[#eff6ff] border-[var(--t-color-accent)]'
+                              : 'bg-white border-[var(--t-color-border)]'
                           }`}
                         >
                           <div className="flex items-start gap-3">
                             <span
                               className={`w-6 h-6 rounded flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
                                 criteria.disabled
-                                  ? 'bg-[#f3f4f6] text-[#9ca3af]'
+                                  ? 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-text-muted)]'
                                   : selectedScore === criteria.score
-                                  ? 'bg-[#2563eb] text-white'
-                                  : 'bg-[#f3f4f6] text-[#374151]'
+                                  ? 'bg-[var(--t-color-accent)] text-white'
+                                  : 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-text-body)]'
                               }`}
                             >
                               {criteria.disabled ? '—' : criteria.score}
                             </span>
-                            <p className="text-sm text-[#374151]">{criteria.description}</p>
+                            <p className="text-sm text-[color:var(--t-color-text-body)]">{criteria.description}</p>
                           </div>
                         </div>
                       ))}

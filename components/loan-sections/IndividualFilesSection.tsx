@@ -18,8 +18,8 @@ export default function IndividualFilesSection({ projectId, sharepointFolderId, 
   return (
     <div>
       <div className="p-4 sm:p-6 pb-3 sm:pb-4">
-        <h1 className="text-[28px] font-bold text-[#1a1a1a]">Individual Files</h1>
-        <p className="text-sm text-[#6b7280] mt-1">
+        <h1 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">Individual Files</h1>
+        <p className="text-sm text-[color:var(--t-color-text-secondary)] mt-1">
           Upload required personal documents for your loan application
         </p>
       </div>

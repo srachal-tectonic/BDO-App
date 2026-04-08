@@ -124,9 +124,9 @@ export default function SpreadsManager({
       )}
 
       {/* Spreads integration pending notice */}
-      <div className="mb-4 border border-[#e5e7eb] rounded-lg overflow-hidden">
-        <div className="bg-[#f9fafb] px-3 py-2 border-b border-[#e5e7eb] flex items-center justify-between">
-          <h3 className="text-sm font-medium text-[#374151]">Spreads</h3>
+      <div className="mb-4 border border-[var(--t-color-border)] rounded-lg overflow-hidden">
+        <div className="bg-[#f9fafb] px-3 py-2 border-b border-[var(--t-color-border)] flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[color:var(--t-color-text-body)]">Spreads</h3>
           <Button
             type="button"
             variant="default"
@@ -140,7 +140,7 @@ export default function SpreadsManager({
         </div>
 
         {/* Migration notice */}
-        <div className="px-3 py-4 bg-amber-50 border-b border-[#e5e7eb] flex items-start gap-2">
+        <div className="px-3 py-4 bg-amber-50 border-b border-[var(--t-color-border)] flex items-start gap-2">
           <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-amber-800">Spreads integration pending Azure migration</p>
@@ -152,7 +152,7 @@ export default function SpreadsManager({
 
         {/* Workbooks List (read-only display of any existing linked workbooks) */}
         {workbooks.length === 0 ? (
-          <div className="px-3 py-6 text-center text-sm text-[#6b7280]">
+          <div className="px-3 py-6 text-center text-sm text-[color:var(--t-color-text-secondary)]">
             No spreads linked to this project.
           </div>
         ) : (
@@ -167,9 +167,9 @@ export default function SpreadsManager({
                   className={`flex items-center justify-between px-3 py-2 ${isPrimary ? 'bg-purple-50' : 'bg-white'}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <FileSpreadsheet className={`w-4 h-4 flex-shrink-0 ${isPrimary ? 'text-purple-600' : 'text-[#6b7280]'}`} />
+                    <FileSpreadsheet className={`w-4 h-4 flex-shrink-0 ${isPrimary ? 'text-purple-600' : 'text-[color:var(--t-color-text-secondary)]'}`} />
                     <div className="min-w-0">
-                      <p className={`text-sm font-medium truncate ${isPrimary ? 'text-purple-800' : 'text-[#1a1a1a]'}`}>
+                      <p className={`text-sm font-medium truncate ${isPrimary ? 'text-purple-800' : 'text-[color:var(--t-color-text-body)]'}`}>
                         {wb.workbookName}
                         {wb.label && (
                           <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
@@ -189,7 +189,7 @@ export default function SpreadsManager({
                           </span>
                         )}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-[#6b7280]">
+                      <div className="flex items-center gap-2 text-xs text-[color:var(--t-color-text-secondary)]">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {formatDate(wb.createdAt)}

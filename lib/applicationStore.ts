@@ -21,11 +21,25 @@ export interface OwnershipPercentage {
   roleInBusiness: 'active-full-time' | 'active-part-time' | 'passive' | '';
 }
 
+export interface FinancingSource {
+  id: string;
+  financingType: string;
+  guaranteePercent: number;
+  amount: number;
+  rateType: string;
+  termYears: number;
+  amortizationMonths: number;
+  baseRate: number;
+  spread: number;
+  totalRate: number;
+}
+
 export interface OtherOwnedBusiness {
   id: string;
   businessName: string;
   ownershipPercentages: OwnershipPercentage[];
   industry: string;
+  corporateGuarantor?: boolean;
 }
 
 export interface OtherOwnedBusinessesData {
@@ -118,6 +132,7 @@ export interface ApplicationData {
   uploadedFiles: any[];
   personalFinancialStatements: Record<string, PersonalFinancialStatement>;
   otherOwnedBusinesses: OtherOwnedBusinessesData;
+  financingSources: FinancingSource[];
   // SBA Form 159 - Fee Disclosure Form data
   feeDisclosure: Partial<FeeDisclosure159> | null;
 }
@@ -165,6 +180,11 @@ export interface ApplicationStore {
 
   // Other Owned Businesses actions
   updateOtherOwnedBusinesses: (updates: Partial<OtherOwnedBusinessesData>) => void;
+
+  // Financing Sources actions
+  addFinancingSource: (source: FinancingSource) => void;
+  removeFinancingSource: (id: string) => void;
+  updateFinancingSource: (id: string, updates: Partial<FinancingSource>) => void;
 
   // File actions
   addFile: (file: any) => void;
@@ -227,6 +247,7 @@ const initialData: ApplicationData = {
     hasOtherBusinesses: null,
     businesses: [],
   },
+  financingSources: [],
   feeDisclosure: null,
 };
 
@@ -383,6 +404,29 @@ export const useApplicationStore = create<ApplicationStore>()(
         data: {
           ...state.data,
           otherOwnedBusinesses: { ...state.data.otherOwnedBusinesses, ...updates },
+        },
+      })),
+
+      addFinancingSource: (source) => set((state) => ({
+        data: {
+          ...state.data,
+          financingSources: [...state.data.financingSources, source],
+        },
+      })),
+
+      removeFinancingSource: (id) => set((state) => ({
+        data: {
+          ...state.data,
+          financingSources: state.data.financingSources.filter(s => s.id !== id),
+        },
+      })),
+
+      updateFinancingSource: (id, updates) => set((state) => ({
+        data: {
+          ...state.data,
+          financingSources: state.data.financingSources.map(s =>
+            s.id === id ? { ...s, ...updates } : s
+          ),
         },
       })),
 

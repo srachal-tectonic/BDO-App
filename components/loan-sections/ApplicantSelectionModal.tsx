@@ -35,19 +35,19 @@ export default function ApplicantSelectionModal({
         data-testid="applicant-modal"
       >
         {/* Header */}
-        <div className="p-6 pb-4 border-b-2 border-[#e5e7eb]">
+        <div className="p-6 pb-4 border-b-2 border-[var(--t-color-border)]">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-[#1f2937]">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)]">
                 Select Individual Applicant
               </h2>
-              <p className="text-sm text-[#6b7280] mt-1">
+              <p className="text-sm text-[color:var(--t-color-text-secondary)] mt-1">
                 Choose which applicant this file belongs to
               </p>
             </div>
             <button
               onClick={onCancel}
-              className="text-[#6b7280] hover:text-[#1f2937] transition-colors"
+              className="text-[color:var(--t-color-text-secondary)] hover:text-[color:var(--t-color-text-body)] transition-colors"
               data-testid="button-close-modal"
             >
               <X className="w-5 h-5" />
@@ -59,11 +59,11 @@ export default function ApplicantSelectionModal({
         <div className="p-6">
           {applicants.length === 0 ? (
             <div className="text-center py-8">
-              <User className="w-12 h-12 mx-auto mb-3 text-[#9ca3af]" />
-              <p className="text-[15px] text-[#6b7280]">
+              <User className="w-12 h-12 mx-auto mb-3 text-[color:var(--t-color-text-muted)]" />
+              <p className="text-[15px] text-[color:var(--t-color-text-secondary)]">
                 No individual applicants have been added yet.
               </p>
-              <p className="text-sm text-[#9ca3af] mt-1">
+              <p className="text-sm text-[color:var(--t-color-text-muted)] mt-1">
                 Please add applicants in the Individual Applicants step first.
               </p>
             </div>
@@ -73,19 +73,19 @@ export default function ApplicantSelectionModal({
                 <button
                   key={applicant.id}
                   onClick={() => onSelect(applicant)}
-                  className="w-full px-4 py-4 rounded-lg border-2 border-[#e5e7eb] bg-white text-left cursor-pointer transition-all hover:border-[#2563eb] hover:bg-[#f0f7ff] group"
+                  className="w-full px-4 py-4 rounded-lg border-2 border-[var(--t-color-border)] bg-white text-left cursor-pointer transition-all hover:border-[var(--t-color-accent)] hover:bg-[#f0f7ff] group"
                   data-testid={`button-select-applicant-${index}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#e5e7eb] flex items-center justify-center group-hover:bg-[#2563eb] transition-colors">
-                      <User className="w-5 h-5 text-[#6b7280] group-hover:text-white transition-colors" />
+                    <div className="w-10 h-10 rounded-full bg-[var(--t-color-border)] flex items-center justify-center group-hover:bg-[var(--t-color-accent)] transition-colors">
+                      <User className="w-5 h-5 text-[color:var(--t-color-text-secondary)] group-hover:text-white transition-colors" />
                     </div>
                     <div>
-                      <p className="text-[15px] font-medium text-[#1f2937]">
+                      <p className="text-[15px] font-medium text-[color:var(--t-color-text-body)]">
                         {getApplicantDisplayName(applicant, index)}
                       </p>
                       {applicant.email && (
-                        <p className="text-sm text-[#6b7280]">{applicant.email}</p>
+                        <p className="text-sm text-[color:var(--t-color-text-secondary)]">{applicant.email}</p>
                       )}
                     </div>
                   </div>
@@ -96,10 +96,10 @@ export default function ApplicantSelectionModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 pt-4 flex gap-3 justify-end border-t border-[#e5e7eb]">
+        <div className="px-6 pb-6 pt-4 flex gap-3 justify-end border-t border-[var(--t-color-border)]">
           <button
             onClick={onCancel}
-            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[#f3f4f6] text-[#4b5563] cursor-pointer transition-all hover:bg-[#e5e7eb]"
+            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[var(--t-color-input-bg)] text-[#4b5563] cursor-pointer transition-all hover:bg-[var(--t-color-border)]"
             data-testid="button-cancel"
           >
             Cancel

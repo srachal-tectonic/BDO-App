@@ -197,7 +197,7 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
         {!isAddingNote && (
           <button
             onClick={() => setIsAddingNote(true)}
-            className="mb-6 px-6 py-2.5 bg-[#2563eb] text-white text-[15px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-md inline-flex items-center gap-2"
+            className="mb-6 px-6 py-2.5 bg-[var(--t-color-accent)] text-white text-[15px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-md inline-flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Add New Note
@@ -206,9 +206,9 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
 
         {/* Add New Note Card (expanded state) */}
         {isAddingNote && (
-          <div className="mb-6 bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#e5e7eb] p-6">
+          <div className="mb-6 bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[var(--t-color-border)] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[18px] font-semibold text-[#1a1a1a]">
+              <h3 className="text-[18px] font-semibold text-[color:var(--t-color-text-body)]">
                 {editingNote ? 'Edit Note' : 'Add New Note'}
               </h3>
               {availableTags.length > 0 && (
@@ -219,8 +219,8 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
                       onClick={() => setSelectedTag(selectedTag === tag ? '' : tag)}
                       className={`px-4 py-2 text-[14px] font-medium rounded-lg cursor-pointer transition-all ${
                         selectedTag === tag
-                          ? 'bg-[#2563eb] text-white'
-                          : 'bg-white border border-[#d1d5db] text-[#6b7280] hover:shadow-md hover:-translate-y-0.5'
+                          ? 'bg-[var(--t-color-accent)] text-white'
+                          : 'bg-white border border-[var(--t-color-border)] text-[color:var(--t-color-text-secondary)] hover:shadow-md hover:-translate-y-0.5'
                       }`}
                     >
                       {tag}
@@ -234,7 +234,7 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
               placeholder="Enter your notes here..."
-              className="w-full min-h-[120px] p-4 text-[15px] text-[#1a1a1a] border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent resize-y mb-4"
+              className="w-full min-h-[120px] p-4 text-[15px] text-[color:var(--t-color-text-body)] border border-[var(--t-color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--t-color-accent)] focus:border-transparent resize-y mb-4"
               autoFocus
             />
 
@@ -243,14 +243,14 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] rounded focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] rounded focus:ring-[var(--t-color-accent)]"
                   />
                   <span className="text-[14px] text-[#4b5563]">Pin this note</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#2563eb] border-[#d1d5db] rounded focus:ring-[#2563eb]"
+                    className="w-4 h-4 text-[color:var(--t-color-accent)] border-[var(--t-color-border)] rounded focus:ring-[var(--t-color-accent)]"
                   />
                   <span className="text-[14px] text-[#4b5563]">Notify team</span>
                 </label>
@@ -258,14 +258,14 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelEdit}
-                  className="px-6 py-2 bg-white border border-[#d1d5db] text-[#6b7280] text-[14px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
+                  className="px-6 py-2 bg-white border border-[var(--t-color-border)] text-[color:var(--t-color-text-secondary)] text-[14px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddNote}
                   disabled={isSaving}
-                  className="px-6 py-2 bg-[#2563eb] text-white text-[14px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--t-color-accent)] text-white text-[14px] font-medium rounded-lg cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? 'Saving...' : editingNote ? 'Update Note' : 'Add Note'}
                 </button>
@@ -275,33 +275,33 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
         )}
 
         {/* Current User Selection */}
-        <div className="mb-4 p-3 bg-[#f8f9fb] border border-[#e5e7eb] rounded-lg">
+        <div className="mb-4 p-3 bg-[#f8f9fb] border border-[var(--t-color-border)] rounded-lg">
           <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[#6b7280] font-medium">Current User:</span>
+            <span className="text-[13px] text-[color:var(--t-color-text-secondary)] font-medium">Current User:</span>
             <select
-              className="px-3 py-1.5 text-[13px] font-medium bg-white border border-[#d1d5db] rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563eb] cursor-pointer"
+              className="px-3 py-1.5 text-[13px] font-medium bg-white border border-[var(--t-color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--t-color-accent)] cursor-pointer"
             >
               <option value="User 1">User 1</option>
               <option value="User 2">User 2</option>
               <option value="User 3">User 3</option>
               <option value="Admin">Admin</option>
             </select>
-            <span className="text-[12px] text-[#9ca3af] italic">(Temporary - auth to be added)</span>
+            <span className="text-[12px] text-[color:var(--t-color-text-muted)] italic">(Temporary - auth to be added)</span>
           </div>
         </div>
 
         {/* Filter Bar */}
         <div className="mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-[14px] text-[#6b7280] font-medium">Filter:</span>
+            <span className="text-[14px] text-[color:var(--t-color-text-secondary)] font-medium">Filter:</span>
             {filterOptions.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setSelectedFilter(f.key)}
                 className={`px-4 py-1.5 text-[13px] font-medium rounded-lg cursor-pointer transition-all ${
                   selectedFilter === f.key
-                    ? 'bg-[#2563eb] text-white'
-                    : 'bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]'
+                    ? 'bg-[var(--t-color-accent)] text-white'
+                    : 'bg-[var(--t-color-input-bg)] text-[color:var(--t-color-text-secondary)] hover:bg-[var(--t-color-border)]'
                 }`}
               >
                 {f.label}

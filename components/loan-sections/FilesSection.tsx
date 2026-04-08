@@ -99,7 +99,7 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
       case 'rar':
         return <FileArchive className="w-5 h-5 text-[#f59e0b]" />;
       default:
-        return <File className="w-5 h-5 text-[#6b7280]" />;
+        return <File className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />;
     }
   };
 
@@ -132,9 +132,9 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
               {item.type === 'folder' && hasChildren && (
                 <span className="flex-shrink-0">
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-[#6b7280]" />
+                    <ChevronDown className="w-4 h-4 text-[color:var(--t-color-text-secondary)]" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-[#6b7280]" />
+                    <ChevronRight className="w-4 h-4 text-[color:var(--t-color-text-secondary)]" />
                   )}
                 </span>
               )}
@@ -145,13 +145,13 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
                 <span className="w-4 flex-shrink-0" />
               )}
               <span className="flex-shrink-0">{getFileIcon(item)}</span>
-              <span className="text-[#1a1a1a]">{item.name}</span>
+              <span className="text-[color:var(--t-color-text-body)]">{item.name}</span>
             </div>
           </TableCell>
-          <TableCell className="text-[#6b7280]">
+          <TableCell className="text-[color:var(--t-color-text-secondary)]">
             {formatDate(item.modifiedDate)}
           </TableCell>
-          <TableCell className="text-[#6b7280]">
+          <TableCell className="text-[color:var(--t-color-text-secondary)]">
             {item.type === 'folder' ? 'Folder' : item.fileType?.toUpperCase() || 'File'}
           </TableCell>
         </TableRow>
@@ -171,7 +171,7 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-[#4a90e2] mx-auto mb-4 animate-spin" />
-          <p className="text-[#6b7280]">Loading files...</p>
+          <p className="text-[color:var(--t-color-text-secondary)]">Loading files...</p>
         </div>
       </div>
     );
@@ -182,7 +182,7 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <p className="text-[#ef4444] mb-2">Error loading files</p>
-          <p className="text-[#6b7280] text-sm mb-4">{error}</p>
+          <p className="text-[color:var(--t-color-text-secondary)] text-sm mb-4">{error}</p>
           <button
             onClick={loadFiles}
             className="px-4 py-2 bg-[#4a90e2] text-white rounded-lg hover:bg-[#357abd] transition-colors"
@@ -198,8 +198,8 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Folder className="w-12 h-12 text-[#d1d5db] mx-auto mb-3" />
-          <p className="text-[#6b7280]">
+          <Folder className="w-12 h-12 text-[color:var(--t-color-border)] mx-auto mb-3" />
+          <p className="text-[color:var(--t-color-text-secondary)]">
             Uploaded files will appear here once they have been submitted. This folder is currently empty.
           </p>
         </div>
@@ -210,17 +210,17 @@ export default function FilesSection({ projectId }: FilesSectionProps) {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-[#1a1a1a] mb-1">Files</h2>
-        <p className="text-[#6b7280]">Project folder structure and documents</p>
+        <h2 className="text-2xl font-bold text-[color:var(--t-color-text-body)] mb-1">Files</h2>
+        <p className="text-[color:var(--t-color-text-secondary)]">Project folder structure and documents</p>
       </div>
 
-      <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+      <div className="border border-[var(--t-color-border)] rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-[#f9fafb]">
-              <TableHead className="font-semibold text-[#374151]">Name</TableHead>
-              <TableHead className="font-semibold text-[#374151]">Modified Date</TableHead>
-              <TableHead className="font-semibold text-[#374151]">Type</TableHead>
+              <TableHead className="font-semibold text-[color:var(--t-color-text-body)]">Name</TableHead>
+              <TableHead className="font-semibold text-[color:var(--t-color-text-body)]">Modified Date</TableHead>
+              <TableHead className="font-semibold text-[color:var(--t-color-text-body)]">Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

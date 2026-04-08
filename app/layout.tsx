@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { FirebaseAuthProvider } from "@/contexts/FirebaseAuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import EnvironmentBadge from "@/components/layout/EnvironmentBadge";
 
-const inter = Inter({
+const poppins = Poppins({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
 });
 
 export const metadata: Metadata = {
@@ -21,11 +23,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light">
-      <body className={`${inter.variable} antialiased`}>
-        <FirebaseAuthProvider>
-          {children}
-          <EnvironmentBadge />
-        </FirebaseAuthProvider>
+      <body className={`${poppins.variable} antialiased`}>
+        <ThemeProvider>
+          <FirebaseAuthProvider>
+            {children}
+            <EnvironmentBadge />
+          </FirebaseAuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

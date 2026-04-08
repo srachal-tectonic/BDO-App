@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useTheme, defaultTheme } from '@/contexts/ThemeContext';
+import type { ThemeSettings } from '@/contexts/ThemeContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
@@ -105,108 +107,6 @@ interface AppUser {
   displayName?: string | null;
   createdAt: Date;
 }
-
-interface ThemeSettings {
-  fontFamily: string;
-  fontSizeBase: string;
-  fontSizeSmall: string;
-  fontSizeLarge: string;
-  fontSizeHeading: string;
-  fontSizeSectionHeader: string;
-  borderRadius: string;
-  sectionPaddingX: string;
-  sectionPaddingY: string;
-  sectionMarginBottom: string;
-  fieldSpacing: string;
-  inputPaddingX: string;
-  inputPaddingY: string;
-  colorPrimary: string;
-  colorPrimaryLight: string;
-  colorPrimaryLighter: string;
-  colorPrimaryPale: string;
-  colorPrimaryPalest: string;
-  colorAccent: string;
-  colorPageBg: string;
-  colorCardBg: string;
-  colorInputBg: string;
-  colorHighlightBg: string;
-  colorHighlightBorder: string;
-  colorBorder: string;
-  colorDisabled: string;
-  colorTextPrimary: string;
-  colorTextBody: string;
-  colorTextSecondary: string;
-  colorTextMuted: string;
-  colorSuccess: string;
-  colorSuccessLight: string;
-  colorSuccessBg: string;
-  colorSuccessText: string;
-  colorSuccessBorder: string;
-  colorWarning: string;
-  colorWarningLight: string;
-  colorWarningBg: string;
-  colorWarningText: string;
-  colorDanger: string;
-  colorDangerLight: string;
-  colorDangerBg: string;
-  colorDangerText: string;
-  colorInfoBg: string;
-  colorInfoBorder: string;
-  colorInfoText: string;
-  colorPurple: string;
-  colorOrange: string;
-}
-
-const defaultTheme: ThemeSettings = {
-  fontFamily: 'Poppins',
-  fontSizeBase: '13px',
-  fontSizeSmall: '11px',
-  fontSizeLarge: '15px',
-  fontSizeHeading: '1.125rem',
-  fontSizeSectionHeader: '0.8rem',
-  borderRadius: '0.375rem',
-  sectionPaddingX: '1rem',
-  sectionPaddingY: '0.75rem',
-  sectionMarginBottom: '0.75rem',
-  fieldSpacing: '0.5rem',
-  inputPaddingX: '0.75rem',
-  inputPaddingY: '0.375rem',
-  colorPrimary: '#133c7f',
-  colorPrimaryLight: '#4263a5',
-  colorPrimaryLighter: '#718bbc',
-  colorPrimaryPale: '#a1b3d2',
-  colorPrimaryPalest: '#e7edf4',
-  colorAccent: '#2563eb',
-  colorPageBg: '#fafbfd',
-  colorCardBg: '#ffffff',
-  colorInputBg: '#f3f4f6',
-  colorHighlightBg: '#f0f4ff',
-  colorHighlightBorder: '#e2e8f0',
-  colorBorder: '#c5d4e8',
-  colorDisabled: '#cbd5e1',
-  colorTextPrimary: '#133c7f',
-  colorTextBody: '#1a1a1a',
-  colorTextSecondary: '#4a6fa5',
-  colorTextMuted: '#7da1d4',
-  colorSuccess: '#059669',
-  colorSuccessLight: '#10b981',
-  colorSuccessBg: '#ecfdf5',
-  colorSuccessText: '#166534',
-  colorSuccessBorder: '#22c55e',
-  colorWarning: '#d97706',
-  colorWarningLight: '#f59e0b',
-  colorWarningBg: '#fef3c7',
-  colorWarningText: '#92400e',
-  colorDanger: '#e63b2e',
-  colorDangerLight: '#ef4444',
-  colorDangerBg: '#fef2f2',
-  colorDangerText: '#dc2626',
-  colorInfoBg: '#eff6ff',
-  colorInfoBorder: '#bfdbfe',
-  colorInfoText: '#0369a1',
-  colorPurple: '#8b5cf6',
-  colorOrange: '#f97316',
-};
 
 const TEST_USERS: AppUser[] = [
   { uid: 'dev-srachal', email: 'srachal@tectonicfinancial.com', role: 'Admin', displayName: 'Shane Rachal', createdAt: new Date() },
@@ -708,8 +608,8 @@ Example format:
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
-  // Theme settings state
-  const [themeSettings, setThemeSettings] = useState<ThemeSettings>(defaultTheme);
+  // Theme settings from global context
+  const { themeSettings, setThemeSettings, saveTheme, resetTheme } = useTheme();
 
   // Add User Modal State
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -819,7 +719,9 @@ Example format:
   const saveSettings = () => {
     setIsSaving(true);
     setHasUnsavedChanges(false);
-    console.log('Settings saved (local state only):', settings);
+    // Persist theme to localStorage and apply CSS variables globally
+    saveTheme();
+    console.log('Settings saved:', settings);
     alert('Settings saved successfully!');
     setIsSaving(false);
   };
@@ -3561,7 +3463,7 @@ Example format:
 
               <div className="pt-4 border-t border-[var(--t-color-border)]">
                 <button
-                  onClick={() => setThemeSettings(defaultTheme)}
+                  onClick={() => resetTheme()}
                   className="px-4 py-2 text-[length:var(--t-font-size-base)] rounded-md border border-[var(--t-color-border)] text-[color:var(--t-color-text-secondary)] hover:bg-[var(--t-color-page-bg)]"
                   data-testid="button-reset-theme-defaults"
                 >

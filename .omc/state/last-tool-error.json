@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"/mnt/c/Users/srachal/Desktop/BDO App April\\\" && git rm --cached .env .env.development .env.staging .env.production .env.local 2>&1\",\"description\":\"Remove .env files from git tracking ...",
-  "error": "Exit code 128\nfatal: pathspec '.env.local' did not match any files",
-  "timestamp": "2026-04-07T16:49:24.777Z",
-  "retry_count": 1
-}

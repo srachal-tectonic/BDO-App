@@ -56,17 +56,17 @@ export default function LoanDetailsSection({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Loan 1 Column */}
       <div>
-        <h3 className="text-base font-semibold text-[#1f2937] mb-5 pb-2 border-b-2 border-[#2563eb]">
+        <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-5 pb-2 border-b-2 border-[var(--t-color-accent)]">
           Loan 1 Details
         </h3>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Type</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Type</label>
           <select
             value={loan1.type}
             onChange={(e) => onUpdateLoan1({ type: e.target.value })}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 pr-11 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 pr-11 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="select-loan1-type"
           >
             <option value="">Select Loan Type</option>
@@ -79,31 +79,31 @@ export default function LoanDetailsSection({
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Amount</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Amount</label>
           <input
             type="text"
             value={`$${(loan1.amount || 0).toLocaleString()}`}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-[#f9fafb] text-[#6b7280]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-[#f9fafb] text-[color:var(--t-color-text-secondary)]"
             data-testid="input-loan1-amount"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5">Auto-populated from Sources and Uses matrix</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5">Auto-populated from Sources and Uses matrix</p>
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Term (months)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Term (months)</label>
           <input
             type="number"
             value={loan1.term || ''}
             onChange={(e) => onUpdateLoan1({ term: parseInt(e.target.value) || 0 })}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="input-loan1-term"
           />
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Base Rate</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Base Rate</label>
           <select
             value={loan1.baseRate}
             onChange={(e) => {
@@ -114,7 +114,7 @@ export default function LoanDetailsSection({
               });
             }}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 pr-11 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 pr-11 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="select-loan1-base-rate"
           >
             <option value="">Select Base Rate</option>
@@ -124,7 +124,7 @@ export default function LoanDetailsSection({
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Spread (%)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Spread (%)</label>
           <input
             type="number"
             value={loan1.spread || ''}
@@ -135,40 +135,40 @@ export default function LoanDetailsSection({
             disabled={isReadOnly}
             placeholder="0.00"
             step="0.01"
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="input-loan1-spread"
           />
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 1 Total Rate (%)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 1 Total Rate (%)</label>
           <input
             type="text"
             value={(loan1.totalRate || 0).toFixed(2)}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-[#f9fafb] text-[#6b7280]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-[#f9fafb] text-[color:var(--t-color-text-secondary)]"
             data-testid="input-loan1-total-rate"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5">Calculated: Base Rate + Spread</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5">Calculated: Base Rate + Spread</p>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-[#e5e7eb]">
-          <label className="block text-sm font-semibold text-[#374151] mb-2">
+        <div className="mt-6 pt-6 border-t border-[var(--t-color-border)]">
+          <label className="block text-sm font-semibold text-[color:var(--t-color-text-body)] mb-2">
             Estimated Monthly Payment (P&I)
           </label>
           <input
             type="text"
             value={`$${(loan1.monthlyPayment || 0).toLocaleString()}`}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-lg font-semibold text-[#1a1a1a] bg-[#f9fafb]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-lg font-semibold text-[color:var(--t-color-text-body)] bg-[#f9fafb]"
             data-testid="input-loan1-monthly-payment"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5 mb-2">Principal and Interest only</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5 mb-2">Principal and Interest only</p>
           <button
             type="button"
             onClick={handleCalculateLoan1}
             disabled={isReadOnly}
-            className="px-3 py-1.5 bg-[#2563eb] text-white text-sm rounded-md cursor-pointer transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 bg-[var(--t-color-accent)] text-white text-sm rounded-md cursor-pointer transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="button-calculate-loan1"
           >
             Calculate Payment
@@ -178,17 +178,17 @@ export default function LoanDetailsSection({
 
       {/* Loan 2 Column */}
       <div>
-        <h3 className="text-base font-semibold text-[#1f2937] mb-5 pb-2 border-b-2 border-[#2563eb]">
+        <h3 className="text-base font-semibold text-[color:var(--t-color-text-body)] mb-5 pb-2 border-b-2 border-[var(--t-color-accent)]">
           Loan 2 Details
         </h3>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Type</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Type</label>
           <select
             value={loan2.type}
             onChange={(e) => onUpdateLoan2({ type: e.target.value })}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 pr-11 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 pr-11 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="select-loan2-type"
           >
             <option value="">Select Loan Type</option>
@@ -201,31 +201,31 @@ export default function LoanDetailsSection({
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Amount</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Amount</label>
           <input
             type="text"
             value={`$${(loan2.amount || 0).toLocaleString()}`}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-[#f9fafb] text-[#6b7280]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-[#f9fafb] text-[color:var(--t-color-text-secondary)]"
             data-testid="input-loan2-amount"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5">Auto-populated from Sources and Uses matrix</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5">Auto-populated from Sources and Uses matrix</p>
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Term (months)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Term (months)</label>
           <input
             type="number"
             value={loan2.term || ''}
             onChange={(e) => onUpdateLoan2({ term: parseInt(e.target.value) || 0 })}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="input-loan2-term"
           />
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Base Rate</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Base Rate</label>
           <select
             value={loan2.baseRate}
             onChange={(e) => {
@@ -236,7 +236,7 @@ export default function LoanDetailsSection({
               });
             }}
             disabled={isReadOnly}
-            className="w-full px-4 py-3 pr-11 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 pr-11 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_16px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="select-loan2-base-rate"
           >
             <option value="">Select Base Rate</option>
@@ -246,7 +246,7 @@ export default function LoanDetailsSection({
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Spread (%)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Spread (%)</label>
           <input
             type="number"
             value={loan2.spread || ''}
@@ -257,40 +257,40 @@ export default function LoanDetailsSection({
             disabled={isReadOnly}
             placeholder="0.00"
             step="0.01"
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] transition-all focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
             data-testid="input-loan2-spread"
           />
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#374151] mb-2">Loan 2 Total Rate (%)</label>
+          <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Loan 2 Total Rate (%)</label>
           <input
             type="text"
             value={(loan2.totalRate || 0).toFixed(2)}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-[15px] bg-[#f9fafb] text-[#6b7280]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-[#f9fafb] text-[color:var(--t-color-text-secondary)]"
             data-testid="input-loan2-total-rate"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5">Calculated: Base Rate + Spread</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5">Calculated: Base Rate + Spread</p>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-[#e5e7eb]">
-          <label className="block text-sm font-semibold text-[#374151] mb-2">
+        <div className="mt-6 pt-6 border-t border-[var(--t-color-border)]">
+          <label className="block text-sm font-semibold text-[color:var(--t-color-text-body)] mb-2">
             Estimated Monthly Payment (P&I)
           </label>
           <input
             type="text"
             value={`$${(loan2.monthlyPayment || 0).toLocaleString()}`}
             readOnly
-            className="w-full px-4 py-3 border border-[#d1d5db] rounded-lg text-lg font-semibold text-[#1a1a1a] bg-[#f9fafb]"
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-lg font-semibold text-[color:var(--t-color-text-body)] bg-[#f9fafb]"
             data-testid="input-loan2-monthly-payment"
           />
-          <p className="text-xs text-[#9ca3af] mt-1.5 mb-2">Principal and Interest only</p>
+          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1.5 mb-2">Principal and Interest only</p>
           <button
             type="button"
             onClick={handleCalculateLoan2}
             disabled={isReadOnly}
-            className="px-3 py-1.5 bg-[#2563eb] text-white text-sm rounded-md cursor-pointer transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 bg-[var(--t-color-accent)] text-white text-sm rounded-md cursor-pointer transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="button-calculate-loan2"
           >
             Calculate Payment

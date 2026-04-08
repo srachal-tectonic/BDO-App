@@ -136,7 +136,7 @@ export default function SourcesUsesMatrix({
           type="button"
           onClick={() => setHideEmpty(!hideEmpty)}
           disabled={isReadOnly}
-          className="flex items-center gap-2 px-4 py-2 bg-[#f3f4f6] border border-[#d1d5db] rounded-md cursor-pointer text-sm text-[#374151] transition-all hover-elevate disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--t-color-input-bg)] border border-[var(--t-color-border)] rounded-md cursor-pointer text-sm text-[color:var(--t-color-text-body)] transition-all hover-elevate disabled:opacity-50 disabled:cursor-not-allowed"
           data-testid="button-toggle-empty-rows"
         >
           {hideEmpty ? <Eye className="w-[18px] h-[18px]" /> : <EyeOff className="w-[18px] h-[18px]" />}
@@ -145,31 +145,31 @@ export default function SourcesUsesMatrix({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white border border-[#e5e7eb] rounded-lg overflow-hidden">
+        <table className="w-full border-collapse bg-white border border-[var(--t-color-border)] rounded-lg overflow-hidden">
           <thead>
             <tr>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 Use Category
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 T Bank Loan
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 Borrower
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 Seller Note
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 {fourthColumnLabel}
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 Total
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 SBA Term
               </th>
-              <th className="bg-[#f9fafb] text-[#374151] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[#e5e7eb]">
+              <th className="bg-[#f9fafb] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]">
                 %
               </th>
             </tr>
@@ -177,10 +177,10 @@ export default function SourcesUsesMatrix({
           <tbody>
             {visibleRows.map((row) => (
               <tr key={row.key}>
-                <td className="px-1 py-1 border-b border-[#e5e7eb] font-medium text-[#1a1a1a] text-sm">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)] font-medium text-[color:var(--t-color-text-body)] text-sm">
                   {row.label}
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getCellValue(row.key, 'tBankLoan')}
@@ -188,11 +188,11 @@ export default function SourcesUsesMatrix({
                     onBlur={() => handleBlur(row.key, 'tBankLoan')}
                     onChange={(e) => handleChange(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
                     data-testid={`input-${row.key}-tBankLoan`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getCellValue(row.key, 'borrower')}
@@ -200,11 +200,11 @@ export default function SourcesUsesMatrix({
                     onBlur={() => handleBlur(row.key, 'borrower')}
                     onChange={(e) => handleChange(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
                     data-testid={`input-${row.key}-borrower`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getCellValue(row.key, 'sellerNote')}
@@ -212,11 +212,11 @@ export default function SourcesUsesMatrix({
                     onBlur={() => handleBlur(row.key, 'sellerNote')}
                     onChange={(e) => handleChange(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
                     data-testid={`input-${row.key}-sellerNote`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getCellValue(row.key, 'thirdParty')}
@@ -224,20 +224,20 @@ export default function SourcesUsesMatrix({
                     onBlur={() => handleBlur(row.key, 'thirdParty')}
                     onChange={(e) => handleChange(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
                     data-testid={`input-${row.key}-thirdParty`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={formatCurrency(getRowTotal(row.key))}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid={`total-${row.key}`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getCellValue(row.key, 'sbaTerm')}
@@ -246,16 +246,16 @@ export default function SourcesUsesMatrix({
                     onChange={(e) => handleChange(e.target.value)}
                     disabled={isReadOnly}
                     placeholder=""
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[#f3f4f6] disabled:cursor-not-allowed"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
                     data-testid={`input-${row.key}-sbaTerm`}
                   />
                 </td>
-                <td className="px-1 py-1 border-b border-[#e5e7eb]">
+                <td className="px-1 py-1 border-b border-[var(--t-color-border)]">
                   <input
                     type="text"
                     value={getRowPercentage(row.key)}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#eff6ff] font-semibold text-[#2563eb]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#eff6ff] font-semibold text-[color:var(--t-color-accent)]"
                     data-testid={`percentage-${row.key}`}
                   />
                 </td>
@@ -263,13 +263,13 @@ export default function SourcesUsesMatrix({
             ))}
             {getGrandTotal() > 0 && (
               <tr className="font-semibold">
-                <td className="px-1 py-1 font-medium text-[#1a1a1a] text-sm">Total</td>
+                <td className="px-1 py-1 font-medium text-[color:var(--t-color-text-body)] text-sm">Total</td>
                 <td className="px-1 py-1">
                   <input
                     type="text"
                     value={formatCurrency(getColumnTotal('tBankLoan'))}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid="total-tBankLoan"
                   />
                 </td>
@@ -278,7 +278,7 @@ export default function SourcesUsesMatrix({
                     type="text"
                     value={formatCurrency(getColumnTotal('borrower'))}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid="total-borrower"
                   />
                 </td>
@@ -287,7 +287,7 @@ export default function SourcesUsesMatrix({
                     type="text"
                     value={formatCurrency(getColumnTotal('sellerNote'))}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid="total-sellerNote"
                   />
                 </td>
@@ -296,7 +296,7 @@ export default function SourcesUsesMatrix({
                     type="text"
                     value={formatCurrency(getColumnTotal('thirdParty'))}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid="total-thirdParty"
                   />
                 </td>
@@ -305,7 +305,7 @@ export default function SourcesUsesMatrix({
                     type="text"
                     value={formatCurrency(getGrandTotal())}
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[#1a1a1a]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#f9fafb] font-semibold text-[color:var(--t-color-text-body)]"
                     data-testid="total-all"
                   />
                 </td>
@@ -317,7 +317,7 @@ export default function SourcesUsesMatrix({
                     type="text"
                     value="100%"
                     readOnly
-                    className="w-full px-1 py-1 border border-[#d1d5db] rounded-md text-sm text-right font-mono bg-[#eff6ff] font-semibold text-[#2563eb]"
+                    className="w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono bg-[#eff6ff] font-semibold text-[color:var(--t-color-accent)]"
                     data-testid="total-percentage"
                   />
                 </td>

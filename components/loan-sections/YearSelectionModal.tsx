@@ -53,24 +53,24 @@ export default function YearSelectionModal({
         data-testid="year-modal"
       >
         {/* Header */}
-        <div className="p-6 pb-4 border-b-2 border-[#e5e7eb]">
+        <div className="p-6 pb-4 border-b-2 border-[var(--t-color-border)]">
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-xl font-semibold text-[#1f2937]">
+                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)]">
                   Select Tax Year(s)
                 </h2>
                 {totalFiles > 1 && (
-                  <span className="px-2 py-0.5 bg-[#2563eb] text-white text-xs font-medium rounded-full">
+                  <span className="px-2 py-0.5 bg-[var(--t-color-accent)] text-white text-xs font-medium rounded-full">
                     {currentFileIndex + 1} of {totalFiles}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-[#6b7280] italic">{filename}</p>
+              <p className="text-sm text-[color:var(--t-color-text-secondary)] italic">{filename}</p>
             </div>
             <button
               onClick={handleCancel}
-              className="text-[#6b7280] hover:text-[#1f2937] transition-colors"
+              className="text-[color:var(--t-color-text-secondary)] hover:text-[color:var(--t-color-text-body)] transition-colors"
               data-testid="button-close-modal"
             >
               <X className="w-5 h-5" />
@@ -93,8 +93,8 @@ export default function YearSelectionModal({
                   px-6 py-4 rounded-lg border-2 text-[15px] font-medium cursor-pointer transition-all
                   ${
                     selectedYears.includes(year)
-                      ? 'bg-[#2563eb] border-[#2563eb] text-white'
-                      : 'bg-white border-[#d1d5db] text-[#1f2937] hover:border-[#2563eb] hover:bg-[#f0f7ff]'
+                      ? 'bg-[var(--t-color-accent)] border-[var(--t-color-accent)] text-white'
+                      : 'bg-white border-[var(--t-color-border)] text-[color:var(--t-color-text-body)] hover:border-[var(--t-color-accent)] hover:bg-[#f0f7ff]'
                   }
                 `}
                 data-testid={`button-year-${year}`}
@@ -109,7 +109,7 @@ export default function YearSelectionModal({
         <div className="px-6 pb-6 pt-4 flex gap-3 justify-end">
           <button
             onClick={handleCancel}
-            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[#f3f4f6] text-[#4b5563] cursor-pointer transition-all hover:bg-[#e5e7eb]"
+            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[var(--t-color-input-bg)] text-[#4b5563] cursor-pointer transition-all hover:bg-[var(--t-color-border)]"
             data-testid="button-cancel"
           >
             Cancel
@@ -117,7 +117,7 @@ export default function YearSelectionModal({
           <button
             onClick={handleConfirm}
             disabled={selectedYears.length === 0}
-            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[#2563eb] text-white cursor-pointer transition-all hover:bg-[#1d4ed8] disabled:bg-[#d1d5db] disabled:cursor-not-allowed"
+            className="px-6 py-3 rounded-md text-[15px] font-medium bg-[var(--t-color-accent)] text-white cursor-pointer transition-all hover:bg-[var(--t-color-primary)] disabled:bg-[var(--t-color-border)] disabled:cursor-not-allowed"
             data-testid="button-confirm"
           >
             Confirm

@@ -544,8 +544,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[28px] font-bold text-[#1a1a1a]">Borrower Forms</h2>
-        <p className="text-[#6b7280] mt-1">
+        <h2 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">Borrower Forms</h2>
+        <p className="text-[color:var(--t-color-text-secondary)] mt-1">
           Generate fillable PDF forms for borrowers to complete and upload.
         </p>
       </div>
@@ -553,7 +553,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[#2563eb]" />
+            <FileText className="w-5 h-5 text-[color:var(--t-color-accent)]" />
             Generate Forms for Borrower
           </CardTitle>
           <CardDescription>
@@ -617,16 +617,16 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       {isLoading ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <div className="inline-block animate-spin w-8 h-8 border-4 border-[#2563eb] border-t-transparent rounded-full"></div>
-            <p className="text-[#6b7280] mt-4">Loading forms...</p>
+            <div className="inline-block animate-spin w-8 h-8 border-4 border-[var(--t-color-accent)] border-t-transparent rounded-full"></div>
+            <p className="text-[color:var(--t-color-text-secondary)] mt-4">Loading forms...</p>
           </CardContent>
         </Card>
       ) : forms.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <FileText className="w-12 h-12 text-[#9ca3af] mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-[#374151] mb-2">No Forms Generated</h3>
-            <p className="text-[#6b7280] max-w-md mx-auto">
+            <FileText className="w-12 h-12 text-[color:var(--t-color-text-muted)] mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-[color:var(--t-color-text-body)] mb-2">No Forms Generated</h3>
+            <p className="text-[color:var(--t-color-text-secondary)] max-w-md mx-auto">
               Click &quot;Generate Forms&quot; to create project-specific PDF forms for the borrower to complete.
               Forms will be pre-filled with any data you&apos;ve already entered.
             </p>
@@ -643,8 +643,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#6b7280]" />
-                <span className="text-sm text-[#6b7280]">
+                <Clock className="w-4 h-4 text-[color:var(--t-color-text-secondary)]" />
+                <span className="text-sm text-[color:var(--t-color-text-secondary)]">
                   {forms.length > 0 && forms[0].generatedAt && (
                     <>Generated {new Date(forms[0].generatedAt).toLocaleDateString()}</>
                   )}
@@ -657,7 +657,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               {forms.map((form) => (
                 <div
                   key={form.id}
-                  className="flex items-center gap-4 p-4 bg-[#f8f9fa] rounded-lg border border-[#e5e7eb]"
+                  className="flex items-center gap-4 p-4 bg-[#f8f9fa] rounded-lg border border-[var(--t-color-border)]"
                   data-testid={`form-item-${form.id}`}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -681,18 +681,18 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-[#1a1a1a] truncate">
+                    <h4 className="font-medium text-[color:var(--t-color-text-body)] truncate">
                       {form.formName}
                     </h4>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {getStatusBadge(form.status)}
                       {form.downloadedAt && (
-                        <span className="text-xs text-[#6b7280]">
+                        <span className="text-xs text-[color:var(--t-color-text-secondary)]">
                           Borrower downloaded {new Date(form.downloadedAt).toLocaleDateString()}
                         </span>
                       )}
                       {form.uploadedAt && (
-                        <span className="text-xs text-[#6b7280]">
+                        <span className="text-xs text-[color:var(--t-color-text-secondary)]">
                           Uploaded {new Date(form.uploadedAt).toLocaleDateString()}
                         </span>
                       )}
@@ -802,7 +802,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Upload className="w-5 h-5 text-[#2563eb]" />
+              <Upload className="w-5 h-5 text-[color:var(--t-color-accent)]" />
               Borrower Uploads
             </CardTitle>
             <CardDescription>
@@ -812,24 +812,24 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
           <CardContent>
             {isLoadingUploads ? (
               <div className="py-8 text-center">
-                <Loader2 className="w-6 h-6 text-[#2563eb] mx-auto animate-spin" />
-                <p className="text-[#6b7280] mt-2">Loading uploads...</p>
+                <Loader2 className="w-6 h-6 text-[color:var(--t-color-accent)] mx-auto animate-spin" />
+                <p className="text-[color:var(--t-color-text-secondary)] mt-2">Loading uploads...</p>
               </div>
             ) : borrowerUploads.length === 0 ? (
               <div className="py-8 text-center">
-                <File className="w-10 h-10 text-[#9ca3af] mx-auto mb-3" />
-                <p className="text-[#6b7280]">No documents uploaded yet</p>
-                <p className="text-sm text-[#9ca3af] mt-1">
+                <File className="w-10 h-10 text-[color:var(--t-color-text-muted)] mx-auto mb-3" />
+                <p className="text-[color:var(--t-color-text-secondary)]">No documents uploaded yet</p>
+                <p className="text-sm text-[color:var(--t-color-text-muted)] mt-1">
                   Uploads will appear here when the borrower submits documents through the portal.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {borrowerUploads.map((upload) => (
-                  <div key={upload.id} className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                  <div key={upload.id} className="border border-[var(--t-color-border)] rounded-lg overflow-hidden">
                     <div
                       className={`flex items-center gap-4 p-4 bg-[#f8f9fa] cursor-pointer hover:bg-[#f0f1f3] transition-colors ${
-                        expandedUpload === upload.id ? 'border-b border-[#e5e7eb]' : ''
+                        expandedUpload === upload.id ? 'border-b border-[var(--t-color-border)]' : ''
                       }`}
                       onClick={() => handleToggleUploadExpand(upload.id)}
                     >
@@ -838,12 +838,12 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-[#1a1a1a] truncate">
+                        <h4 className="font-medium text-[color:var(--t-color-text-body)] truncate">
                           {upload.originalName}
                         </h4>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs text-[#6b7280]">{formatFileSize(upload.fileSize)}</span>
-                          <span className="text-xs text-[#6b7280]">Uploaded {new Date(upload.uploadedAt).toLocaleDateString()}</span>
+                          <span className="text-xs text-[color:var(--t-color-text-secondary)]">{formatFileSize(upload.fileSize)}</span>
+                          <span className="text-xs text-[color:var(--t-color-text-secondary)]">Uploaded {new Date(upload.uploadedAt).toLocaleDateString()}</span>
                           {getExtractionStatusBadge(upload.extractionStatus)}
                           {upload.detectedFormType && (
                             <Badge variant="outline" className="text-xs">
@@ -878,9 +878,9 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                         </Button>
                         {upload.mimeType === 'application/pdf' && (
                           expandedUpload === upload.id ? (
-                            <ChevronDown className="w-5 h-5 text-[#6b7280]" />
+                            <ChevronDown className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
                           ) : (
-                            <ChevronRight className="w-5 h-5 text-[#6b7280]" />
+                            <ChevronRight className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
                           )
                         )}
                       </div>
@@ -891,13 +891,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                       <div className="p-4 bg-white">
                         {isLoadingExtraction ? (
                           <div className="py-6 text-center">
-                            <Loader2 className="w-6 h-6 text-[#2563eb] mx-auto animate-spin" />
-                            <p className="text-[#6b7280] mt-2">Loading extraction data...</p>
+                            <Loader2 className="w-6 h-6 text-[color:var(--t-color-accent)] mx-auto animate-spin" />
+                            <p className="text-[color:var(--t-color-text-secondary)] mt-2">Loading extraction data...</p>
                           </div>
                         ) : !extraction ? (
                           <div className="py-6 text-center">
-                            <Eye className="w-8 h-8 text-[#9ca3af] mx-auto mb-3" />
-                            <p className="text-[#6b7280] mb-3">No extraction data available</p>
+                            <Eye className="w-8 h-8 text-[color:var(--t-color-text-muted)] mx-auto mb-3" />
+                            <p className="text-[color:var(--t-color-text-secondary)] mb-3">No extraction data available</p>
                             {upload.extractionStatus === 'failed' ? (
                               <Button
                                 size="sm"
@@ -951,20 +951,20 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                             )}
 
                             {/* Extraction Summary */}
-                            <div className="flex items-center justify-between pb-3 border-b border-[#e5e7eb]">
+                            <div className="flex items-center justify-between pb-3 border-b border-[var(--t-color-border)]">
                               <div className="flex items-center gap-4 flex-wrap">
                                 <div className="text-sm">
-                                  <span className="text-[#6b7280]">Form Type:</span>{' '}
+                                  <span className="text-[color:var(--t-color-text-secondary)]">Form Type:</span>{' '}
                                   <span className="font-medium">{extraction.formType?.replace('sba_', 'SBA ').replace('irs_', 'IRS ') || 'Unknown'}</span>
                                 </div>
                                 <div className="text-sm">
-                                  <span className="text-[#6b7280]">Fields with Values:</span>{' '}
+                                  <span className="text-[color:var(--t-color-text-secondary)]">Fields with Values:</span>{' '}
                                   <span className={`font-medium ${extraction.filledFields === 0 ? 'text-red-600' : extraction.filledFields < extraction.mappedFields / 2 ? 'text-amber-600' : 'text-green-600'}`}>
                                     {extraction.filledFields || 0} / {extraction.mappedFields}
                                   </span>
                                 </div>
                                 <div className="text-sm">
-                                  <span className="text-[#6b7280]">Avg Confidence:</span>{' '}
+                                  <span className="text-[color:var(--t-color-text-secondary)]">Avg Confidence:</span>{' '}
                                   <span className={`font-medium ${getConfidenceColor(extraction.averageConfidence)}`}>
                                     {(extraction.averageConfidence * 100).toFixed(0)}%
                                   </span>
@@ -1009,7 +1009,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
                             {/* Field List */}
                             {mappedFields.length === 0 ? (
-                              <p className="text-[#6b7280] text-center py-4">
+                              <p className="text-[color:var(--t-color-text-secondary)] text-center py-4">
                                 No mappable fields found in this document.
                               </p>
                             ) : (
@@ -1035,7 +1035,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                                           {(field.confidence * 100).toFixed(0)}%
                                         </span>
                                       </div>
-                                      <div className="text-xs text-[#6b7280] mt-0.5">
+                                      <div className="text-xs text-[color:var(--t-color-text-secondary)] mt-0.5">
                                         {field.mappedSection} → {field.mappedPath}
                                       </div>
                                     </div>
@@ -1149,14 +1149,14 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
                             {/* Help text for empty fields */}
                             {extraction.filledFields === 0 && extraction.mappedFields > 0 && (
-                              <div className="text-xs text-[#6b7280] pt-3 border-t border-[#e5e7eb]">
+                              <div className="text-xs text-[color:var(--t-color-text-secondary)] pt-3 border-t border-[var(--t-color-border)]">
                                 <p className="font-medium mb-1">Why are all fields showing &quot;(empty)&quot;?</p>
-                                <ul className="list-disc list-inside space-y-0.5 text-[#9ca3af]">
+                                <ul className="list-disc list-inside space-y-0.5 text-[color:var(--t-color-text-muted)]">
                                   <li>The PDF may be a blank template (not filled out)</li>
                                   <li>The form was filled using a PDF viewer that doesn&apos;t save form data</li>
                                   <li>The PDF was &quot;flattened&quot; after filling (converted to static image)</li>
                                 </ul>
-                                <p className="mt-2 text-[#6b7280]">
+                                <p className="mt-2 text-[color:var(--t-color-text-secondary)]">
                                   For best results, have borrowers fill forms using Adobe Acrobat or Adobe Reader and save before uploading.
                                 </p>
                               </div>
@@ -1164,7 +1164,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
                             {/* Applied Info */}
                             {extraction.appliedBy && extraction.appliedAt && (
-                              <div className="text-xs text-[#6b7280] pt-2 border-t border-[#e5e7eb]">
+                              <div className="text-xs text-[color:var(--t-color-text-secondary)] pt-2 border-t border-[var(--t-color-border)]">
                                 Applied by {extraction.appliedByName || extraction.appliedBy} on{' '}
                                 {new Date(extraction.appliedAt).toLocaleString()}
                               </div>
@@ -1179,7 +1179,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
             )}
 
             {borrowerUploads.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-[#e5e7eb]">
+              <div className="mt-4 pt-4 border-t border-[var(--t-color-border)]">
                 <Button
                   variant="outline"
                   size="sm"

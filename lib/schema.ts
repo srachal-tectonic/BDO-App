@@ -342,6 +342,11 @@ export interface SellerInfo {
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
+  yearEstablished?: string;
+  purchasePrice?: number;
+  typeOfAcquisition?: 'stock' | 'asset' | '';
+  purchasing100Percent?: 'yes' | 'no' | '';
+  purchaseContractStatus?: 'no_contract' | 'loi_signed' | 'contract_drafted' | 'fully_executed' | '';
   phone?: string;
   email?: string;
   // Acquisition details
@@ -380,8 +385,12 @@ export interface SBAEligibility {
   taxLiens?: 'yes' | 'no';
   bankruptcy?: 'yes' | 'no';
   federalDebt?: 'yes' | 'no';
+  nonCitizenOwner?: 'yes' | 'no';
 
-  // Explanation fields for "Yes" answers
+  // Combined explanation for "Yes" answers
+  eligibilityExplanation?: string;
+
+  // Individual explanation fields for "Yes" answers
   convictedExplanation?: string;
   arrestedExplanation?: string;
   pendingLawsuitsExplanation?: string;
@@ -410,11 +419,13 @@ export interface ProjectOverview {
   bdo2?: string;
   bda?: string;
   referralSource?: string;
+  referralIndividual?: string;
   referralFirm?: string;
   referralFee?: number;
   industry: string;
   naicsCode: string;
-  primaryProjectPurpose: string[];
+  primaryProjectPurpose: string[] | string;
+  secondaryProjectPurposes?: string[];
   projectDescription?: string;
   goodFitSummary?: string;
   loanWeaknesses?: string;
