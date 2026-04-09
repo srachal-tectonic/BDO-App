@@ -27,9 +27,10 @@ interface FinancialSpread {
 
 interface FinancialsSectionProps {
   projectId: string;
+  children?: React.ReactNode;
 }
 
-export default function FinancialsSection({ projectId }: FinancialsSectionProps) {
+export default function FinancialsSection({ projectId, children }: FinancialsSectionProps) {
   const [spreads, setSpreads] = useState<FinancialSpread[]>([]);
   const [selectedSpreadId, setSelectedSpreadId] = useState<string | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -66,7 +67,7 @@ export default function FinancialsSection({ projectId }: FinancialsSectionProps)
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+    <div className="bg-white border border-[#c5d4e8] rounded-lg mb-3 transition-all hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-between gap-2 flex-wrap px-4 py-3">
         <div>
           <h2 className="text-[13px] font-semibold text-[#1a1a1a]" data-testid="text-financials-title">Financial Spreads</h2>
@@ -173,6 +174,8 @@ export default function FinancialsSection({ projectId }: FinancialsSectionProps)
           ))}
         </div>
       )}
+
+      {children}
 
       {showUploadDialog && (
         <UploadDialog

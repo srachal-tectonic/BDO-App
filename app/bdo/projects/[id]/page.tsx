@@ -6,6 +6,7 @@ import BusinessApplicantSection from '@/components/loan-sections/BusinessApplica
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
 import CombinedFilesSection from '@/components/loan-sections/CombinedFilesSection';
 import FilesSection from '@/components/loan-sections/FilesSection';
+import FinancialsSection from '@/components/loan-sections/FinancialsSection';
 import FundingStructureSection from '@/components/loan-sections/FundingStructureSection';
 import IndividualApplicantsSection from '@/components/loan-sections/IndividualApplicantsSection';
 import NotesSection from '@/components/loan-sections/NotesSection';
@@ -16,7 +17,6 @@ import ReviewSection from '@/components/loan-sections/ReviewSection';
 import VideoMessageSection from '@/components/loan-sections/VideoMessageSection';
 import SBAEligibilitySection from '@/components/loan-sections/SBAEligibilitySection';
 import SellerInfoSection from '@/components/loan-sections/SellerInfoSection';
-import FinancialsSection from '@/components/loan-sections/FinancialsSection';
 import PQMemoForm from '@/components/PQMemoForm';
 import ProposalLetterForm from '@/components/ProposalLetterForm';
 import { Button } from '@/components/ui/button';
@@ -327,30 +327,32 @@ export default function BDOToolsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center gap-4 mb-6 border-b border-[var(--t-color-border)]">
           <TabsList className="bg-transparent border-none p-0 h-auto gap-0 w-full justify-start">
-            <TabsTrigger value="project-overview" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="project-overview" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Project Overview
             </TabsTrigger>
-            <TabsTrigger value="loan-application" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="loan-application" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Loan Application
             </TabsTrigger>
-            <TabsTrigger value="spreads" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="spreads" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Spreads
             </TabsTrigger>
-            <TabsTrigger value="pq-memo" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="pq-memo" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               PQ Memo
             </TabsTrigger>
-            <TabsTrigger value="proposal-letter" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="proposal-letter" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Proposal Letter
             </TabsTrigger>
-            <TabsTrigger value="notes" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            <TabsTrigger value="notes" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Notes
             </TabsTrigger>
-            <TabsTrigger value="borrower-forms" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
-              Borrower Forms and Files
+            <TabsTrigger value="borrower-forms" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+              PDF Forms
             </TabsTrigger>
-            <TabsTrigger value="broker-access" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+            {/* Temporarily hidden: Broker Access tab
+            <TabsTrigger value="broker-access" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Broker Access
             </TabsTrigger>
+            */}
           </TabsList>
           <Button
             variant="outline"
@@ -434,10 +436,9 @@ export default function BDOToolsPage() {
         </TabsContent>
 
         <TabsContent value="spreads" className="mt-0">
-          <FundingStructureSection isReadOnly={false} />
-          <div className="mt-6">
-            <FinancialsSection projectId={projectId} />
-          </div>
+          <FinancialsSection projectId={projectId}>
+            <FundingStructureSection isReadOnly={false} />
+          </FinancialsSection>
         </TabsContent>
 
         <TabsContent value="pq-memo" className="mt-0">
@@ -459,10 +460,13 @@ export default function BDOToolsPage() {
         <TabsContent value="borrower-forms" className="mt-0">
           <Tabs defaultValue="borrower-forms-sub" className="w-full">
             <TabsList className="bg-transparent border-none p-0 h-auto gap-0 mb-4 border-b border-[var(--t-color-border)] w-full justify-start">
-              <TabsTrigger value="borrower-forms-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+              <TabsTrigger value="borrower-forms-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
                 Borrower Forms
               </TabsTrigger>
-              <TabsTrigger value="borrower-files-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+              <TabsTrigger value="business-questionnaire-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+                Business Questionnaire
+              </TabsTrigger>
+              <TabsTrigger value="borrower-files-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
                 Borrower Files
               </TabsTrigger>
             </TabsList>
@@ -470,6 +474,15 @@ export default function BDOToolsPage() {
               <Card>
                 <CardContent className="pt-6">
                   <BorrowerFormsSection projectId={projectId} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="business-questionnaire-sub" className="mt-0">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-8 text-[color:var(--t-color-text-secondary)]">
+                    <p className="text-sm">Business Questionnaire coming soon.</p>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -491,6 +504,7 @@ export default function BDOToolsPage() {
           </Tabs>
         </TabsContent>
 
+        {/* Temporarily hidden: Broker Access tab content
         <TabsContent value="broker-access" className="mt-0">
           <Card>
             <CardContent className="pt-6">
@@ -504,6 +518,7 @@ export default function BDOToolsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        */}
       </Tabs>
     </BDOLayout>
   );

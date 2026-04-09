@@ -48,12 +48,12 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
   const totalProjectAmount = calculateTotal();
 
   return (
-    <div>
+    <>
       <div className="p-4 pb-2">
         <h1 className="text-lg font-semibold text-[#133c7f] uppercase tracking-wider">Financials</h1>
       </div>
 
-      <div className="px-4">
+      <div className="px-4 pb-4">
         <div className="mb-6">
           <CollapsibleSection title="Financing Sources">
             <FinancingSourcesSection isReadOnly={isReadOnly} />
@@ -189,6 +189,6 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
           </CollapsibleSection>
         </div>
       </div>
-    </div>
+    </>
   );
 }
