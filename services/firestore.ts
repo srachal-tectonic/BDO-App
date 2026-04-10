@@ -1,5 +1,5 @@
-// In-memory dev store for project data
-// Persists within a browser session only. Will be replaced with Azure Cosmos DB.
+// Client-side service layer
+// Calls Next.js API routes which handle Cosmos DB operations server-side.
 
 import { Project, Loan, FundingStructure, Document, BusinessEntity, Note, SpreadsWorkbook, PdfImportSession, PdfMappingTemplate, PdfFieldMapping, FormPortalToken, BorrowerUpload } from '@/types';
 import type { ApplicationData } from '@/lib/applicationStore';
@@ -26,238 +26,248 @@ export interface GeneratedForm {
   fileUrl?: string;
 }
 
-// ============ IN-MEMORY STORES ============
+// ============ HELPERS ============
 
-const projectStore = new Map<string, Project>();
-const loanAppStore = new Map<string, ApplicationData>();
-const noteStore = new Map<string, Note>();
-
-// Seed with test projects
-const TEST_PROJECTS: Project[] = [
-  {
-    id: 'proj-001',
-    projectName: 'Riverdale Restaurant Group',
-    businessName: 'Riverdale Restaurant Group LLC',
-    stage: 'Leads',
-    status: 'Active',
-    bdoUserId: 'dev-srachal',
-    bdoUserName: 'Shane Rachal',
-    createdAt: new Date('2025-03-15'),
-    updatedAt: new Date('2025-04-01'),
-    loanAmount: 1500000,
-    businessType: 'Full-Service Restaurant',
-    location: 'Dallas, TX',
-  },
-  {
-    id: 'proj-002',
-    projectName: 'Summit Medical Partners',
-    businessName: 'Summit Medical Partners Inc',
-    stage: 'PQ Advance',
-    status: 'Active',
-    bdoUserId: 'dev-srachal',
-    bdoUserName: 'Shane Rachal',
-    createdAt: new Date('2025-02-20'),
-    updatedAt: new Date('2025-03-28'),
-    loanAmount: 3200000,
-    businessType: 'Medical Practice',
-    location: 'Houston, TX',
-  },
-  {
-    id: 'proj-003',
-    projectName: 'Heritage Auto Body',
-    businessName: 'Heritage Auto Body & Paint',
-    stage: 'PQ Prep',
-    status: 'Active',
-    bdoUserId: 'dev-srachal',
-    bdoUserName: 'Shane Rachal',
-    createdAt: new Date('2025-04-02'),
-    updatedAt: new Date('2025-04-05'),
-    loanAmount: 750000,
-    businessType: 'Auto Body Repair',
-    location: 'Austin, TX',
-  },
-];
-
-// Initialize store
-TEST_PROJECTS.forEach(p => projectStore.set(p.id, p));
-
-let nextId = 100;
-const genId = (prefix: string) => `${prefix}-${Date.now()}-${nextId++}`;
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `API error ${res.status}`);
+  }
+  return res.json();
+}
 
 // ============ PROJECT OPERATIONS ============
 
 export const createProject = async (projectData: Omit<Project, 'id'>): Promise<string> => {
-  const id = genId('proj');
-  const project: Project = { ...projectData, id };
-  projectStore.set(id, project);
-  console.info(`[dev store] createProject ${id}: ${project.projectName}`);
-  return id;
+  const result = await apiFetch<Project>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(projectData),
+  });
+  return result.id;
 };
 
 export const getProject = async (projectId: string): Promise<Project | null> => {
-  return projectStore.get(projectId) ?? null;
+  try {
+    return await apiFetch<Project>(`/api/projects/${projectId}`);
+  } catch {
+    return null;
+  }
 };
 
 export const getUserProjects = async (userId: string, options?: { includeDeleted?: boolean; maxRecords?: number }): Promise<Project[]> => {
-  let projects = Array.from(projectStore.values()).filter(p => p.bdoUserId === userId);
-  if (!options?.includeDeleted) {
-    projects = projects.filter(p => !p.deletedAt);
-  }
-  projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  if (options?.maxRecords) projects = projects.slice(0, options.maxRecords);
-  return projects;
+  const params = new URLSearchParams({ userId });
+  if (options?.includeDeleted) params.set('includeDeleted', 'true');
+  if (options?.maxRecords) params.set('limit', options.maxRecords.toString());
+  return apiFetch<Project[]>(`/api/projects?${params}`);
 };
 
 export const getAllProjects = async (options?: { includeDeleted?: boolean; maxRecords?: number }): Promise<Project[]> => {
-  let projects = Array.from(projectStore.values());
-  if (!options?.includeDeleted) {
-    projects = projects.filter(p => !p.deletedAt);
-  }
-  projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  if (options?.maxRecords) projects = projects.slice(0, options.maxRecords);
-  return projects;
+  const params = new URLSearchParams();
+  if (options?.includeDeleted) params.set('includeDeleted', 'true');
+  if (options?.maxRecords) params.set('limit', options.maxRecords.toString());
+  return apiFetch<Project[]>(`/api/projects?${params}`);
 };
 
 export const getProjectsByStage = async (stage: string, maxRecords: number = 100): Promise<Project[]> => {
-  return Array.from(projectStore.values())
-    .filter(p => p.stage === stage && !p.deletedAt)
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-    .slice(0, maxRecords);
+  const params = new URLSearchParams({ stage, limit: maxRecords.toString() });
+  return apiFetch<Project[]>(`/api/projects?${params}`);
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<void> => {
-  const existing = projectStore.get(projectId);
-  if (existing) {
-    projectStore.set(projectId, { ...existing, ...updates, updatedAt: new Date() });
-    console.info(`[dev store] updateProject ${projectId}`);
-  }
+  await apiFetch(`/api/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
 };
 
 export const deleteProject = async (projectId: string, deletedByUserId?: string): Promise<void> => {
-  const existing = projectStore.get(projectId);
-  if (existing) {
-    projectStore.set(projectId, { ...existing, deletedAt: new Date(), deletedBy: deletedByUserId || null });
-    console.info(`[dev store] deleteProject ${projectId}`);
-  }
+  await apiFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
 };
 
 export const restoreProject = async (projectId: string): Promise<void> => {
-  const existing = projectStore.get(projectId);
-  if (existing) {
-    projectStore.set(projectId, { ...existing, deletedAt: null, deletedBy: null });
-    console.info(`[dev store] restoreProject ${projectId}`);
-  }
+  await apiFetch(`/api/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ deletedAt: null, deletedBy: null }),
+  });
 };
 
-// ============ LOAN OPERATIONS ============
+// ============ LOAN OPERATIONS (stubs — not yet API-backed) ============
 
-export const createLoan = async (loanData: Omit<Loan, 'id'>): Promise<string> => {
-  const id = genId('loan');
-  console.info(`[dev store] createLoan ${id}`);
-  return id;
-};
-
+export const createLoan = async (loanData: Omit<Loan, 'id'>): Promise<string> => '';
 export const getLoan = async (loanId: string): Promise<Loan | null> => null;
 export const getProjectLoans = async (projectId: string): Promise<Loan[]> => [];
 export const updateLoan = async (loanId: string, updates: Partial<Loan>): Promise<void> => {};
 
-// ============ FUNDING STRUCTURE OPERATIONS ============
+// ============ FUNDING STRUCTURE (stubs) ============
 
-export const createFundingStructure = async (fundingStructureData: Omit<FundingStructure, 'id'>): Promise<string> => genId('fs');
+export const createFundingStructure = async (data: Omit<FundingStructure, 'id'>): Promise<string> => '';
 export const getProjectFundingStructures = async (projectId: string): Promise<FundingStructure[]> => [];
-export const updateFundingStructure = async (fundingStructureId: string, updates: Partial<FundingStructure>): Promise<void> => {};
+export const updateFundingStructure = async (id: string, updates: Partial<FundingStructure>): Promise<void> => {};
 
-// ============ DOCUMENT OPERATIONS ============
+// ============ DOCUMENT OPERATIONS (stubs) ============
 
-export const createDocument = async (documentData: Omit<Document, 'id'>): Promise<string> => genId('doc');
+export const createDocument = async (data: Omit<Document, 'id'>): Promise<string> => '';
 export const getProjectDocuments = async (projectId: string): Promise<Document[]> => [];
-export const updateDocument = async (documentId: string, updates: Partial<Document>): Promise<void> => {};
+export const updateDocument = async (id: string, updates: Partial<Document>): Promise<void> => {};
 
-// ============ BUSINESS ENTITY OPERATIONS ============
+// ============ BUSINESS ENTITY (stubs) ============
 
-export const createBusinessEntity = async (businessEntityData: Omit<BusinessEntity, 'id'>): Promise<string> => genId('be');
+export const createBusinessEntity = async (data: Omit<BusinessEntity, 'id'>): Promise<string> => '';
 export const getProjectBusinessEntities = async (projectId: string): Promise<BusinessEntity[]> => [];
 
-// ============ LOAN APPLICATION OPERATIONS ============
+// ============ LOAN APPLICATION DATA ============
 
 export const saveLoanApplication = async (projectId: string, applicationData: ApplicationData): Promise<void> => {
-  loanAppStore.set(projectId, applicationData);
-  console.info(`[dev store] saveLoanApplication ${projectId}`);
+  await apiFetch(`/api/projects/${projectId}/loan-application`, {
+    method: 'PUT',
+    body: JSON.stringify(applicationData),
+  });
 };
 
 export const getLoanApplication = async (projectId: string): Promise<ApplicationData | null> => {
-  return loanAppStore.get(projectId) ?? null;
-};
-
-export const updateLoanApplication = async (projectId: string, updates: Partial<ApplicationData>): Promise<void> => {
-  const existing = loanAppStore.get(projectId);
-  if (existing) {
-    loanAppStore.set(projectId, { ...existing, ...updates });
+  try {
+    const result = await apiFetch<ApplicationData | null>(`/api/projects/${projectId}/loan-application`);
+    return result;
+  } catch {
+    return null;
   }
 };
 
-// ============ NOTE OPERATIONS ============
+export const updateLoanApplication = async (projectId: string, updates: Partial<ApplicationData>): Promise<void> => {
+  const existing = await getLoanApplication(projectId);
+  if (existing) {
+    await saveLoanApplication(projectId, { ...existing, ...updates });
+  } else {
+    await saveLoanApplication(projectId, updates as ApplicationData);
+  }
+};
+
+// ============ NOTES ============
 
 export const createNote = async (noteData: Omit<Note, 'id'>): Promise<string> => {
-  const id = genId('note');
-  noteStore.set(id, { ...noteData, id } as Note);
-  return id;
+  const result = await apiFetch<Note>(`/api/projects/${noteData.projectId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify(noteData),
+  });
+  return result.id;
 };
+
 export const getProjectNotes = async (projectId: string): Promise<Note[]> => {
-  return Array.from(noteStore.values()).filter(n => n.projectId === projectId);
+  return apiFetch<Note[]>(`/api/projects/${projectId}/notes`);
 };
+
 export const updateNote = async (noteId: string, updates: Partial<Note>): Promise<void> => {
-  const existing = noteStore.get(noteId);
-  if (existing) noteStore.set(noteId, { ...existing, ...updates });
+  // TODO: Add PUT /api/notes/:id route when needed
+  console.warn('updateNote not yet API-backed');
 };
-export const deleteNote = async (noteId: string): Promise<void> => { noteStore.delete(noteId); };
+
+export const deleteNote = async (noteId: string): Promise<void> => {
+  // TODO: Add DELETE /api/notes/:id route when needed
+  console.warn('deleteNote not yet API-backed');
+};
+
 export const getNoteTags = async (): Promise<string[]> => ['General', 'Credit', 'Underwriting', 'Follow-up'];
 export const saveNoteTags = async (tags: string[]): Promise<void> => {};
 
 // ============ FILE UPLOAD INSTRUCTIONS ============
 
 export const getFileUploadInstructions = async (): Promise<FileUploadInstructions> => ({
-  businessApplicant: 'Upload tax returns, P&L statements, balance sheets, articles of incorporation, and other business documents.',
-  individualApplicants: 'Upload personal tax returns, personal financial statements, driver\'s license, and other personal documents for all applicants.',
-  otherBusinesses: 'Upload tax returns, financial statements, and organizational documents for any other businesses owned by the applicants.',
-  projectFiles: 'Upload purchase agreements, appraisals, construction plans, lease agreements, and other project-related documents.',
+  businessApplicant: 'Upload business tax returns, financial statements, and legal documents.',
+  individualApplicants: 'Upload personal tax returns and financial statements for each applicant.',
+  otherBusinesses: 'Upload tax returns and financials for other owned businesses.',
+  projectFiles: 'Upload appraisals, environmental reports, and other project-specific documents.',
 });
 
-// ============ SPREADS WORKBOOK OPERATIONS ============
+// ============ SPREADS WORKBOOK ============
 
-export const setSpreadsWorkbook = async (projectId: string, workbook: SpreadsWorkbook): Promise<void> => {};
-export const migrateLegacySpreadsWorkbook = async (projectId: string, project: Project): Promise<boolean> => false;
-export const addSpreadsWorkbook = async (projectId: string, workbook: SpreadsWorkbook): Promise<void> => {};
-export const removeSpreadsWorkbook = async (projectId: string, workbookId: string): Promise<void> => {};
-export const updateSpreadsWorkbookLabel = async (projectId: string, workbookId: string, label: string): Promise<void> => {};
-export const updateSpreadsWorkbookSyncTimestamp = async (projectId: string, workbookId: string): Promise<void> => {};
+export const setSpreadsWorkbook = async (projectId: string, workbook: SpreadsWorkbook): Promise<void> => {
+  await updateProject(projectId, { spreadsWorkbooks: [workbook] } as any);
+};
 
-// ============ PDF IMPORT SESSION OPERATIONS ============
+export const migrateLegacySpreadsWorkbook = async (projectId: string, project: Project): Promise<boolean> => {
+  if (project.spreadsWorkbook && (!project.spreadsWorkbooks || project.spreadsWorkbooks.length === 0)) {
+    await updateProject(projectId, {
+      spreadsWorkbooks: [project.spreadsWorkbook],
+    } as any);
+    return true;
+  }
+  return false;
+};
 
-export const createPdfImportSession = async (sessionData: Omit<PdfImportSession, 'id'>): Promise<string> => genId('pdfimport');
+export const addSpreadsWorkbook = async (projectId: string, workbook: SpreadsWorkbook): Promise<void> => {
+  const project = await getProject(projectId);
+  if (!project) return;
+  const workbooks = [...(project.spreadsWorkbooks || []), workbook];
+  await updateProject(projectId, { spreadsWorkbooks: workbooks });
+};
+
+export const removeSpreadsWorkbook = async (projectId: string, workbookId: string): Promise<void> => {
+  const project = await getProject(projectId);
+  if (!project) return;
+  const workbooks = (project.spreadsWorkbooks || []).filter(w => w.workbookId !== workbookId);
+  await updateProject(projectId, { spreadsWorkbooks: workbooks });
+};
+
+export const updateSpreadsWorkbookLabel = async (projectId: string, workbookId: string, label: string): Promise<void> => {
+  const project = await getProject(projectId);
+  if (!project) return;
+  const workbooks = (project.spreadsWorkbooks || []).map(w =>
+    w.workbookId === workbookId ? { ...w, label } : w
+  );
+  await updateProject(projectId, { spreadsWorkbooks: workbooks });
+};
+
+export const updateSpreadsWorkbookSyncTimestamp = async (projectId: string, workbookId: string): Promise<void> => {
+  const project = await getProject(projectId);
+  if (!project) return;
+  const workbooks = (project.spreadsWorkbooks || []).map(w =>
+    w.workbookId === workbookId ? { ...w, lastSyncedAt: new Date() } : w
+  );
+  await updateProject(projectId, { spreadsWorkbooks: workbooks });
+};
+
+// ============ PDF IMPORT SESSIONS (stubs) ============
+
+export const createPdfImportSession = async (sessionData: Omit<PdfImportSession, 'id'>): Promise<string> => '';
 export const getPdfImportSession = async (sessionId: string): Promise<PdfImportSession | null> => null;
 export const getPdfImportSessions = async (projectId: string): Promise<PdfImportSession[]> => [];
 export const updatePdfImportSession = async (sessionId: string, updates: Partial<PdfImportSession>): Promise<void> => {};
 export const deletePdfImportSession = async (sessionId: string): Promise<void> => {};
 
-// ============ PDF TEMPLATE OPERATIONS ============
+// ============ PDF TEMPLATES (stubs) ============
 
-export const createPdfTemplate = async (templateData: Omit<PdfMappingTemplate, 'id'>): Promise<string> => genId('pdftpl');
+export const createPdfTemplate = async (templateData: Omit<PdfMappingTemplate, 'id'>): Promise<string> => '';
 export const getPdfTemplate = async (templateId: string): Promise<PdfMappingTemplate | null> => null;
 export const getPdfTemplates = async (): Promise<PdfMappingTemplate[]> => [];
 export const deletePdfTemplate = async (templateId: string): Promise<void> => {};
 
-// ============ SOURCES & USES OPERATIONS ============
+// ============ SOURCES & USES ============
 
-export const getProjectSourcesUses = async (projectId: string, workbookId: string): Promise<ProjectSourcesUses | null> => null;
-export const saveProjectSourcesUses = async (projectId: string, workbookId: string, data: ProjectSourcesUses): Promise<void> => {};
+export const getProjectSourcesUses = async (projectId: string, workbookId: string): Promise<ProjectSourcesUses | null> => {
+  // TODO: Add API route for sources & uses
+  return null;
+};
 
-// ============ PRIMARY SPREAD OPERATIONS ============
+export const saveProjectSourcesUses = async (projectId: string, workbookId: string, data: ProjectSourcesUses): Promise<void> => {
+  // TODO: Add API route for sources & uses
+};
 
-export const setPrimarySpreadId = async (projectId: string, workbookId: string): Promise<void> => {};
-export const getPrimarySpreadId = async (projectId: string): Promise<string | null> => null;
+// ============ PRIMARY SPREAD ============
 
-// ============ GENERATED FORMS OPERATIONS ============
+export const setPrimarySpreadId = async (projectId: string, workbookId: string): Promise<void> => {
+  await updateProject(projectId, { primarySpreadId: workbookId });
+};
+
+export const getPrimarySpreadId = async (projectId: string): Promise<string | null> => {
+  const project = await getProject(projectId);
+  return project?.primarySpreadId || null;
+};
+
+// ============ GENERATED FORMS (stubs — TODO: API routes) ============
 
 export const getGeneratedForms = async (projectId: string): Promise<GeneratedForm[]> => [];
 export const generateFormsForProject = async (projectId: string): Promise<GeneratedForm[]> => [];
@@ -265,17 +275,17 @@ export const deleteGeneratedForm = async (formId: string): Promise<void> => {};
 export const getGeneratedFormById = async (formId: string): Promise<GeneratedForm | null> => null;
 export const updateGeneratedFormStatus = async (formId: string, status: GeneratedForm['status'], timestampField?: 'downloadedAt' | 'uploadedAt' | 'importedAt'): Promise<void> => {};
 
-// ============ FORM PORTAL TOKEN OPERATIONS ============
+// ============ FORM PORTAL TOKENS (stubs — TODO: API routes) ============
 
-export const createFormPortalToken = async (projectId: string, createdBy: string, createdByName: string, expirationDays: number = 30): Promise<string> => genId('token');
+export const createFormPortalToken = async (projectId: string, createdBy: string, createdByName: string, expirationDays?: number): Promise<string> => '';
 export const getFormPortalToken = async (token: string): Promise<FormPortalToken | null> => null;
 export const validateFormPortalToken = async (token: string): Promise<{ valid: boolean; token?: FormPortalToken; error?: string }> => ({ valid: false, error: 'Not implemented' });
 export const revokeFormPortalToken = async (token: string): Promise<void> => {};
 export const getProjectFormPortalToken = async (projectId: string): Promise<string | null> => null;
 
-// ============ BORROWER UPLOAD OPERATIONS ============
+// ============ BORROWER UPLOADS (stubs — TODO: API routes) ============
 
-export const createBorrowerUpload = async (uploadData: Omit<BorrowerUpload, 'id'>): Promise<string> => genId('upload');
+export const createBorrowerUpload = async (uploadData: Omit<BorrowerUpload, 'id'>): Promise<string> => '';
 export const getBorrowerUploads = async (projectId: string): Promise<BorrowerUpload[]> => [];
 export const markFormAsDownloaded = async (formId: string): Promise<void> => {};
 export const updateBorrowerUpload = async (projectId: string, uploadId: string, updates: Partial<BorrowerUpload>): Promise<void> => {};

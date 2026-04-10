@@ -544,19 +544,19 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[28px] font-bold text-[color:var(--t-color-text-body)]">Borrower Forms</h2>
-        <p className="text-[color:var(--t-color-text-secondary)] mt-1">
+        <h2 className="text-lg font-semibold text-[color:var(--t-color-text-primary)] uppercase tracking-wider">Borrower Forms</h2>
+        <p className="text-[color:var(--t-color-text-muted)] mt-1">
           Generate fillable PDF forms for borrowers to complete and upload.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[color:var(--t-color-accent)]" />
+          <CardTitle className="flex items-center gap-2 text-[color:var(--t-color-text-primary)] font-bold">
+            <FileText className="w-5 h-5 text-[color:var(--t-color-primary)]" />
             Generate Forms for Borrower
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-[color:var(--t-color-text-muted)]">
             Generate project-specific PDF forms pre-filled with available data.
             Borrowers can download, complete, and upload these forms.
           </CardDescription>
@@ -566,7 +566,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
             <Button
               onClick={handleGenerateForms}
               disabled={isGenerating}
-              className="gap-2"
+              className="gap-2 bg-[var(--t-color-primary)] hover:bg-[var(--t-color-primary-light)] text-white"
               data-testid="button-generate-forms"
             >
               {isGenerating ? (
@@ -587,29 +587,25 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               )}
             </Button>
 
-            {forms.length > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={copyPortalLink}
-                  className="gap-2"
-                  data-testid="button-copy-link"
-                >
-                  <Copy className="w-4 h-4" />
-                  Copy Portal Link
-                </Button>
+            <Button
+              variant="outline"
+              onClick={copyPortalLink}
+              className="gap-2"
+              data-testid="button-copy-link"
+            >
+              <Copy className="w-4 h-4" />
+              Copy Portal Link
+            </Button>
 
-                <Button
-                  variant="outline"
-                  onClick={openPortal}
-                  className="gap-2"
-                  data-testid="button-open-portal"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open Portal
-                </Button>
-              </>
-            )}
+            <Button
+              variant="outline"
+              onClick={openPortal}
+              className="gap-2"
+              data-testid="button-open-portal"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open Portal
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -637,8 +633,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Generated Forms</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg text-[color:var(--t-color-text-primary)] font-bold">Generated Forms</CardTitle>
+                <CardDescription className="text-[color:var(--t-color-text-muted)]">
                   {downloadedCount} of {totalForms} forms downloaded by borrower
                 </CardDescription>
               </div>
@@ -657,7 +653,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               {forms.map((form) => (
                 <div
                   key={form.id}
-                  className="flex items-center gap-4 p-4 bg-[#f8f9fa] rounded-lg border border-[var(--t-color-border)]"
+                  className="flex items-center gap-4 p-4 bg-[var(--t-color-page-bg)] rounded-lg border border-[var(--t-color-border)]"
                   data-testid={`form-item-${form.id}`}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -714,7 +710,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteForm(form.id, form.formName)}
-                      className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="gap-2 text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
                       data-testid={`button-delete-form-${form.id}`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -729,13 +725,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
       {/* Portal Link Section */}
       {forms.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-[var(--t-color-info-bg)] border-[var(--t-color-info-border)]">
           <CardContent className="p-6">
-            <h3 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+            <h3 className="font-medium text-[color:var(--t-color-text-primary)] mb-2 flex items-center gap-2">
               <Send className="w-4 h-4" />
               Share with Borrower
             </h3>
-            <p className="text-sm text-blue-800 mb-4">
+            <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
               Copy the portal link below and send it to your borrower. They can download, fill out,
               and upload all required forms through this secure portal.
             </p>
@@ -743,13 +739,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
             {portalToken?.hasToken && !portalToken.isExpired && !portalToken.isRevoked ? (
               <>
                 <div className="flex items-center gap-2 mb-3">
-                  <code className="flex-1 bg-white px-3 py-2 rounded border border-blue-200 text-sm text-blue-900 overflow-x-auto">
+                  <code className="flex-1 bg-[var(--t-color-card-bg)] px-3 py-2 rounded border border-[var(--t-color-info-border)] text-sm text-[color:var(--t-color-text-primary)] overflow-x-auto">
                     {getPortalUrl()}
                   </code>
                   <Button
                     size="sm"
                     onClick={copyPortalLink}
-                    className="gap-2 flex-shrink-0"
+                    className="gap-2 flex-shrink-0 bg-[var(--t-color-primary)] hover:bg-[var(--t-color-primary-light)] text-white"
                     data-testid="button-copy-portal-link"
                   >
                     <Copy className="w-4 h-4" />
@@ -758,7 +754,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   {portalToken.expiresAt && (
-                    <span className="text-blue-700">
+                    <span className="text-[color:var(--t-color-text-secondary)]">
                       Expires: {new Date(portalToken.expiresAt).toLocaleDateString()}
                     </span>
                   )}
@@ -767,7 +763,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     size="sm"
                     onClick={handleRegenerateToken}
                     disabled={isRegeneratingToken}
-                    className="gap-2 text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                    className="gap-2 text-[color:var(--t-color-primary-light)] hover:text-[color:var(--t-color-primary)] hover:bg-[var(--t-color-primary-palest)]"
                   >
                     {isRegeneratingToken ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -780,13 +776,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-blue-700">
+                <span className="text-sm text-[color:var(--t-color-text-secondary)]">
                   {portalToken?.isExpired ? 'Link has expired.' : portalToken?.isRevoked ? 'Link has been revoked.' : 'No portal link generated yet.'}
                 </span>
                 <Button
                   size="sm"
                   onClick={copyPortalLink}
-                  className="gap-2"
+                  className="gap-2 bg-[var(--t-color-primary)] hover:bg-[var(--t-color-primary-light)] text-white"
                 >
                   <Copy className="w-4 h-4" />
                   Generate & Copy Link
@@ -801,11 +797,11 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       {forms.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Upload className="w-5 h-5 text-[color:var(--t-color-accent)]" />
+            <CardTitle className="flex items-center gap-2 text-lg text-[color:var(--t-color-text-primary)] font-bold">
+              <Upload className="w-5 h-5 text-[color:var(--t-color-primary)]" />
               Borrower Uploads
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-[color:var(--t-color-text-muted)]">
               Documents uploaded by the borrower through the portal. PDF data is automatically extracted for review.
             </CardDescription>
           </CardHeader>
@@ -828,7 +824,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                 {borrowerUploads.map((upload) => (
                   <div key={upload.id} className="border border-[var(--t-color-border)] rounded-lg overflow-hidden">
                     <div
-                      className={`flex items-center gap-4 p-4 bg-[#f8f9fa] cursor-pointer hover:bg-[#f0f1f3] transition-colors ${
+                      className={`flex items-center gap-4 p-4 bg-[var(--t-color-page-bg)] cursor-pointer hover:bg-[var(--t-color-highlight-bg)] transition-colors ${
                         expandedUpload === upload.id ? 'border-b border-[var(--t-color-border)]' : ''
                       }`}
                       onClick={() => handleToggleUploadExpand(upload.id)}
@@ -872,7 +868,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                             e.stopPropagation();
                             handleDeleteUpload(upload.id, upload.originalName);
                           }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1131,7 +1127,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                                                   variant="ghost"
                                                   onClick={() => handleFieldStatusChange(field.pdfFieldName, 'rejected')}
                                                   disabled={isSavingReview}
-                                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  className="h-8 w-8 p-0 text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
                                                   title="Reject"
                                                 >
                                                   <XCircle className="w-4 h-4" />

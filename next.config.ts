@@ -45,6 +45,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Required for Azure App Service deployment
+  output: 'standalone',
+
   // Prevent bundling of server-side packages that need to be loaded from node_modules
   serverExternalPackages: [
     '@opentelemetry/api',

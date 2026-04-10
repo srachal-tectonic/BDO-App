@@ -1,7 +1,7 @@
 'use client';
 
-import { BDOLayout } from '@/components/layout/BDOLayout';
-import BrokerTokenManager from '@/components/broker/BrokerTokenManager';
+import { BDOLayout, getStageColor } from '@/components/layout/BDOLayout';
+import BorrowerFormsSection from '@/components/loan-sections/BorrowerFormsSection';
 import BusinessApplicantSection from '@/components/loan-sections/BusinessApplicantSection';
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
 import CombinedFilesSection from '@/components/loan-sections/CombinedFilesSection';
@@ -10,26 +10,24 @@ import FinancialsSection from '@/components/loan-sections/FinancialsSection';
 import FundingStructureSection from '@/components/loan-sections/FundingStructureSection';
 import IndividualApplicantsSection from '@/components/loan-sections/IndividualApplicantsSection';
 import NotesSection from '@/components/loan-sections/NotesSection';
-import BorrowerFormsSection from '@/components/loan-sections/BorrowerFormsSection';
 import OtherOwnedBusinessesSection from '@/components/loan-sections/OtherOwnedBusinessesSection';
 import ProjectOverviewSection from '@/components/loan-sections/ProjectOverviewSection';
-import ReviewSection from '@/components/loan-sections/ReviewSection';
-import VideoMessageSection from '@/components/loan-sections/VideoMessageSection';
 import SBAEligibilitySection from '@/components/loan-sections/SBAEligibilitySection';
 import SellerInfoSection from '@/components/loan-sections/SellerInfoSection';
+import VideoMessageSection from '@/components/loan-sections/VideoMessageSection';
 import PQMemoForm from '@/components/PQMemoForm';
 import ProposalLetterForm from '@/components/ProposalLetterForm';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { useApplication } from '@/lib/applicationStore';
-import { authenticatedPost } from '@/lib/authenticatedFetch';
 import { getDummyApplicationData } from '@/lib/dummyData';
-import { getLoanApplication, getProject, getProjectSourcesUses, migrateLegacySpreadsWorkbook, saveLoanApplication, updateProject } from '@/services/firestore';
-import { mapSyncedDataToStore, hasSyncedData } from '@/lib/syncedDataMapper';
+import { hasSyncedData, mapSyncedDataToStore } from '@/lib/syncedDataMapper';
+import { getLoanApplication, getProject, getProjectSourcesUses, migrateLegacySpreadsWorkbook, saveLoanApplication } from '@/services/firestore';
 import { Project, SpreadsWorkbook } from '@/types';
-import { Beaker, Check, ChevronRight, FileEdit, FileText, FileUp, FolderOpen, Link2, Save, Send, StickyNote, Table2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -324,6 +322,31 @@ export default function BDOToolsPage() {
 
   return (
     <BDOLayout title={project.projectName} stage={project.stage}>
+      {/* Project name, stage badge, and back link */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <h1 className="text-[20px] font-semibold text-[#1a1a1a]" data-testid="text-loan-name">
+          {project.projectName}
+        </h1>
+        {project.stage && (
+          <span
+            className={`px-3 py-1.5 rounded-md text-xs font-medium border whitespace-nowrap ${getStageColor(project.stage)}`}
+            data-testid="badge-project-status"
+          >
+            {project.stage}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-4">
+          <Link
+            href="/bdo/projects"
+            className="flex items-center gap-1.5 text-[13px] text-[#2563eb] hover:text-[#133c7f] transition-colors font-medium"
+            data-testid="button-back-to-projects"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Pipeline
+          </Link>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center gap-4 mb-6 border-b border-[var(--t-color-border)]">
           <TabsList className="bg-transparent border-none p-0 h-auto gap-0 w-full justify-start">
@@ -354,18 +377,23 @@ export default function BDOToolsPage() {
             </TabsTrigger>
             */}
           </TabsList>
-          <Button
-            variant="outline"
-            className="gap-2 flex-shrink-0"
-            onClick={() => router.push(`/bdo/projects/${projectId}/pdf-tools`)}
-          >
-            <FileUp className="w-4 h-4" />
-            PDF Tools
-          </Button>
         </div>
 
         <TabsContent value="project-overview" className="mt-0">
           <ProjectOverviewSection />
+          <div className="flex gap-3 px-6 pt-4 pb-6 border-t border-[var(--t-color-border)]">
+            <button
+              onClick={async () => {
+                await handleSave(false);
+                setActiveTab('loan-application');
+              }}
+              className="px-6 py-3 bg-[var(--t-color-primary)] text-white text-[length:var(--t-font-size-base)] font-medium rounded-md cursor-pointer transition-all border-none hover-elevate active-elevate-2 flex items-center gap-2"
+              data-testid="button-continue-to-loan-app"
+            >
+              Continue
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </TabsContent>
 
         <TabsContent value="loan-application" className="mt-0 pt-0">
@@ -458,50 +486,59 @@ export default function BDOToolsPage() {
         </TabsContent>
 
         <TabsContent value="borrower-forms" className="mt-0">
-          <Tabs defaultValue="borrower-forms-sub" className="w-full">
-            <TabsList className="bg-transparent border-none p-0 h-auto gap-0 mb-4 border-b border-[var(--t-color-border)] w-full justify-start">
-              <TabsTrigger value="borrower-forms-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
-                Borrower Forms
-              </TabsTrigger>
-              <TabsTrigger value="business-questionnaire-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
-                Business Questionnaire
-              </TabsTrigger>
-              <TabsTrigger value="borrower-files-sub" className="px-4 py-2 text-[13px] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-accent)] data-[state=active]:text-[color:var(--t-color-accent)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
-                Borrower Files
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="borrower-forms-sub" className="mt-0">
-              <Card>
-                <CardContent className="pt-6">
+          <div className="bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)] min-h-[calc(100vh-160px)]">
+            <div className="flex items-center justify-between border-b border-[var(--t-color-border)] px-6 py-4">
+              <h2 className="text-[18px] font-semibold text-[color:var(--t-color-text-primary)]">PDF Forms</h2>
+            </div>
+            <Tabs defaultValue="borrower-forms-sub" className="w-full">
+              <div className="px-6 pt-2 border-b border-[var(--t-color-border)]">
+                <TabsList className="bg-transparent p-0 h-auto gap-0">
+                  <TabsTrigger
+                    value="borrower-forms-sub"
+                    className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
+                    data-testid="tab-borrower-forms-sub"
+                  >
+                    Borrower Forms
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="business-questionnaire-sub"
+                    className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
+                    data-testid="tab-business-questionnaire-sub"
+                  >
+                    Business Questionnaire
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="borrower-files-sub"
+                    className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
+                    data-testid="tab-borrower-files-sub"
+                  >
+                    Borrower Files
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="borrower-forms-sub" className="mt-0">
+                <div className="px-6 py-6">
                   <BorrowerFormsSection projectId={projectId} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="business-questionnaire-sub" className="mt-0">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8 text-[color:var(--t-color-text-secondary)]">
-                    <p className="text-sm">Business Questionnaire coming soon.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="borrower-files-sub" className="mt-0">
-              <Card>
-                <CardContent className="pt-6">
+                </div>
+              </TabsContent>
+              <TabsContent value="business-questionnaire-sub" className="mt-0">
+                <div className="text-center py-8 text-[color:var(--t-color-primary-lighter)]">
+                  <p className="text-sm">Business Questionnaire coming soon.</p>
+                </div>
+              </TabsContent>
+              <TabsContent value="borrower-files-sub" className="mt-0">
+                <div className="px-6 py-6">
                   <CombinedFilesSection
                     projectId={projectId}
                     sharepointFolderId={project?.sharepointFolderId}
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardContent className="pt-6">
-                  <FilesSection projectId={projectId} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                  <div className="mt-4">
+                    <FilesSection projectId={projectId} />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
 
         {/* Temporarily hidden: Broker Access tab content

@@ -5,7 +5,6 @@ import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 
 interface BDOLayoutProps {
   children: React.ReactNode;
@@ -13,7 +12,7 @@ interface BDOLayoutProps {
   stage?: string;
 }
 
-function getStageColor(stage: string): string {
+export function getStageColor(stage: string): string {
   switch (stage) {
     case 'Leads':
       return 'bg-[#d0dbe9] text-[#133c7f]';
@@ -73,9 +72,6 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
 
   const appTitle = userInfo?.role === 'PQ Committee' ? 'PQ Committee Portal' : 'BDO Loan Tool';
 
-  // Check if we're on a project detail page (Loan Application page)
-  const isProjectDetailPage = pathname?.startsWith('/bdo/projects/') && pathname !== '/bdo/projects';
-
   // Check if we're on the projects list page
   const isProjectsListPage = pathname === '/bdo/projects';
 
@@ -92,22 +88,8 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
                 className="h-8 w-auto brightness-0 invert"
               />
             </Link>
-            {stage && (
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStageColor(stage)}`}>
-                {stage}
-              </span>
-            )}
           </div>
           <nav className="flex items-center gap-3">
-            {isProjectDetailPage && (
-              <Link
-                href="/bdo/projects"
-                className="flex items-center gap-1 px-4 py-2 text-xs font-medium uppercase tracking-wider text-white/60 hover:text-white transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back to Projects
-              </Link>
-            )}
             <Link
               href="/bdo/projects"
               className={`px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${

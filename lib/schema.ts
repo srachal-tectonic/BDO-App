@@ -87,10 +87,14 @@ export interface BusinessEntity {
 }
 
 export interface SourcesUsesRow {
-  tBankLoan?: number;    // Primary SBA 7(a) loan from T Bank
-  borrower?: number;     // Borrower's equity injection
-  sellerNote?: number;   // Seller financing
-  thirdParty?: number;   // Third-party financing
+  tBankLoan?: number;    // SBA 7(a) Standard
+  sba504?: number;       // SBA 504
+  cdcDebenture?: number; // CDC Debenture
+  sellerNote?: number;   // Seller Note
+  thirdParty?: number;   // 3rd Party
+  equity?: number;       // Equity
+  // Legacy fields kept for backwards compatibility
+  borrower?: number;     // Mapped to equity
   sbaTerm?: number;      // SBA loan term in months for this use category
 }
 

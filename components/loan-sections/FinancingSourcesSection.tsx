@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useApplication, FinancingSource } from '@/lib/applicationStore';
 import { Button } from '@/components/ui/button';
@@ -8,19 +9,26 @@ interface FinancingSourcesSectionProps {
   isReadOnly?: boolean;
 }
 
-const MAX_SOURCES = 6;
+const MAX_SOURCES = 8;
 
 const FINANCING_TYPE_OPTIONS = [
   'SBA 7(a) Standard',
-  'SBA 7(a) Small',
-  'SBA Express',
-  'SBA 504 CDC',
-  'SBA 504 Bank',
-  'USDA B&I',
-  'Conventional',
+  'SBA 504',
+  'CDC Debenture',
+  'SBA 7(a) Express',
+  'SBA CAPLine',
   'Seller Note',
-  'Equity Injection',
-  'Other',
+  '3rd Party',
+  'Equity',
+] as const;
+
+const DEFAULT_FINANCING_TYPES = [
+  'SBA 7(a) Standard',
+  'SBA 504',
+  'CDC Debenture',
+  'Seller Note',
+  '3rd Party',
+  'Equity',
 ];
 
 function formatCurrency(value: number): string {
@@ -35,6 +43,27 @@ function parseCurrency(value: string): number {
 export default function FinancingSourcesSection({ isReadOnly = false }: FinancingSourcesSectionProps) {
   const { data, addFinancingSource, removeFinancingSource, updateFinancingSource } = useApplication();
   const sources = data.financingSources || [];
+  const hasInitialized = useRef(false);
+
+  // Auto-create default 6 rows when there are no financing sources
+  useEffect(() => {
+    if (hasInitialized.current || sources.length > 0) return;
+    hasInitialized.current = true;
+    DEFAULT_FINANCING_TYPES.forEach((type, i) => {
+      addFinancingSource({
+        id: `fs-default-${i}-${Math.random().toString(36).substr(2, 9)}`,
+        financingType: type,
+        guaranteePercent: 0,
+        amount: 0,
+        rateType: '',
+        termYears: 0,
+        amortizationMonths: 0,
+        baseRate: 0,
+        spread: 0,
+        totalRate: 0,
+      });
+    });
+  }, [sources.length, addFinancingSource]);
 
   const handleAdd = () => {
     if (sources.length >= MAX_SOURCES) return;
@@ -74,20 +103,9 @@ export default function FinancingSourcesSection({ isReadOnly = false }: Financin
   if (sources.length === 0) {
     return (
       <div className="text-center py-6">
-        <p className="text-[13px] text-[#7da1d4] mb-3" data-testid="text-no-financing-sources">
-          No financing sources configured yet.
+        <p className="text-[13px] text-[color:var(--t-color-text-muted)]" data-testid="text-no-financing-sources">
+          Initializing financing sources...
         </p>
-        {!isReadOnly && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAdd}
-            data-testid="button-add-first-financing-source"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Financing Source
-          </Button>
-        )}
       </div>
     );
   }

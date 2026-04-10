@@ -13,7 +13,10 @@ import { mapSyncedDataToStore, hasSyncedData } from '@/lib/syncedDataMapper';
 const DATA_ROW_KEYS = [
   'realEstate', 'debtRefiCRE', 'debtRefiNonCRE', 'equipment',
   'furnitureFixtures', 'inventory', 'businessAcquisition',
-  'workingCapital', 'closingCosts', 'other',
+  'workingCapital', 'workingCapitalPreOpening', 'franchiseFees',
+  'constructionHardCosts', 'interimInterestReserve',
+  'constructionContingency', 'otherConstructionSoftCosts',
+  'closingCosts', 'sbaGtyFee', 'other',
 ];
 
 /** Returns true when every data row in the table has all-zero / undefined values. */
@@ -22,8 +25,9 @@ function isTableEmpty(sourcesUses: Partial<SourcesUses>): boolean {
   for (const key of DATA_ROW_KEYS) {
     const row = sourcesUses[key] as Record<string, number> | undefined;
     if (!row) continue;
-    const total = (row.tBankLoan || 0) + (row.borrower || 0) +
-                  (row.sellerNote || 0) + (row.thirdParty || 0);
+    const total = (row.tBankLoan || 0) + (row.sba504 || 0) +
+                  (row.cdcDebenture || 0) + (row.sellerNote || 0) +
+                  (row.thirdParty || 0) + (row.equity || 0);
     if (total > 0) return false;
   }
   return true;
@@ -168,7 +172,6 @@ export function SourcesUsesCards({
           sourcesUses={sourcesUses504 as SourcesUses}
           updateSourcesUses={updateSourcesUses504}
           tableType="504"
-          fourthColumnLabel="CDC 504"
         />
       </CollapsibleCard>
 
