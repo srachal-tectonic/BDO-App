@@ -52,4 +52,4 @@ jobs:
           app-name: 'SBAPrequalifier'
           slot-name: 'Production'
           package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9A9EC74462CD40B4852F484A0782B080 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_527AF5399D68405F940CF4BE7B4400B2 }}
