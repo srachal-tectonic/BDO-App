@@ -103,7 +103,7 @@ export default function BorrowerLoginPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <img
-            src="/images/T-Bank-1200x630-1.webp"
+            src="/images/TBank-logo.png"
             alt="T Bank Logo"
             className="h-16 w-auto"
           />

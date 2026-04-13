@@ -56,7 +56,7 @@ export function BorrowerLayout({ children, title }: BorrowerLayoutProps) {
           <div className="flex items-center gap-4">
             <Link href="/borrower/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <img
-                src="/images/T-Bank-1200x630-1.webp"
+                src="/images/TBank-logo.png"
                 alt="T Bank Logo"
                 className="h-10 w-auto"
               />

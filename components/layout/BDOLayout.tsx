@@ -83,7 +83,7 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
           <div className="flex items-center gap-6">
             <Link href="/bdo/projects" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <img
-                src="/images/T-Bank-1200x630-1.webp"
+                src="/images/TBank-logo.png"
                 alt="T Bank Logo"
                 className="h-8 w-auto brightness-0 invert"
               />

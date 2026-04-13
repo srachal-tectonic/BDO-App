@@ -81,7 +81,7 @@ export function BDOSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 <Link href="/bdo/projects" className="flex items-center gap-2">
                   <img
-                    src="/images/T-Bank-1200x630-1.webp"
+                    src="/images/TBank-logo.png"
                     alt="T Bank Logo"
                     className="h-6 w-auto"
                   />
