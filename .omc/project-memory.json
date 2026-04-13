@@ -482,6 +482,12 @@
       "type": "file"
     },
     {
+      "path": "next.config.ts",
+      "accessCount": 3,
+      "lastAccessed": 1776100268059,
+      "type": "file"
+    },
+    {
       "path": "contexts/ThemeContext.tsx",
       "accessCount": 2,
       "lastAccessed": 1775661539258,
@@ -497,12 +503,6 @@
       "path": "components/ui/label.tsx",
       "accessCount": 2,
       "lastAccessed": 1775664903758,
-      "type": "file"
-    },
-    {
-      "path": "next.config.ts",
-      "accessCount": 2,
-      "lastAccessed": 1776092253291,
       "type": "file"
     },
     {
