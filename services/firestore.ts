@@ -267,13 +267,36 @@ export const getPrimarySpreadId = async (projectId: string): Promise<string | nu
   return project?.primarySpreadId || null;
 };
 
-// ============ GENERATED FORMS (stubs — TODO: API routes) ============
+// ============ GENERATED FORMS ============
 
-export const getGeneratedForms = async (projectId: string): Promise<GeneratedForm[]> => [];
-export const generateFormsForProject = async (projectId: string): Promise<GeneratedForm[]> => [];
-export const deleteGeneratedForm = async (formId: string): Promise<void> => {};
-export const getGeneratedFormById = async (formId: string): Promise<GeneratedForm | null> => null;
-export const updateGeneratedFormStatus = async (formId: string, status: GeneratedForm['status'], timestampField?: 'downloadedAt' | 'uploadedAt' | 'importedAt'): Promise<void> => {};
+// Static form templates served from /pdfs/
+const FORM_TEMPLATES = [
+  { id: 'blank-individual-applicant', formName: 'Blanks - Individual Applicant', fileName: 'Blanks_Individual_Applicant.pdf' },
+  { id: 'blank-business-applicant', formName: 'Blank - Business Applicant / Project Information', fileName: 'blank_Business_Applicant_Project_Information.pdf' },
+  { id: 'individual-pfi-worksheet', formName: 'Individual Applicant - Personal Financial Information', fileName: 'Individual_Applicant_Personal_Financial_Information 6.xlsx' },
+];
+
+export const getGeneratedForms = async (_projectId: string): Promise<GeneratedForm[]> => {
+  return FORM_TEMPLATES.map(t => ({
+    id: t.id,
+    projectId: _projectId,
+    formName: t.formName,
+    status: 'pending' as const,
+    generatedAt: new Date(),
+  }));
+};
+
+export const generateFormsForProject = async (projectId: string): Promise<GeneratedForm[]> => {
+  return getGeneratedForms(projectId);
+};
+
+export const deleteGeneratedForm = async (_formId: string): Promise<void> => {};
+export const getGeneratedFormById = async (formId: string): Promise<GeneratedForm | null> => {
+  const template = FORM_TEMPLATES.find(t => t.id === formId);
+  if (!template) return null;
+  return { id: template.id, projectId: '', formName: template.formName, status: 'pending', generatedAt: new Date() };
+};
+export const updateGeneratedFormStatus = async (_formId: string, _status: GeneratedForm['status'], _timestampField?: 'downloadedAt' | 'uploadedAt' | 'importedAt'): Promise<void> => {};
 
 // ============ FORM PORTAL TOKENS (stubs — TODO: API routes) ============
 
