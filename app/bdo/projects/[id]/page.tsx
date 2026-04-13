@@ -63,7 +63,7 @@ export default function BDOToolsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('project-overview');
   const [currentSection, setCurrentSection] = useState(1);
-  const [loanAppSubTab, setLoanAppSubTab] = useState<'business-applicant' | 'individual-applicants' | 'other-businesses' | 'project-info'>('business-applicant');
+  const [loanAppSubTab, setLoanAppSubTab] = useState<'business-applicant' | 'individual-applicants' | 'other-businesses' | 'project-info' | 'business-questionnaire'>('business-applicant');
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSavedData, setLastSavedData] = useState<string>('');
@@ -404,6 +404,7 @@ export default function BDOToolsPage() {
               { key: 'individual-applicants', label: 'Individual Applicants' },
               { key: 'other-businesses', label: 'Other Owned Businesses' },
               { key: 'project-info', label: 'Project Information' },
+              { key: 'business-questionnaire', label: 'Business Questionnaire' },
             ] as const).map(tab => (
               <button
                 key={tab.key}
@@ -432,6 +433,7 @@ export default function BDOToolsPage() {
               {loanAppSubTab === 'individual-applicants' && <IndividualApplicantsSection />}
               {loanAppSubTab === 'other-businesses' && <OtherOwnedBusinessesSection />}
               {loanAppSubTab === 'project-info' && <SellerInfoSection />}
+              {loanAppSubTab === 'business-questionnaire' && <BusinessQuestionnaireSection />}
             </div>
 
             {/* Navigation Buttons */}
@@ -439,7 +441,7 @@ export default function BDOToolsPage() {
               {loanAppSubTab !== 'business-applicant' && (
                 <button
                   onClick={() => {
-                    const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info'] as const;
+                    const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info', 'business-questionnaire'] as const;
                     const idx = tabs.indexOf(loanAppSubTab);
                     if (idx > 0) setLoanAppSubTab(tabs[idx - 1]);
                   }}
@@ -450,7 +452,7 @@ export default function BDOToolsPage() {
               )}
               <button
                 onClick={() => {
-                  const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info'] as const;
+                  const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info', 'business-questionnaire'] as const;
                   const idx = tabs.indexOf(loanAppSubTab);
                   if (idx < tabs.length - 1) setLoanAppSubTab(tabs[idx + 1]);
                 }}
