@@ -42,14 +42,6 @@ lerna-debug.log*
 .env.*
 !.env.local.example
 
-# Firebase
-.firebase/
-firebase-debug.log*
-firestore-debug.log*
-ui-debug.log*
-
-# Vercel
-.vercel
 
 # TypeScript
 *.tsbuildinfo

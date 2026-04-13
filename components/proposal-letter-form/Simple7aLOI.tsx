@@ -300,10 +300,10 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
 
     const individualAddr = firstIndividual?.homeAddress;
     const addressParts: string[] = [];
-    if (individualAddr?.street) addressParts.push(individualAddr.street);
+    if (individualAddr?.street1) addressParts.push(individualAddr.street1);
     if (individualAddr?.street2) addressParts.push(individualAddr.street2);
-    if (individualAddr?.city || individualAddr?.state || individualAddr?.zip) {
-      addressParts.push([individualAddr.city, individualAddr.state].filter(Boolean).join(', ') + (individualAddr.zip ? ` ${individualAddr.zip}` : ''));
+    if (individualAddr?.city || individualAddr?.state || individualAddr?.zipCode) {
+      addressParts.push([individualAddr.city, individualAddr.state].filter(Boolean).join(', ') + (individualAddr.zipCode ? ` ${individualAddr.zipCode}` : ''));
     }
 
     const business = appData.businessApplicant;
@@ -349,7 +349,8 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
     }
     const loanAmount = sba7aSource?.amount || loan?.amount || totalSba7a;
 
-    const purposeText = appData.projectOverview?.primaryProjectPurpose || '';
+    const rawPurpose = appData.projectOverview?.primaryProjectPurpose || '';
+    const purposeText = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
     const selectedBdoName = appData.projectOverview?.bdo1 || appData.projectOverview?.bdoName || '';
 
     const spread = sba7aSource?.spread || loan?.spread || 0;

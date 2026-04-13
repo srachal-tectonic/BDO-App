@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/home/shane/.claude/projects/-mnt-c-Users-srachal-Desktop-BDO-App-April/memory/MEMORY.md\"}",
+  "error": "File does not exist. Note: your current working directory is /mnt/c/Users/srachal/Desktop/BDO App April.",
+  "timestamp": "2026-04-13T15:11:31.427Z",
+  "retry_count": 1
+}

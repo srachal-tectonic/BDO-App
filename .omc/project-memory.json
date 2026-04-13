@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775655922610,
+  "lastScanned": 1776092163196,
   "projectRoot": "/mnt/c/Users/srachal/Desktop/BDO App April",
   "techStack": {
     "languages": [
@@ -81,7 +81,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1775655922479,
+      "lastAccessed": 1776092163079,
       "keyFiles": [
         "favicon.ico",
         "globals.css",
@@ -92,31 +92,32 @@
     "components": {
       "path": "components",
       "purpose": "UI components",
-      "fileCount": 7,
-      "lastAccessed": 1775655922494,
+      "fileCount": 10,
+      "lastAccessed": 1776092163098,
       "keyFiles": [
+        "ConfirmDialog.tsx",
         "CreditMatrixScoring.tsx",
+        "FinancialAnalysisPanel.tsx",
         "LearnMorePanel.tsx",
-        "PQMemoForm.tsx",
-        "ProposalLetterForm.tsx",
-        "nav-main.tsx"
+        "PQMemoForm.tsx"
       ]
     },
     "contexts": {
       "path": "contexts",
       "purpose": null,
-      "fileCount": 2,
-      "lastAccessed": 1775655922509,
+      "fileCount": 3,
+      "lastAccessed": 1776092163110,
       "keyFiles": [
         "Auth0Context.tsx",
-        "FirebaseAuthContext.tsx"
+        "FirebaseAuthContext.tsx",
+        "ThemeContext.tsx"
       ]
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1775655922520,
+      "lastAccessed": 1776092163117,
       "keyFiles": [
         "SOURCE_OF_TRUTH.md"
       ]
@@ -125,7 +126,7 @@
       "path": "hooks",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775655922528,
+      "lastAccessed": 1776092163124,
       "keyFiles": [
         "use-mobile.tsx",
         "use-toast.ts"
@@ -134,8 +135,8 @@
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 20,
-      "lastAccessed": 1775655922535,
+      "fileCount": 21,
+      "lastAccessed": 1776092163130,
       "keyFiles": [
         "apiAuth.ts",
         "apiSecurityHeaders.ts",
@@ -148,7 +149,7 @@
       "path": "openspec",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775655922541,
+      "lastAccessed": 1776092163136,
       "keyFiles": [
         "AGENTS.md",
         "project.md"
@@ -158,7 +159,7 @@
       "path": "pdfs",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775655922547,
+      "lastAccessed": 1776092163142,
       "keyFiles": [
         "SBA_Form_159_-_Fee_Disclosure_Form (1).pdf",
         "Testing.pdf"
@@ -168,7 +169,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1775655922555,
+      "lastAccessed": 1776092163148,
       "keyFiles": [
         "404.html",
         "file.svg",
@@ -181,7 +182,7 @@
       "path": "replit",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1775655922560,
+      "lastAccessed": 1776092163154,
       "keyFiles": [
         "OtherOwnedBusinessesSection.tsx.bak"
       ]
@@ -190,7 +191,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1775655922566,
+      "lastAccessed": 1776092163160,
       "keyFiles": [
         "diagnose-pdf-extraction.mjs",
         "extract-pdf-fields.ts",
@@ -203,7 +204,7 @@
       "path": "services",
       "purpose": "Business logic services",
       "fileCount": 5,
-      "lastAccessed": 1775655922572,
+      "lastAccessed": 1776092163166,
       "keyFiles": [
         "FIRESTORE_STRUCTURE.md",
         "brokerTokens.ts",
@@ -216,7 +217,7 @@
       "path": "sheets",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775655922579,
+      "lastAccessed": 1776092163171,
       "keyFiles": [
         "BDO Spread Template Newest.xlsx",
         "Spreads Template.xlsx"
@@ -226,7 +227,7 @@
       "path": "types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1775655922585,
+      "lastAccessed": 1776092163175,
       "keyFiles": [
         "index.ts"
       ]
@@ -235,7 +236,7 @@
       "path": "app/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1775655922590,
+      "lastAccessed": 1776092163178,
       "keyFiles": []
     }
   },
@@ -499,15 +500,15 @@
       "type": "file"
     },
     {
-      "path": "contexts/FirebaseAuthContext.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1775660046847,
+      "path": "next.config.ts",
+      "accessCount": 2,
+      "lastAccessed": 1776092253291,
       "type": "file"
     },
     {
-      "path": "next.config.ts",
+      "path": "contexts/FirebaseAuthContext.tsx",
       "accessCount": 1,
-      "lastAccessed": 1775660389859,
+      "lastAccessed": 1775660046847,
       "type": "file"
     },
     {
