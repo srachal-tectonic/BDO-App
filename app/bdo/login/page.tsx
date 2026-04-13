@@ -40,9 +40,7 @@ function BDOLoginContent() {
   };
 
   const handleMicrosoftSignIn = () => {
-    // TODO: Implement Microsoft Entra ID login via MSAL.
-    // Example: msalInstance.loginRedirect(loginRequest);
-    setError('Microsoft Entra ID login is not yet configured.');
+    window.location.href = '/.auth/login/aad?post_login_redirect_uri=/bdo/projects';
   };
 
   if (authLoading) {

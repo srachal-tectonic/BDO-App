@@ -1,13 +1,11 @@
 'use client';
 
-// TODO: Migrate authentication to Microsoft Entra ID (formerly Azure AD).
-// All auth methods are stubbed until Entra ID integration is complete.
+// Authentication via Azure Easy Auth (Microsoft Entra ID).
+// Azure handles the OAuth flow — we read user info from /.auth/me.
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserInfo } from '@/types';
 
-// A minimal user shape that callers expect. Replace with the Entra ID
-// user object once the MSAL integration is wired up.
 interface AuthUser {
   uid: string;
   email: string | null;
@@ -20,15 +18,10 @@ interface AuthContextType {
   userInfo: UserInfo | null;
   isLoading: boolean;
   error: string | null;
-  // TODO: Implement with Microsoft Entra ID / MSAL
   signIn: (email: string, password: string) => Promise<void>;
-  // TODO: Remove or repurpose once Entra ID is integrated
   signInWithZohoToken: (customToken: string) => Promise<void>;
-  // TODO: Implement with Microsoft Entra ID / MSAL
   signUp: (email: string, password: string, displayName: string, role?: string) => Promise<void>;
-  // TODO: Implement with Microsoft Entra ID / MSAL
   logout: () => Promise<void>;
-  // TODO: Implement with Microsoft Entra ID / MSAL (password reset handled by Entra ID portal)
   resetPassword: (email: string) => Promise<void>;
   refreshUserInfo: () => Promise<void>;
 }
@@ -43,7 +36,6 @@ export function useFirebaseAuth() {
   return context;
 }
 
-// Alias kept so existing callers (e.g. login page) don't need changes yet.
 export { useFirebaseAuth as useAuth };
 
 // Dev bypass: allowed test accounts (development only)
@@ -61,35 +53,111 @@ function isDevMode() {
   return process.env.NEXT_PUBLIC_APP_ENV === 'development' || process.env.NODE_ENV === 'development';
 }
 
+// Parse the Azure Easy Auth /.auth/me response into our user shape
+function parseEasyAuthUser(profile: Record<string, unknown>): { authUser: AuthUser; userInfo: UserInfo } | null {
+  // Easy Auth returns an array of identity providers
+  const claims = (profile as { user_claims?: Array<{ typ: string; val: string }> }).user_claims || [];
+  const claimMap = new Map(claims.map((c) => [c.typ, c.val]));
+
+  const email =
+    claimMap.get('http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress') ||
+    claimMap.get('preferred_username') ||
+    (profile as { user_id?: string }).user_id ||
+    null;
+
+  const displayName =
+    claimMap.get('name') ||
+    claimMap.get('http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name') ||
+    (email as string | null) ||
+    null;
+
+  const uid =
+    claimMap.get('http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier') ||
+    claimMap.get('http://schemas.microsoft.com/identity/claims/objectidentifier') ||
+    (email as string) ||
+    '';
+
+  if (!uid) return null;
+
+  const authUser: AuthUser = {
+    uid,
+    email: email as string | null,
+    displayName: displayName as string | null,
+    photoURL: null,
+  };
+
+  const userInfo: UserInfo = {
+    uid,
+    email: email as string | null,
+    displayName: displayName as string | null,
+    photoURL: null,
+    role: 'Admin', // Default role — adjust based on your user management needs
+  };
+
+  return { authUser, userInfo };
+}
+
 export function FirebaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  // Start as false so the app doesn't spin indefinitely waiting for an
-  // auth observer that doesn't exist yet.
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO: Replace with MSAL account change subscription once Entra ID is integrated.
-
-  // Restore dev session on mount
-  React.useEffect(() => {
-    if (isDevMode() && typeof window !== 'undefined') {
-      const stored = localStorage.getItem('dev-auth-user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setCurrentUser(parsed.authUser);
-          setUserInfo(parsed.userInfo);
-        } catch {
-          localStorage.removeItem('dev-auth-user');
-          localStorage.removeItem('dev-auth-token');
-        }
-      }
+  const fetchEasyAuthUser = useCallback(async () => {
+    try {
+      const res = await fetch('/.auth/me');
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Easy Auth returns an array; first element is the active provider
+      const profile = Array.isArray(data) ? data[0] : data;
+      if (!profile) return null;
+      return parseEasyAuthUser(profile);
+    } catch {
+      return null;
     }
   }, []);
 
+  // On mount: check if user is already authenticated via Easy Auth or dev session
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      // Dev mode: restore from localStorage
+      if (isDevMode() && typeof window !== 'undefined') {
+        const stored = localStorage.getItem('dev-auth-user');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (!cancelled) {
+              setCurrentUser(parsed.authUser);
+              setUserInfo(parsed.userInfo);
+              setIsLoading(false);
+            }
+            return;
+          } catch {
+            localStorage.removeItem('dev-auth-user');
+            localStorage.removeItem('dev-auth-token');
+          }
+        }
+      }
+
+      // Production: check Azure Easy Auth session
+      const result = await fetchEasyAuthUser();
+      if (!cancelled) {
+        if (result) {
+          setCurrentUser(result.authUser);
+          setUserInfo(result.userInfo);
+        }
+        setIsLoading(false);
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, [fetchEasyAuthUser]);
+
   const signIn = async (email: string, _password: string): Promise<void> => {
-    // Dev bypass for testing without Entra ID
+    // Dev bypass for testing
     if (isDevMode()) {
       const devUser = DEV_USERS[email.toLowerCase()];
       if (devUser) {
@@ -117,24 +185,18 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       throw new Error('Dev mode: email not in allowed dev users list');
     }
 
-    setError('Not implemented - migrate to Microsoft Entra ID');
-    throw new Error('Not implemented - migrate to Microsoft Entra ID');
+    // Production: redirect to Azure Easy Auth login
+    window.location.href = '/.auth/login/aad?post_login_redirect_uri=/bdo/projects';
   };
 
-  // Custom token sign-in is no longer supported.
   const signInWithZohoToken = async (_customToken: string): Promise<void> => {
-    setError('Not implemented - migrate to Microsoft Entra ID');
-    throw new Error('Not implemented - migrate to Microsoft Entra ID');
+    // No longer supported
+    window.location.href = '/.auth/login/aad?post_login_redirect_uri=/bdo/projects';
   };
 
-  const signUp = async (
-    _email: string,
-    _password: string,
-    _displayName: string,
-    _role: string = 'BDO',
-  ): Promise<void> => {
-    setError('Not implemented - migrate to Microsoft Entra ID');
-    throw new Error('Not implemented - migrate to Microsoft Entra ID');
+  const signUp = async (): Promise<void> => {
+    // User management handled via Microsoft Entra ID
+    setError('User registration is managed through Microsoft Entra ID. Contact your administrator.');
   };
 
   const logout = async (): Promise<void> => {
@@ -146,17 +208,23 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       localStorage.removeItem('dev-auth-user');
       return;
     }
-    setError('Not implemented - migrate to Microsoft Entra ID');
-    throw new Error('Not implemented - migrate to Microsoft Entra ID');
+
+    // Clear local state and redirect to Easy Auth logout
+    setCurrentUser(null);
+    setUserInfo(null);
+    window.location.href = '/.auth/logout?post_logout_redirect_uri=/bdo/login';
   };
 
   const resetPassword = async (_email: string): Promise<void> => {
-    setError('Not implemented - migrate to Microsoft Entra ID');
-    throw new Error('Not implemented - migrate to Microsoft Entra ID');
+    setError('Password reset is managed through Microsoft Entra ID. Use the Microsoft account portal.');
   };
 
   const refreshUserInfo = async (): Promise<void> => {
-    // No-op until Entra ID integration populates currentUser.
+    const result = await fetchEasyAuthUser();
+    if (result) {
+      setCurrentUser(result.authUser);
+      setUserInfo(result.userInfo);
+    }
   };
 
   const value: AuthContextType = {
@@ -179,5 +247,4 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   );
 }
 
-// Keep the old provider name as an alias so layout files don't break.
 export { FirebaseAuthProvider as AuthProvider };
