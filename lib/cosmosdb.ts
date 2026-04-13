@@ -88,4 +88,5 @@ export const COLLECTIONS = {
   PDF_IMPORT_SESSIONS: 'pdfImportSessions',
   SOURCES_USES: 'sourcesUses',
   EXTRACTION_RECORDS: 'extractionRecords',
+  FINANCIAL_SPREADS: 'financialSpreads',
 } as const;

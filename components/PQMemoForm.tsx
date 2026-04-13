@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
+import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import { useApplication } from '@/lib/applicationStore';
 import type { SourcesUsesRow } from '@/lib/schema';
 
@@ -216,6 +217,14 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             >
               <ClipboardList className="w-4 h-4" />
               BDO Summary
+            </TabsTrigger>
+            <TabsTrigger
+              value="financials"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
+              data-testid="tab-financials"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Financials
             </TabsTrigger>
           </TabsList>
 
@@ -598,9 +607,87 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               </div>
             </div>
           </TabsContent>
+
+          <TabsContent value="financials" className="mt-0">
+            <PQMemoFinancials projectId={projectId} />
+          </TabsContent>
         </Tabs>
       </div>
       </div>
     </>
+  );
+}
+
+interface FinancialPeriod {
+  periodLabel?: string;
+  [key: string]: any;
+}
+
+interface FinancialSpread {
+  id: string;
+  versionLabel: string;
+  fileName: string;
+  isActive: boolean;
+  uploadedAt?: string;
+  periodData?: FinancialPeriod[];
+}
+
+function PQMemoFinancials({ projectId }: { projectId: string }) {
+  const [spreads, setSpreads] = useState<FinancialSpread[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSpreads() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/financials`);
+        if (res.ok) {
+          const data = await res.json();
+          setSpreads(data);
+        }
+      } catch (error) {
+        console.error('Error loading financial data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchSpreads();
+  }, [projectId]);
+
+  const latestSpread = spreads.length > 0 ? spreads[spreads.length - 1] : null;
+  const periods = (latestSpread?.periodData || []) as FinancialPeriod[];
+
+  if (isLoading) {
+    return (
+      <div className="p-5 text-center text-[#7da1d4]">
+        <div className="inline-block animate-spin w-6 h-6 border-3 border-[#2563eb] border-t-transparent rounded-full mb-2" />
+        <p className="text-sm">Loading financial data...</p>
+      </div>
+    );
+  }
+
+  if (!latestSpread || periods.length === 0) {
+    return (
+      <div className="p-5 text-center py-16">
+        <TrendingUp className="w-10 h-10 text-[#7da1d4] mx-auto mb-3" />
+        <p className="text-[#7da1d4] text-sm">No financial spreads available for this project.</p>
+        <p className="text-[#7da1d4] text-xs mt-1">Upload spreads from the Spreads tab to see the comparison view here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5">
+      <div className="mb-4">
+        <h2 className="text-base font-semibold text-gray-700 mb-1 pb-1.5 border-b-2 border-blue-500">
+          Financial Spread Comparison
+        </h2>
+        <p className="text-xs text-[#7da1d4]">
+          {latestSpread.fileName} — {periods.length} period{periods.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <SpreadComparisonTable periods={periods} />
+      </div>
+    </div>
   );
 }
