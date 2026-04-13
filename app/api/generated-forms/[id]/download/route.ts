@@ -12,6 +12,10 @@ const FORM_FILES: Record<string, { fileName: string; contentType: string }> = {
     fileName: 'blank_Business_Applicant_Project_Information.pdf',
     contentType: 'application/pdf',
   },
+  'blank-business-questionnaire': {
+    fileName: 'Blanks_Business_Questionnaire.pdf',
+    contentType: 'application/pdf',
+  },
   'individual-pfi-worksheet': {
     fileName: 'Individual_Applicant_Personal_Financial_Information 6.xlsx',
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

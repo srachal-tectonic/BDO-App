@@ -273,6 +273,7 @@ export const getPrimarySpreadId = async (projectId: string): Promise<string | nu
 const FORM_TEMPLATES = [
   { id: 'blank-individual-applicant', formName: 'Blanks - Individual Applicant', fileName: 'Blanks_Individual_Applicant.pdf' },
   { id: 'blank-business-applicant', formName: 'Blank - Business Applicant / Project Information', fileName: 'blank_Business_Applicant_Project_Information.pdf' },
+  { id: 'blank-business-questionnaire', formName: 'Blanks - Business Questionnaire', fileName: 'Blanks_Business_Questionnaire.pdf' },
   { id: 'individual-pfi-worksheet', formName: 'Individual Applicant - Personal Financial Information', fileName: 'Individual_Applicant_Personal_Financial_Information 6.xlsx' },
 ];
 
