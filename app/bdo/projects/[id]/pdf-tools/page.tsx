@@ -755,7 +755,6 @@ export default function PdfToolsPage() {
                       <SelectItem value="sba-413">SBA Form 413 - Personal Financial Statement</SelectItem>
                       <SelectItem value="sba-912">SBA Form 912 - Statement of Personal History</SelectItem>
                       <SelectItem value="irs-4506t">IRS Form 4506-T - Request for Transcript</SelectItem>
-                      <SelectItem value="business-questionnaire">Business Questionnaire</SelectItem>
                       <SelectItem value="sources-uses">Sources & Uses Statement</SelectItem>
                     </SelectContent>
                   </Select>

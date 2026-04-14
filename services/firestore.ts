@@ -95,6 +95,23 @@ export const restoreProject = async (projectId: string): Promise<void> => {
   });
 };
 
+// ============ ADMIN SETTINGS ============
+
+export const getAdminSettings = async <T = any>(): Promise<T | null> => {
+  try {
+    return await apiFetch<T>('/api/admin-settings');
+  } catch {
+    return null;
+  }
+};
+
+export const saveAdminSettings = async <T = any>(settings: T): Promise<void> => {
+  await apiFetch('/api/admin-settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+};
+
 // ============ LOAN OPERATIONS (stubs — not yet API-backed) ============
 
 export const createLoan = async (loanData: Omit<Loan, 'id'>): Promise<string> => '';

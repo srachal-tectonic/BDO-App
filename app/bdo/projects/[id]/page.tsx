@@ -503,13 +503,6 @@ export default function BDOToolsPage() {
                     Borrower Forms
                   </TabsTrigger>
                   <TabsTrigger
-                    value="business-questionnaire-sub"
-                    className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
-                    data-testid="tab-business-questionnaire-sub"
-                  >
-                    Business Questionnaire
-                  </TabsTrigger>
-                  <TabsTrigger
                     value="borrower-files-sub"
                     className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
                     data-testid="tab-borrower-files-sub"
@@ -521,11 +514,6 @@ export default function BDOToolsPage() {
               <TabsContent value="borrower-forms-sub" className="mt-0">
                 <div className="px-6 py-6">
                   <BorrowerFormsSection projectId={projectId} />
-                </div>
-              </TabsContent>
-              <TabsContent value="business-questionnaire-sub" className="mt-0">
-                <div className="text-center py-8 text-[color:var(--t-color-primary-lighter)]">
-                  <p className="text-sm">Business Questionnaire coming soon.</p>
                 </div>
               </TabsContent>
               <TabsContent value="borrower-files-sub" className="mt-0">

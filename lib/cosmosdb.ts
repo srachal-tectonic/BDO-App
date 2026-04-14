@@ -89,4 +89,5 @@ export const COLLECTIONS = {
   SOURCES_USES: 'sourcesUses',
   EXTRACTION_RECORDS: 'extractionRecords',
   FINANCIAL_SPREADS: 'financialSpreads',
+  ADMIN_SETTINGS: 'adminSettings',
 } as const;

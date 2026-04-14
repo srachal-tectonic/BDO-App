@@ -20,6 +20,7 @@ import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
 import { DollarSign, Edit, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Users, Wand2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
 
 interface AIPrompt {
   id: string;
@@ -38,6 +39,9 @@ interface QuestionnaireRule {
   questionText?: string;
   aiBlockTemplateId?: string;
   purposeKey?: string;
+  purposeKeys?: string[];
+  excludePurposes?: string[];
+  alwaysShow?: boolean;
   naicsCodes?: string[];
   questionOrder?: number;
 }
@@ -627,6 +631,12 @@ Example format:
   const [editingRule, setEditingRule] = useState<QuestionnaireRule | null>(null);
   const [ruleForm, setRuleForm] = useState<Omit<QuestionnaireRule, 'id'>>(emptyRuleForm);
 
+  // Questionnaire Rules Import Modal State
+  const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
+  const [importRulesJson, setImportRulesJson] = useState('');
+  const [importRulesMode, setImportRulesMode] = useState<'replace' | 'merge'>('merge');
+  const [importRulesError, setImportRulesError] = useState<string | null>(null);
+
   // AI Block Templates Modal State
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AIBlockTemplate | null>(null);
@@ -716,15 +726,39 @@ Example format:
     alert('User added successfully!');
   };
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     setIsSaving(true);
-    setHasUnsavedChanges(false);
-    // Persist theme to localStorage and apply CSS variables globally
-    saveTheme();
-    console.log('Settings saved:', settings);
-    alert('Settings saved successfully!');
-    setIsSaving(false);
+    try {
+      // Persist theme to localStorage and apply CSS variables globally
+      saveTheme();
+      await saveAdminSettings(settings);
+      setHasUnsavedChanges(false);
+      alert('Settings saved successfully!');
+    } catch (err: any) {
+      console.error('Error saving admin settings:', err);
+      alert(`Failed to save settings: ${err.message ?? err}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoadingSettings(true);
+      try {
+        const loaded = await getAdminSettings<typeof settings>();
+        if (!cancelled && loaded) {
+          setSettings((prev) => ({ ...prev, ...loaded }));
+        }
+      } catch (err) {
+        console.error('Error loading admin settings:', err);
+      } finally {
+        if (!cancelled) setIsLoadingSettings(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // AI Prompts handlers
   const addAIPrompt = () => {
@@ -827,6 +861,82 @@ Example format:
     setRuleModalOpen(false);
     setEditingRule(null);
     setRuleForm(emptyRuleForm);
+  };
+
+  const handleImportQuestionnaireRules = () => {
+    setImportRulesError(null);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(importRulesJson);
+    } catch (e: any) {
+      setImportRulesError(`Invalid JSON: ${e.message}`);
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      setImportRulesError('Expected a JSON array of rules.');
+      return;
+    }
+
+    const validCategories = ['Business Overview', 'Project Purpose', 'Industry'];
+    const imported: QuestionnaireRule[] = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const raw = parsed[i];
+      if (!raw || typeof raw !== 'object') {
+        setImportRulesError(`Item ${i} is not an object.`);
+        return;
+      }
+      const mainCategory = raw.main_category ?? raw.mainCategory;
+      if (!validCategories.includes(mainCategory)) {
+        setImportRulesError(`Item ${i} (${raw.name ?? raw.id}) has invalid main_category: ${mainCategory}`);
+        return;
+      }
+      const blockType = raw.block_type ?? raw.blockType ?? 'question';
+      if (blockType !== 'question' && blockType !== 'ai-generated') {
+        setImportRulesError(`Item ${i} (${raw.name ?? raw.id}) has invalid block_type: ${blockType}`);
+        return;
+      }
+      const purposeKeys: string[] = Array.isArray(raw.purpose_keys ?? raw.purposeKeys)
+        ? (raw.purpose_keys ?? raw.purposeKeys)
+        : [];
+      const singleKey: string = raw.purpose_key ?? raw.purposeKey ?? '';
+      imported.push({
+        id: String(raw.id ?? `rule-${Date.now()}-${i}`),
+        name: String(raw.name ?? ''),
+        enabled: raw.enabled !== false,
+        order: Number(raw.order ?? 0),
+        blockType,
+        mainCategory,
+        questionText: raw.question_text ?? raw.questionText ?? '',
+        aiBlockTemplateId: raw.ai_block_template_id ?? raw.aiBlockTemplateId ?? '',
+        purposeKey: singleKey || purposeKeys[0] || '',
+        purposeKeys: purposeKeys.length > 0 ? purposeKeys : (singleKey ? [singleKey] : []),
+        excludePurposes: Array.isArray(raw.exclude_purposes ?? raw.excludePurposes)
+          ? (raw.exclude_purposes ?? raw.excludePurposes)
+          : [],
+        alwaysShow: Boolean(raw.always_show ?? raw.alwaysShow ?? false),
+        naicsCodes: Array.isArray(raw.naics_codes ?? raw.naicsCodes)
+          ? (raw.naics_codes ?? raw.naicsCodes)
+          : [],
+        questionOrder: Number(raw.question_order ?? raw.questionOrder ?? 0),
+      });
+    }
+
+    let nextRules: QuestionnaireRule[];
+    if (importRulesMode === 'replace') {
+      nextRules = imported;
+    } else {
+      const byId = new Map<string, QuestionnaireRule>();
+      for (const r of settings.questionnaireRules) byId.set(r.id, r);
+      for (const r of imported) byId.set(r.id, r);
+      nextRules = Array.from(byId.values());
+    }
+
+    setSettings({ ...settings, questionnaireRules: nextRules });
+    setHasUnsavedChanges(true);
+    setImportRulesModalOpen(false);
+    setImportRulesJson('');
+    setImportRulesError(null);
+    alert(`Imported ${imported.length} rule(s). Remember to save settings.`);
   };
 
   const deleteQuestionnaireRule = (id: string) => {
@@ -1577,6 +1687,18 @@ Example format:
           <div className="flex justify-between items-center gap-2 flex-wrap">
             <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)]">Questionnaire Rules</h2>
             <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setImportRulesJson('');
+                  setImportRulesError(null);
+                  setImportRulesMode('merge');
+                  setImportRulesModalOpen(true);
+                }}
+                data-testid="button-import-rules"
+              >
+                Import JSON
+              </Button>
               <Button onClick={() => openRuleModal()} data-testid="button-add-rule">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Rule
@@ -1777,6 +1899,54 @@ Example format:
         </TabsContent>
 
         {/* Rule Modal */}
+        <Dialog open={importRulesModalOpen} onOpenChange={setImportRulesModalOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-import-rules">
+            <DialogHeader>
+              <DialogTitle>Import Questionnaire Rules from JSON</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-[color:var(--t-color-text-secondary)]">
+                Paste the exported JSON array from replit. Snake_case fields (main_category, question_text, etc.) are auto-mapped.
+              </p>
+              <div className="flex gap-4 items-center">
+                <Label className="text-sm">Mode:</Label>
+                <label className="flex items-center gap-1 text-sm">
+                  <input
+                    type="radio"
+                    checked={importRulesMode === 'merge'}
+                    onChange={() => setImportRulesMode('merge')}
+                  />
+                  Merge (upsert by id)
+                </label>
+                <label className="flex items-center gap-1 text-sm">
+                  <input
+                    type="radio"
+                    checked={importRulesMode === 'replace'}
+                    onChange={() => setImportRulesMode('replace')}
+                  />
+                  Replace all
+                </label>
+              </div>
+              <Textarea
+                value={importRulesJson}
+                onChange={(e) => setImportRulesJson(e.target.value)}
+                placeholder='[ { "id": "...", "name": "...", "main_category": "Business Overview", ... } ]'
+                className="font-mono text-xs min-h-[300px]"
+                data-testid="textarea-import-rules-json"
+              />
+              {importRulesError && (
+                <p className="text-sm text-red-600" data-testid="text-import-rules-error">{importRulesError}</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setImportRulesModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleImportQuestionnaireRules} data-testid="button-confirm-import-rules">
+                Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={ruleModalOpen} onOpenChange={setRuleModalOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-rule-form">
             <DialogHeader>
