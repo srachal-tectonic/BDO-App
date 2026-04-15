@@ -18,14 +18,13 @@ The **SBA Loan Prequalifier** is a web application that streamlines the Small Bu
 - **State Management**: Zustand 5.0.8
 
 ### Backend/Infrastructure
-- **Database**: Firebase Firestore (cloud-hosted NoSQL)
-- **Authentication**:
-  - BDO Portal: Firebase Auth (email/password)
-  - Borrower Portal: Auth0 (OAuth)
-- **Storage**: Firebase Cloud Storage
-- **AI/ML**: OpenAI API (GPT-4o-mini) for NAICS code suggestions and questionnaire content
-- **Security**: Google reCAPTCHA Enterprise
-- **Deployment**: Google Cloud Hosting (Firebase) with three environments (dev, staging, production)
+> **THIS PROJECT DOES NOT USE FIREBASE.** All persistence, auth, storage, and hosting are on **Azure** (with SharePoint for document storage). Do not introduce Firebase, Firestore, Firebase Auth, Firebase Storage, Google Cloud Hosting, or `firebase-admin` into any new code. Any existing mentions of Firebase in this repo are legacy and should be migrated away from — never toward.
+
+- **Database**: **Azure Cosmos DB (MongoDB API)** — accessed via the official `mongodb` driver through `lib/cosmosdb.ts` (`COSMOS_CONNECTION_STRING` / `COSMOS_DATABASE` env vars). Collections include `projects`, `loanApplications`, `notes`, `generatedForms`, `borrowerUploads`, `portalTokens`, `pdfTemplates`, `pdfImportSessions`, `adminSettings`, etc.
+- **Authentication**: **Auth0** for both portals (OAuth / OIDC). There is no Firebase Auth.
+- **File Storage**: **Microsoft SharePoint** for project/document storage and folder structure management.
+- **AI/ML**: OpenAI API (GPT-4o-mini) for NAICS code suggestions and questionnaire content.
+- **Deployment**: **Azure App Service** running Node 24 LTS (no Docker). No Google Cloud / Firebase Hosting.
 
 ### Development Tools
 - **Linter**: ESLint 9 (Next.js + TypeScript config)
@@ -43,13 +42,13 @@ The **SBA Loan Prequalifier** is a web application that streamlines the Small Bu
 - **Client components**: Add `'use client'` directive at the top of client-side components
 
 ### Architecture Patterns
-- **Server/Client Components**: Next.js App Router with explicit `'use client'` directives for client-side interactivity
-- **Context-based Auth**: Separate context providers for Firebase (`FirebaseAuthContext`) and Auth0 (`Auth0Context`) authentication
-- **Firestore CRUD Layer**: Centralized `services/firestore.ts` handles all database operations
-- **Component Composition**: Complex forms broken down into smaller, reusable loan-section components in `components/loan-sections/`
-- **State Management**: Zustand for client state, Firestore for persistent state
-- **API Routes**: Next.js API routes (`app/api/`) for backend operations (authentication, external API integrations, verification)
-- **Environment Management**: Three-tier deployment (dev, staging, production) with separate Firebase projects
+- **Server/Client Components**: Next.js App Router with explicit `'use client'` directives for client-side interactivity.
+- **Auth**: Auth0 is the single identity provider. A legacy file named `FirebaseAuthContext` exists purely for historical reasons and is being migrated — do **not** extend it and do not add new Firebase dependencies. Treat it as an Auth0-backed context regardless of its filename.
+- **Database Access Layer**: Centralized `lib/cosmosdb.ts` exposes `getCollection(COLLECTIONS.X)` returning a `mongodb.Collection`. API routes (`app/api/**`) call into it directly — `services/firestore.ts` is a compatibility shim that wraps the same API calls and is similarly misnamed legacy.
+- **Component Composition**: Complex forms broken down into smaller, reusable loan-section components in `components/loan-sections/`.
+- **State Management**: Zustand for client-side state; Cosmos DB for persistent state.
+- **API Routes**: Next.js API routes (`app/api/`) for backend operations (auth callbacks, Cosmos persistence, OpenAI calls, SharePoint integration).
+- **Environment Management**: Three-tier Azure App Service deployment (dev, staging, production), each with its own Cosmos DB + SharePoint config.
 
 ### Testing Strategy
 Currently no formal test framework is implemented. This is a known gap and opportunity for improvement. Recommended additions:
@@ -88,10 +87,10 @@ The application uses AI (OpenAI) to suggest appropriate North American Industry 
 ## Important Constraints
 
 ### Technical Constraints
-- Must support three deployment environments (dev, staging, production) with separate Firebase projects
-- BDO authentication uses Firebase Auth; Borrower authentication uses Auth0 - these cannot be mixed
-- reCAPTCHA Enterprise required for login security
-- All secrets managed via Google Cloud Secret Manager
+- **No Firebase.** Do not add `firebase`, `firebase-admin`, Firebase Auth, Firestore, Firebase Storage, Firebase Hosting, or any `@google-cloud/*` infra SDKs. All backend services are Azure. If you see Firebase in legacy code, migrate it out — never deepen the dependency.
+- Must support three deployment environments (dev, staging, production) on **Azure App Service** running Node 24 LTS (no Docker).
+- **Auth0** is the single identity provider for both the BDO and Borrower portals.
+- All secrets managed via **Azure Key Vault / App Service application settings** — not Google Cloud Secret Manager.
 
 ### Business/Regulatory Constraints
 - SBA loan applications are subject to federal regulations
@@ -103,17 +102,14 @@ The application uses AI (OpenAI) to suggest appropriate North American Industry 
 ### APIs & Services
 | Service | Purpose |
 |---------|---------|
-| **Firebase Firestore** | Primary database |
-| **Firebase Auth** | BDO authentication |
-| **Firebase Storage** | File storage |
-| **Auth0** | Borrower OAuth authentication |
+| **Azure Cosmos DB (MongoDB API)** | Primary database — all persistent project, loan, note, form, and admin settings storage |
+| **Auth0** | Single identity provider for both BDO and Borrower portals (OAuth / OIDC) |
+| **Microsoft SharePoint** | Document / file storage and per-project folder structure |
 | **OpenAI API** | NAICS code suggestions, questionnaire content generation |
-| **Google reCAPTCHA Enterprise** | Bot prevention |
-| **Google Places API** | Address autocomplete |
-| **Microsoft SharePoint** | Document storage and folder structure management |
-| **Google Cloud Secret Manager** | Secure credential management |
+| **Google Places API** | Address autocomplete (client-only) |
+| **Azure App Service** | Application hosting (dev / staging / prod) |
+| **Azure Key Vault / App Service settings** | Secret management |
 
-### Firebase Project Aliases
-- `dev` → `sba-loan-prequalifier-dev`
-- `staging` → `sba-loan-prequalifier-staging`
-- `prod` → `sba-loan-prequalifier` (default)
+### Hosting Environments
+- Azure App Service (Node 24 LTS, no Docker), three slots: **dev**, **staging**, **prod**.
+- Each environment has its own Cosmos DB connection string and SharePoint site configuration; secrets live in Azure, not Google Cloud.

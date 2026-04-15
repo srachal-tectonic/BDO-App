@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 
 /**
- * Portal Token Management API Route
- * POST /api/projects/[id]/portal-token - Create or regenerate portal token
- * GET /api/projects/[id]/portal-token - Get current portal token
- * DELETE /api/projects/[id]/portal-token - Revoke portal token
+ * Portal Token Management API Route (Azure Cosmos DB MongoDB API)
+ *   GET    /api/projects/[id]/portal-token — Get current portal token
+ *   POST   /api/projects/[id]/portal-token — Create or regenerate portal token
+ *   DELETE /api/projects/[id]/portal-token — Revoke portal token
+ *
+ * Collections:
+ *   projects       — stores `formPortalToken`, `formPortalTokenCreatedAt` on the project doc
+ *   portalTokens   — one document per token (`token`, `projectId`, `createdAt`, `expiresAt`, `isRevoked`, ...)
  */
 
 /**
- * Generate a cryptographically secure URL-safe token
+ * Generate a cryptographically secure URL-safe token (32 chars).
  */
 function generateSecureToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -18,177 +22,137 @@ function generateSecureToken(): string {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     crypto.getRandomValues(randomValues);
   } else {
-    for (let i = 0; i < 32; i++) {
-      randomValues[i] = Math.floor(Math.random() * 256);
-    }
+    for (let i = 0; i < 32; i++) randomValues[i] = Math.floor(Math.random() * 256);
   }
-  for (let i = 0; i < 32; i++) {
-    token += chars[randomValues[i] % chars.length];
-  }
+  for (let i = 0; i < 32; i++) token += chars[randomValues[i] % chars.length];
   return token;
 }
 
-/**
- * GET /api/projects/[id]/portal-token
- * Get the current portal token for a project
- */
+function toDate(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// GET
+// ---------------------------------------------------------------------------
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: projectId } = await params;
-
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID required' }, { status: 400 });
     }
 
-    // Get project to find current token
-    const projectDoc = await adminDb.collection('projects').doc(projectId).get();
-
-    if (!projectDoc.exists) {
+    const projectsCol = await getCollection(COLLECTIONS.PROJECTS);
+    const project = await projectsCol.findOne({ id: projectId });
+    if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const projectData = projectDoc.data();
-    const currentToken = projectData?.formPortalToken;
-
+    const currentToken = (project as any).formPortalToken;
     if (!currentToken) {
       return NextResponse.json({ token: null, hasToken: false });
     }
 
-    // Validate the token is still valid
-    const tokenDoc = await adminDb.collection('formPortalTokens').doc(currentToken).get();
-
-    if (!tokenDoc.exists) {
+    const tokensCol = await getCollection(COLLECTIONS.PORTAL_TOKENS);
+    const tokenDoc = await tokensCol.findOne({ token: currentToken });
+    if (!tokenDoc) {
       return NextResponse.json({ token: null, hasToken: false });
     }
 
-    const tokenData = tokenDoc.data();
-    const expiresAt = tokenData?.expiresAt?.toDate ? tokenData.expiresAt.toDate() : new Date(tokenData?.expiresAt);
-    const isExpired = new Date() > expiresAt;
-    const isRevoked = tokenData?.isRevoked;
+    const expiresAtDate = toDate((tokenDoc as any).expiresAt);
+    const createdAtDate = toDate((tokenDoc as any).createdAt);
+    const isExpired = expiresAtDate ? new Date() > expiresAtDate : false;
+    const isRevoked = !!(tokenDoc as any).isRevoked;
 
     return NextResponse.json({
       token: currentToken,
       hasToken: true,
       isExpired,
       isRevoked,
-      expiresAt: expiresAt.toISOString(),
-      createdAt: tokenData?.createdAt?.toDate?.()?.toISOString() || null,
+      expiresAt: expiresAtDate ? expiresAtDate.toISOString() : null,
+      createdAt: createdAtDate ? createdAtDate.toISOString() : null,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorCode = (error as { code?: string })?.code;
-    console.error('[Portal Token GET] Error:', {
-      message: errorMessage,
-      code: errorCode,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    // Always include details for debugging
+    console.error('[Portal Token GET] Error:', { message: errorMessage, code: errorCode });
     return NextResponse.json(
-      {
-        error: 'Failed to get portal token',
-        details: errorMessage,
-        code: errorCode,
-      },
+      { error: 'Failed to get portal token', details: errorMessage, code: errorCode },
       { status: 500 }
     );
   }
 }
 
-/**
- * POST /api/projects/[id]/portal-token
- * Create or regenerate portal token for a project
- */
+// ---------------------------------------------------------------------------
+// POST — create or regenerate
+// ---------------------------------------------------------------------------
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: projectId } = await params;
-
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID required' }, { status: 400 });
     }
 
-    // Verify adminDb is initialized
-    if (!adminDb) {
-      console.error('[Portal Token POST] adminDb is not initialized');
-      return NextResponse.json(
-        { error: 'Database not initialized', details: 'Admin SDK not properly configured' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
-    const { createdBy, createdByName, expirationDays = 30 } = body;
-
+    const { createdBy, createdByName, expirationDays = 30 } = body || {};
     if (!createdBy || !createdByName) {
       return NextResponse.json({ error: 'Creator information required' }, { status: 400 });
     }
 
-    console.log('[Portal Token POST] Starting token creation for project:', projectId);
+    const projectsCol = await getCollection(COLLECTIONS.PROJECTS);
+    const tokensCol = await getCollection(COLLECTIONS.PORTAL_TOKENS);
 
-    // Get project to check if it exists and get current token
-    const projectDoc = await adminDb.collection('projects').doc(projectId).get();
-
-    if (!projectDoc.exists) {
+    const project = await projectsCol.findOne({ id: projectId });
+    if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const projectData = projectDoc.data();
-    const existingToken = projectData?.formPortalToken;
-
-    // Generate new token
+    const existingToken = (project as any).formPortalToken;
     const token = generateSecureToken();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expirationDays * 24 * 60 * 60 * 1000);
 
-    // Use batch for atomic operations
-    const batch = adminDb.batch();
-
-    // Revoke existing token if it exists in the database
+    // Revoke existing token (best-effort; Cosmos DB Mongo API has no multi-doc transactions).
     if (existingToken) {
-      const existingTokenRef = adminDb.collection('formPortalTokens').doc(existingToken);
-      const existingTokenDoc = await existingTokenRef.get();
-      if (existingTokenDoc.exists) {
-        batch.update(existingTokenRef, { isRevoked: true });
-        console.log('[Portal Token POST] Will revoke existing token:', existingToken.substring(0, 8) + '...');
-      } else {
-        console.log('[Portal Token POST] Existing token not found in database, skipping revocation');
-      }
+      await tokensCol
+        .updateOne({ token: existingToken }, { $set: { isRevoked: true, updatedAt: now.toISOString() } })
+        .catch((err: any) => console.warn('[Portal Token POST] Could not revoke existing:', err?.message ?? err));
     }
 
-    // Create new token document
-    const tokenRef = adminDb.collection('formPortalTokens').doc(token);
-    batch.set(tokenRef, {
+    await tokensCol.insertOne({
       token,
       projectId,
-      createdAt: now,
-      expiresAt: expiresAt,
+      createdAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
       createdBy,
       createdByName,
       isRevoked: false,
     });
 
-    // Update project with new token reference
-    const projectRef = adminDb.collection('projects').doc(projectId);
-    batch.update(projectRef, {
-      formPortalToken: token,
-      formPortalTokenCreatedAt: now,
-      updatedAt: now,
-    });
-
-    // Commit all operations atomically
-    console.log('[Portal Token POST] Committing batch...');
-    await batch.commit();
-
-    console.log('[Portal Token POST] Token created successfully:', {
-      projectId,
-      tokenPrefix: token.substring(0, 8) + '...',
-    });
+    await projectsCol.updateOne(
+      { id: projectId },
+      {
+        $set: {
+          formPortalToken: token,
+          formPortalTokenCreatedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      }
+    );
 
     return NextResponse.json({
       token,
@@ -197,89 +161,52 @@ export async function POST(
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
     const errorCode = (error as { code?: string })?.code;
-
-    console.error('[Portal Token POST] Error:', {
-      message: errorMessage,
-      code: errorCode,
-      stack: errorStack,
-    });
-
-    // Always include details for debugging (can be removed in production)
+    console.error('[Portal Token POST] Error:', { message: errorMessage, code: errorCode });
     return NextResponse.json(
-      {
-        error: 'Failed to create portal token',
-        details: errorMessage,
-        code: errorCode,
-      },
+      { error: 'Failed to create portal token', details: errorMessage, code: errorCode },
       { status: 500 }
     );
   }
 }
 
-/**
- * DELETE /api/projects/[id]/portal-token
- * Revoke the current portal token
- */
+// ---------------------------------------------------------------------------
+// DELETE — revoke
+// ---------------------------------------------------------------------------
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: projectId } = await params;
-
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID required' }, { status: 400 });
     }
 
-    // Get project to find current token
-    const projectDoc = await adminDb.collection('projects').doc(projectId).get();
+    const projectsCol = await getCollection(COLLECTIONS.PROJECTS);
+    const tokensCol = await getCollection(COLLECTIONS.PORTAL_TOKENS);
 
-    if (!projectDoc.exists) {
+    const project = await projectsCol.findOne({ id: projectId });
+    if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const projectData = projectDoc.data();
-    const currentToken = projectData?.formPortalToken;
-
+    const currentToken = (project as any).formPortalToken;
     if (!currentToken) {
       return NextResponse.json({ message: 'No token to revoke' });
     }
 
-    // Use batch for atomic operations
-    const batch = adminDb.batch();
-
-    // Revoke the token
-    const tokenRef = adminDb.collection('formPortalTokens').doc(currentToken);
-    batch.update(tokenRef, { isRevoked: true });
-
-    // Clear token reference from project
-    const projectRef = adminDb.collection('projects').doc(projectId);
-    batch.update(projectRef, {
-      formPortalToken: null,
-      updatedAt: new Date(),
-    });
-
-    // Commit atomically
-    await batch.commit();
-
-    console.log('[Portal Token DELETE] Token revoked successfully:', { projectId });
+    await tokensCol.updateOne({ token: currentToken }, { $set: { isRevoked: true, updatedAt: new Date().toISOString() } });
+    await projectsCol.updateOne(
+      { id: projectId },
+      { $set: { formPortalToken: null, updatedAt: new Date().toISOString() } }
+    );
 
     return NextResponse.json({ message: 'Token revoked successfully' });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Portal Token DELETE] Error:', {
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    return NextResponse.json(
-      {
-        error: 'Failed to revoke portal token',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-      },
-      { status: 500 }
-    );
+    console.error('[Portal Token DELETE] Error:', { message: errorMessage });
+    return NextResponse.json({ error: 'Failed to revoke portal token', details: errorMessage }, { status: 500 });
   }
 }

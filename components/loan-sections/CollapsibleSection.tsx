@@ -23,7 +23,10 @@ export default function CollapsibleSection({
         className="flex justify-between items-center p-5 cursor-pointer border-b border-[var(--t-color-border)]"
         data-testid={`section-header-${title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <h2 className="text-lg font-semibold text-[color:var(--t-color-text-body)] flex items-center gap-3 m-0">
+        <h2
+          className="font-semibold uppercase tracking-wider flex items-center gap-2 m-0 text-[length:var(--t-font-size-section-header)] text-[color:var(--t-color-text-primary)]"
+          style={{ fontFamily: 'var(--t-font-family)' }}
+        >
           <ChevronDown
             className={`w-4 h-4 text-[color:var(--t-color-text-muted)] transition-transform ${
               isExpanded ? 'rotate-180' : ''

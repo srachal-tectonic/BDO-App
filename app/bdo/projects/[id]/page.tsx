@@ -488,7 +488,7 @@ export default function BDOToolsPage() {
         </TabsContent>
 
         <TabsContent value="borrower-forms" className="mt-0">
-          <div className="bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)] min-h-[calc(100vh-160px)]">
+          <div className="bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <div className="flex items-center justify-between border-b border-[var(--t-color-border)] px-6 py-4">
               <h2 className="text-[18px] font-semibold text-[color:var(--t-color-text-primary)]">PDF Forms</h2>
             </div>

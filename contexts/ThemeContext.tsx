@@ -185,8 +185,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeSettings, setThemeSettings] = useState<ThemeSettings>(defaultTheme);
   const [mounted, setMounted] = useState(false);
 
-  // Load saved theme from localStorage on mount and apply it
+  // Load saved theme on mount. Order of preference:
+  //   1. Cosmos DB admin-settings doc (authoritative, shared across users/browsers)
+  //   2. localStorage (per-browser cache / offline fallback)
+  //   3. defaultTheme
   useEffect(() => {
+    let cancelled = false;
+
+    // Step 1: apply whatever's in localStorage immediately so there's no FOUC,
+    // then asynchronously reconcile against the server.
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -201,6 +208,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       applyThemeToDOM(defaultTheme);
     }
     setMounted(true);
+
+    // Step 2: fetch the Cosmos-backed admin settings and override if present.
+    (async () => {
+      try {
+        const res = await fetch('/api/admin-settings', { cache: 'no-store' });
+        if (!res.ok) return;
+        const doc = await res.json();
+        if (cancelled || !doc || !doc.themeSettings) return;
+        const merged = { ...defaultTheme, ...doc.themeSettings };
+        setThemeSettings(merged);
+        applyThemeToDOM(merged);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(merged)); } catch {}
+      } catch {
+        // offline / endpoint unreachable — keep localStorage fallback
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
   // Re-apply CSS variables whenever themeSettings change (after initial mount)

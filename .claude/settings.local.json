@@ -61,7 +61,10 @@
       "mcp__plugin_oh-my-claudecode_t__state_list_active",
       "mcp__plugin_oh-my-claudecode_t__state_clear",
       "Bash(rm -f CLOUD_BUILD_SETUP.md LATEST-UPDATES.md SETUP_NOTES.md ENVIRONMENTS.md SECURITY_REVIEW.md AGENTS.md services/FIRESTORE_STRUCTURE.md docs/SOURCE_OF_TRUTH.md public/images/README.md)",
-      "Bash(rm -rf openspec/changes replit docs)"
+      "Bash(rm -rf openspec/changes replit docs)",
+      "Bash(sed -i '886,1282d' components/loan-sections/BorrowerFormsSection.tsx)",
+      "Bash(sed -n '880,895p' components/loan-sections/BorrowerFormsSection.tsx)",
+      "Bash(awk 'NR>=880 && NR<=890' components/loan-sections/BorrowerFormsSection.tsx)"
     ],
     "deny": [],
     "ask": []

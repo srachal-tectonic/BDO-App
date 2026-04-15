@@ -224,15 +224,21 @@
   },
   "hotPaths": [
     {
+      "path": "components/loan-sections/IndividualApplicantsSection.tsx",
+      "accessCount": 101,
+      "lastAccessed": 1776271529499,
+      "type": "file"
+    },
+    {
       "path": "app/bdo/projects/[id]/page.tsx",
-      "accessCount": 72,
-      "lastAccessed": 1776113585851,
+      "accessCount": 75,
+      "lastAccessed": 1776283988255,
       "type": "file"
     },
     {
       "path": "app/bdo/admin/page.tsx",
-      "accessCount": 64,
-      "lastAccessed": 1776266507430,
+      "accessCount": 69,
+      "lastAccessed": 1776272335146,
       "type": "file"
     },
     {
@@ -242,9 +248,15 @@
       "type": "file"
     },
     {
-      "path": "components/loan-sections/IndividualApplicantsSection.tsx",
-      "accessCount": 29,
-      "lastAccessed": 1775678396814,
+      "path": "components/loan-sections/BorrowerFormsSection.tsx",
+      "accessCount": 30,
+      "lastAccessed": 1776284246090,
+      "type": "file"
+    },
+    {
+      "path": "components/loan-sections/PersonalFinancialStatementsSection.tsx",
+      "accessCount": 28,
+      "lastAccessed": 1776268106638,
       "type": "file"
     },
     {
@@ -255,8 +267,8 @@
     },
     {
       "path": "app/globals.css",
-      "accessCount": 18,
-      "lastAccessed": 1775670960343,
+      "accessCount": 20,
+      "lastAccessed": 1776267652399,
       "type": "file"
     },
     {
@@ -326,6 +338,12 @@
       "type": "file"
     },
     {
+      "path": "components/loan-sections/CollapsibleSection.tsx",
+      "accessCount": 11,
+      "lastAccessed": 1776273893292,
+      "type": "file"
+    },
+    {
       "path": "components/loan-sections/CombinedFilesSection.tsx",
       "accessCount": 10,
       "lastAccessed": 1775667018285,
@@ -335,12 +353,6 @@
       "path": "components/loan-sections/IndividualFileUploadModal.tsx",
       "accessCount": 10,
       "lastAccessed": 1775667178096,
-      "type": "file"
-    },
-    {
-      "path": "components/loan-sections/BorrowerFormsSection.tsx",
-      "accessCount": 10,
-      "lastAccessed": 1776109656157,
       "type": "file"
     },
     {
@@ -359,12 +371,6 @@
       "path": "components/loan-sections/ApplicantSelectionModal.tsx",
       "accessCount": 9,
       "lastAccessed": 1775667187700,
-      "type": "file"
-    },
-    {
-      "path": "components/loan-sections/PersonalFinancialStatementsSection.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1775667336908,
       "type": "file"
     },
     {
@@ -434,12 +440,6 @@
       "type": "directory"
     },
     {
-      "path": "components/loan-sections/CollapsibleSection.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1775675570112,
-      "type": "file"
-    },
-    {
       "path": "app/layout.tsx",
       "accessCount": 4,
       "lastAccessed": 1775661696205,
@@ -450,6 +450,12 @@
       "accessCount": 4,
       "lastAccessed": 1775664835429,
       "type": "directory"
+    },
+    {
+      "path": "contexts/ThemeContext.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1776272146137,
+      "type": "file"
     },
     {
       "path": "components/loan-sections/BusinessFilesSection.tsx",
@@ -479,12 +485,6 @@
       "path": "contexts/FirebaseAuthContext.tsx",
       "accessCount": 3,
       "lastAccessed": 1776106165386,
-      "type": "file"
-    },
-    {
-      "path": "contexts/ThemeContext.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1775661539258,
       "type": "file"
     },
     {

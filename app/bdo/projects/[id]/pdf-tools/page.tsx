@@ -31,6 +31,8 @@ export default function PdfToolsPage() {
   const { userInfo, isLoading: authLoading } = useFirebaseAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const envelopeInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingEnvelope, setIsImportingEnvelope] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'import' | 'export' | 'templates'>('import');
   const [exportFormType, setExportFormType] = useState<string>('sba-1919');
@@ -149,6 +151,68 @@ export default function PdfToolsPage() {
       toast({ title: 'Upload failed', description: 'Could not process the PDF file', variant: 'destructive' });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleEnvelopeImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast({ title: 'Invalid file type', description: 'Please select a PDF file', variant: 'destructive' });
+      return;
+    }
+
+    setIsImportingEnvelope(true);
+    try {
+      const base64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1] ?? '');
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch(`/api/projects/${projectId}/envelope-pdf/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, pdfData: base64 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const payload = await res.json();
+      const extracted = payload.extractedFieldCount ?? 0;
+      const mapped = payload.mappedFieldCount ?? 0;
+      const applied = payload.appliedFieldCount ?? 0;
+
+      if (applied === 0) {
+        toast({
+          title: 'Envelope PDF imported — 0 fields applied',
+          description: `${extracted} AcroForm fields found, ${mapped} matched the envelope map, ${applied} actually written. The PDF was likely not produced by the T Bank envelope generator.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Envelope PDF imported',
+          description: `Applied ${applied} field(s) to the loan application (${mapped} matched, ${extracted} extracted). Reload project tabs to see the updated data.`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Envelope import failed:', err);
+      toast({
+        title: 'Envelope import failed',
+        description: err?.message ?? 'Could not process the PDF file',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImportingEnvelope(false);
+      if (envelopeInputRef.current) envelopeInputRef.current.value = '';
     }
   };
 
@@ -437,6 +501,41 @@ export default function PdfToolsPage() {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
+                <input
+                  ref={envelopeInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleEnvelopeImport}
+                  className="hidden"
+                />
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold mb-1">Import Business Applicant / Project Information</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Upload the filled envelope PDF — fields like <code>ba_legalName</code>, <code>ia0_firstName</code>, <code>po_projectName</code>, etc. are auto-mapped directly into this project's data in Cosmos DB. No manual mapping step.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => envelopeInputRef.current?.click()}
+                      disabled={isImportingEnvelope}
+                      className="gap-2 shrink-0"
+                      data-testid="button-import-envelope-pdf"
+                    >
+                      {isImportingEnvelope ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Importing…
+                        </>
+                      ) : (
+                        <>
+                          <FileUp className="w-4 h-4" />
+                          Import Envelope PDF
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-border rounded-lg p-12 text-center cursor-pointer transition-all hover:border-primary hover:bg-primary/5"

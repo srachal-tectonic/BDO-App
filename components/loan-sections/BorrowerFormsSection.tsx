@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FileText, Send, Check, Clock, Download, AlertCircle, Copy, ExternalLink, Loader2, RefreshCw, Upload, File, ChevronDown, ChevronRight, CheckCircle, XCircle, Edit2, Play, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,11 +117,80 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   const [isApplying, setIsApplying] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
 
+  // Import filled envelope PDF (Business Applicant / Project Information) to
+  // auto-populate project data via /api/projects/[id]/envelope-pdf/apply
+  const importFilledFormInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
+
+  const handleImportFilledForm = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Please select a PDF file.');
+      if (importFilledFormInputRef.current) importFilledFormInputRef.current.value = '';
+      return;
+    }
+
+    setIsImportingFilledForm(true);
+    try {
+      const base64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1] ?? '');
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch(`/api/projects/${projectId}/envelope-pdf/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, pdfData: base64 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const payload = await res.json();
+      const extracted = payload.extractedFieldCount ?? 0;
+      const nonEmpty = payload.nonEmptyFieldCount ?? 0;
+      const mapped = payload.mappedFieldCount ?? 0;
+      const applied = payload.appliedFieldCount ?? 0;
+
+      if (applied === 0) {
+        alert(
+          `Imported "${file.name}" but 0 fields were applied.\n\n` +
+          `• ${extracted} total AcroForm fields found in the PDF\n` +
+          `• ${nonEmpty} of those had a non-empty value\n` +
+          `• ${mapped} matched the expected envelope field naming (ba_*, ia*_*, po_*, si_*, sba_*, oob*_*)\n` +
+          `• ${applied} were actually written to the project\n\n` +
+          `This usually means the uploaded PDF was not produced by the T Bank envelope generator, so its field names don't match. Open the server console for a sample of the actual field names.`
+        );
+      } else {
+        alert(
+          `Imported "${file.name}". Applied ${applied} field(s) to the loan application ` +
+          `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty). ` +
+          `Reload the page to see the updated data on the loan application tabs.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Filled-form import failed:', err);
+      alert(`Import failed: ${err?.message ?? 'Could not process the PDF file'}`);
+    } finally {
+      setIsImportingFilledForm(false);
+      if (importFilledFormInputRef.current) importFilledFormInputRef.current.value = '';
+    }
+  };
+
   useEffect(() => {
     if (projectId) {
       loadForms();
       loadPortalToken();
-      loadBorrowerUploads();
+      // Borrower uploads card was removed; no longer fetching that list.
     }
   }, [projectId]);
 
@@ -607,6 +676,16 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               Open Portal
             </Button>
           </div>
+
+          {/* Shared hidden file input — the per-form Import buttons below click this. */}
+          <input
+            ref={importFilledFormInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleImportFilledForm}
+            className="hidden"
+            data-testid="input-import-filled-form"
+          />
         </CardContent>
       </Card>
 
@@ -709,11 +788,22 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteForm(form.id, form.formName)}
-                      className="gap-2 text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
-                      data-testid={`button-delete-form-${form.id}`}
+                      onClick={() => importFilledFormInputRef.current?.click()}
+                      disabled={isImportingFilledForm}
+                      className="gap-2"
+                      data-testid={`button-import-${form.id}`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {isImportingFilledForm ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Import
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -793,403 +883,6 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         </Card>
       )}
 
-      {/* Borrower Uploads Section */}
-      {forms.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-[color:var(--t-color-text-primary)] font-bold">
-              <Upload className="w-5 h-5 text-[color:var(--t-color-primary)]" />
-              Borrower Uploads
-            </CardTitle>
-            <CardDescription className="text-[color:var(--t-color-text-muted)]">
-              Documents uploaded by the borrower through the portal. PDF data is automatically extracted for review.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingUploads ? (
-              <div className="py-8 text-center">
-                <Loader2 className="w-6 h-6 text-[color:var(--t-color-accent)] mx-auto animate-spin" />
-                <p className="text-[color:var(--t-color-text-secondary)] mt-2">Loading uploads...</p>
-              </div>
-            ) : borrowerUploads.length === 0 ? (
-              <div className="py-8 text-center">
-                <File className="w-10 h-10 text-[color:var(--t-color-text-muted)] mx-auto mb-3" />
-                <p className="text-[color:var(--t-color-text-secondary)]">No documents uploaded yet</p>
-                <p className="text-sm text-[color:var(--t-color-text-muted)] mt-1">
-                  Uploads will appear here when the borrower submits documents through the portal.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {borrowerUploads.map((upload) => (
-                  <div key={upload.id} className="border border-[var(--t-color-border)] rounded-lg overflow-hidden">
-                    <div
-                      className={`flex items-center gap-4 p-4 bg-[var(--t-color-page-bg)] cursor-pointer hover:bg-[var(--t-color-highlight-bg)] transition-colors ${
-                        expandedUpload === upload.id ? 'border-b border-[var(--t-color-border)]' : ''
-                      }`}
-                      onClick={() => handleToggleUploadExpand(upload.id)}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <File className="w-5 h-5 text-green-600" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-[color:var(--t-color-text-body)] truncate">
-                          {upload.originalName}
-                        </h4>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs text-[color:var(--t-color-text-secondary)]">{formatFileSize(upload.fileSize)}</span>
-                          <span className="text-xs text-[color:var(--t-color-text-secondary)]">Uploaded {new Date(upload.uploadedAt).toLocaleDateString()}</span>
-                          {getExtractionStatusBadge(upload.extractionStatus)}
-                          {upload.detectedFormType && (
-                            <Badge variant="outline" className="text-xs">
-                              {upload.detectedFormType.replace('sba_', 'SBA ').replace('irs_', 'IRS ')}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadBorrowerUpload(upload.id);
-                          }}
-                          className="gap-2"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteUpload(upload.id, upload.originalName);
-                          }}
-                          className="text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        {upload.mimeType === 'application/pdf' && (
-                          expandedUpload === upload.id ? (
-                            <ChevronDown className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
-                          ) : (
-                            <ChevronRight className="w-5 h-5 text-[color:var(--t-color-text-secondary)]" />
-                          )
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Extraction Review Panel */}
-                    {expandedUpload === upload.id && upload.mimeType === 'application/pdf' && (
-                      <div className="p-4 bg-white">
-                        {isLoadingExtraction ? (
-                          <div className="py-6 text-center">
-                            <Loader2 className="w-6 h-6 text-[color:var(--t-color-accent)] mx-auto animate-spin" />
-                            <p className="text-[color:var(--t-color-text-secondary)] mt-2">Loading extraction data...</p>
-                          </div>
-                        ) : !extraction ? (
-                          <div className="py-6 text-center">
-                            <Eye className="w-8 h-8 text-[color:var(--t-color-text-muted)] mx-auto mb-3" />
-                            <p className="text-[color:var(--t-color-text-secondary)] mb-3">No extraction data available</p>
-                            {upload.extractionStatus === 'failed' ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleTriggerExtraction(upload.id)}
-                                className="gap-2"
-                              >
-                                <Play className="w-4 h-4" />
-                                Retry Extraction
-                              </Button>
-                            ) : upload.extractionStatus === 'pending' ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleTriggerExtraction(upload.id)}
-                                className="gap-2"
-                              >
-                                <Play className="w-4 h-4" />
-                                Extract Data
-                              </Button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {/* Empty Fields Warning */}
-                            {extraction.possibleIssues?.includes('ALL_FIELDS_EMPTY') && (
-                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <div className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-sm font-medium text-amber-800">All form fields are empty</p>
-                                    <p className="text-xs text-amber-700 mt-1">
-                                      The uploaded PDF appears to be a blank template or the form data was not saved properly.
-                                      Please ensure the borrower fills out the form using Adobe Acrobat or Reader and saves it before uploading.
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            {extraction.possibleIssues?.includes('MOSTLY_EMPTY') && !extraction.possibleIssues?.includes('ALL_FIELDS_EMPTY') && (
-                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <div className="flex items-start gap-2">
-                                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-sm font-medium text-amber-800">Most form fields are empty</p>
-                                    <p className="text-xs text-amber-700 mt-1">
-                                      Only {extraction.filledFields} of {extraction.mappedFields} mapped fields have values.
-                                      The form may be incomplete or some data was not saved properly.
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Extraction Summary */}
-                            <div className="flex items-center justify-between pb-3 border-b border-[var(--t-color-border)]">
-                              <div className="flex items-center gap-4 flex-wrap">
-                                <div className="text-sm">
-                                  <span className="text-[color:var(--t-color-text-secondary)]">Form Type:</span>{' '}
-                                  <span className="font-medium">{extraction.formType?.replace('sba_', 'SBA ').replace('irs_', 'IRS ') || 'Unknown'}</span>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-[color:var(--t-color-text-secondary)]">Fields with Values:</span>{' '}
-                                  <span className={`font-medium ${extraction.filledFields === 0 ? 'text-red-600' : extraction.filledFields < extraction.mappedFields / 2 ? 'text-amber-600' : 'text-green-600'}`}>
-                                    {extraction.filledFields || 0} / {extraction.mappedFields}
-                                  </span>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-[color:var(--t-color-text-secondary)]">Avg Confidence:</span>{' '}
-                                  <span className={`font-medium ${getConfidenceColor(extraction.averageConfidence)}`}>
-                                    {(extraction.averageConfidence * 100).toFixed(0)}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {extraction.status !== 'applied' && mappedFields.some((f) => f.status === 'pending') && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={approveAllFields}
-                                    disabled={isSavingReview}
-                                    className="gap-2"
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                    Approve All
-                                  </Button>
-                                )}
-                                {canApply && (
-                                  <Button
-                                    size="sm"
-                                    onClick={handleApplyExtraction}
-                                    disabled={isApplying}
-                                    className="gap-2"
-                                  >
-                                    {isApplying ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Play className="w-4 h-4" />
-                                    )}
-                                    Apply to Application
-                                  </Button>
-                                )}
-                                {extraction.status === 'applied' && (
-                                  <Badge className="bg-green-100 text-green-800 border-green-200">
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Applied
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Field List */}
-                            {mappedFields.length === 0 ? (
-                              <p className="text-[color:var(--t-color-text-secondary)] text-center py-4">
-                                No mappable fields found in this document.
-                              </p>
-                            ) : (
-                              <div className="space-y-2 max-h-96 overflow-y-auto">
-                                {mappedFields.map((field) => (
-                                  <div
-                                    key={field.pdfFieldName}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border ${
-                                      field.status === 'approved' ? 'bg-green-50 border-green-200' :
-                                      field.status === 'rejected' ? 'bg-red-50 border-red-200' :
-                                      field.status === 'edited' ? 'bg-blue-50 border-blue-200' :
-                                      'bg-gray-50 border-gray-200'
-                                    }`}
-                                  >
-                                    {getFieldStatusIcon(field.status)}
-
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-sm truncate">
-                                          {field.mappedLabel || field.pdfFieldName}
-                                        </span>
-                                        <span className={`text-xs ${getConfidenceColor(field.confidence)}`}>
-                                          {(field.confidence * 100).toFixed(0)}%
-                                        </span>
-                                      </div>
-                                      <div className="text-xs text-[color:var(--t-color-text-secondary)] mt-0.5">
-                                        {field.mappedSection} → {field.mappedPath}
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                      {editingField === field.pdfFieldName ? (
-                                        <>
-                                          <Input
-                                            value={editedValues[field.pdfFieldName] ?? String(field.transformedValue ?? field.rawValue ?? '')}
-                                            onChange={(e) => setEditedValues((prev) => ({ ...prev, [field.pdfFieldName]: e.target.value }))}
-                                            className="w-40 h-8 text-sm"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleFieldStatusChange(
-                                              field.pdfFieldName,
-                                              'edited',
-                                              editedValues[field.pdfFieldName]
-                                            )}
-                                            disabled={isSavingReview}
-                                          >
-                                            <Check className="w-4 h-4" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => {
-                                              setEditingField(null);
-                                              setEditedValues((prev) => {
-                                                const next = { ...prev };
-                                                delete next[field.pdfFieldName];
-                                                return next;
-                                              });
-                                            }}
-                                          >
-                                            <XCircle className="w-4 h-4" />
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span
-                                            className={`text-sm font-mono bg-white px-2 py-1 rounded border max-w-[200px] truncate ${
-                                              (field.transformedValue === null || field.transformedValue === undefined || field.transformedValue === '') &&
-                                              (field.rawValue === null || field.rawValue === undefined || field.rawValue === '') &&
-                                              field.status !== 'edited'
-                                                ? 'text-gray-400 italic'
-                                                : ''
-                                            }`}
-                                            title={
-                                              (field.transformedValue === null || field.transformedValue === undefined || field.transformedValue === '') &&
-                                              (field.rawValue === null || field.rawValue === undefined || field.rawValue === '') &&
-                                              field.status !== 'edited'
-                                                ? 'No value found in PDF - field was empty'
-                                                : undefined
-                                            }
-                                          >
-                                            {field.status === 'edited'
-                                              ? String(field.editedValue ?? '')
-                                              : (field.transformedValue !== null && field.transformedValue !== undefined && field.transformedValue !== '')
-                                                ? String(field.transformedValue)
-                                                : (field.rawValue !== null && field.rawValue !== undefined && field.rawValue !== '')
-                                                  ? String(field.rawValue)
-                                                  : '(empty)'}
-                                          </span>
-                                          {extraction.status !== 'applied' && (
-                                            <>
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => setEditingField(field.pdfFieldName)}
-                                                className="h-8 w-8 p-0"
-                                                title="Edit value"
-                                              >
-                                                <Edit2 className="w-4 h-4" />
-                                              </Button>
-                                              {field.status !== 'approved' && (
-                                                <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  onClick={() => handleFieldStatusChange(field.pdfFieldName, 'approved')}
-                                                  disabled={isSavingReview}
-                                                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                  title="Approve"
-                                                >
-                                                  <CheckCircle className="w-4 h-4" />
-                                                </Button>
-                                              )}
-                                              {field.status !== 'rejected' && (
-                                                <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  onClick={() => handleFieldStatusChange(field.pdfFieldName, 'rejected')}
-                                                  disabled={isSavingReview}
-                                                  className="h-8 w-8 p-0 text-[color:var(--t-color-danger)] hover:text-[color:var(--t-color-danger-light)] hover:bg-[var(--t-color-danger-bg)]"
-                                                  title="Reject"
-                                                >
-                                                  <XCircle className="w-4 h-4" />
-                                                </Button>
-                                              )}
-                                            </>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Help text for empty fields */}
-                            {extraction.filledFields === 0 && extraction.mappedFields > 0 && (
-                              <div className="text-xs text-[color:var(--t-color-text-secondary)] pt-3 border-t border-[var(--t-color-border)]">
-                                <p className="font-medium mb-1">Why are all fields showing &quot;(empty)&quot;?</p>
-                                <ul className="list-disc list-inside space-y-0.5 text-[color:var(--t-color-text-muted)]">
-                                  <li>The PDF may be a blank template (not filled out)</li>
-                                  <li>The form was filled using a PDF viewer that doesn&apos;t save form data</li>
-                                  <li>The PDF was &quot;flattened&quot; after filling (converted to static image)</li>
-                                </ul>
-                                <p className="mt-2 text-[color:var(--t-color-text-secondary)]">
-                                  For best results, have borrowers fill forms using Adobe Acrobat or Adobe Reader and save before uploading.
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Applied Info */}
-                            {extraction.appliedBy && extraction.appliedAt && (
-                              <div className="text-xs text-[color:var(--t-color-text-secondary)] pt-2 border-t border-[var(--t-color-border)]">
-                                Applied by {extraction.appliedByName || extraction.appliedBy} on{' '}
-                                {new Date(extraction.appliedAt).toLocaleString()}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {borrowerUploads.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-[var(--t-color-border)]">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadBorrowerUploads}
-                  className="gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh Uploads
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

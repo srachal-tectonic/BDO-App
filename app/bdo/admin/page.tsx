@@ -717,6 +717,13 @@ Example format:
   // Theme settings from global context
   const { themeSettings, setThemeSettings, saveTheme, resetTheme } = useTheme();
 
+  // Wrapper that also marks settings dirty so the Save button appears
+  // whenever a theme control changes.
+  const setThemeSettingsWithDirty = (next: ThemeSettings) => {
+    setThemeSettings(next);
+    setHasUnsavedChanges(true);
+  };
+
   // Add User Modal State
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -831,9 +838,11 @@ Example format:
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      // Persist theme to localStorage and apply CSS variables globally
+      // Persist theme to localStorage + apply CSS variables globally,
+      // and also bundle themeSettings into the Cosmos payload so it survives
+      // across browsers / fresh installs.
       saveTheme();
-      await saveAdminSettings(settings);
+      await saveAdminSettings({ ...settings, themeSettings });
       setHasUnsavedChanges(false);
       alert('Settings saved successfully!');
     } catch (err: any) {
@@ -849,9 +858,14 @@ Example format:
     (async () => {
       setIsLoadingSettings(true);
       try {
-        const loaded = await getAdminSettings<typeof settings>();
+        const loaded = await getAdminSettings<typeof settings & { themeSettings?: ThemeSettings }>();
         if (!cancelled && loaded) {
-          setSettings((prev) => ({ ...prev, ...loaded }));
+          // Strip themeSettings from the admin settings merge; apply it to ThemeContext instead.
+          const { themeSettings: loadedTheme, ...rest } = loaded;
+          setSettings((prev) => ({ ...prev, ...rest }));
+          if (loadedTheme) {
+            setThemeSettings({ ...defaultTheme, ...loadedTheme });
+          }
         }
       } catch (err) {
         console.error('Error loading admin settings:', err);
@@ -860,7 +874,7 @@ Example format:
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [setThemeSettings]);
 
   // AI Prompts handlers
   const addAIPrompt = () => {
@@ -4004,7 +4018,7 @@ Example format:
                     <Input
                       id="theme-font-family"
                       value={themeSettings.fontFamily}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontFamily: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontFamily: e.target.value })}
                       data-testid="input-theme-font-family"
                     />
                   </div>
@@ -4013,7 +4027,7 @@ Example format:
                     <Input
                       id="theme-font-size-base"
                       value={themeSettings.fontSizeBase}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeBase: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontSizeBase: e.target.value })}
                       data-testid="input-theme-font-size-base"
                     />
                   </div>
@@ -4022,7 +4036,7 @@ Example format:
                     <Input
                       id="theme-font-size-small"
                       value={themeSettings.fontSizeSmall}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeSmall: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontSizeSmall: e.target.value })}
                       data-testid="input-theme-font-size-small"
                     />
                   </div>
@@ -4031,7 +4045,7 @@ Example format:
                     <Input
                       id="theme-font-size-large"
                       value={themeSettings.fontSizeLarge}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeLarge: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontSizeLarge: e.target.value })}
                       data-testid="input-theme-font-size-large"
                     />
                   </div>
@@ -4040,7 +4054,7 @@ Example format:
                     <Input
                       id="theme-font-size-heading"
                       value={themeSettings.fontSizeHeading}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeHeading: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontSizeHeading: e.target.value })}
                       data-testid="input-theme-font-size-heading"
                     />
                   </div>
@@ -4049,7 +4063,7 @@ Example format:
                     <Input
                       id="theme-font-size-section-header"
                       value={themeSettings.fontSizeSectionHeader}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fontSizeSectionHeader: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fontSizeSectionHeader: e.target.value })}
                       data-testid="input-theme-font-size-section-header"
                     />
                   </div>
@@ -4064,7 +4078,7 @@ Example format:
                     <Input
                       id="theme-border-radius"
                       value={themeSettings.borderRadius}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, borderRadius: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, borderRadius: e.target.value })}
                       data-testid="input-theme-border-radius"
                     />
                   </div>
@@ -4073,7 +4087,7 @@ Example format:
                     <Input
                       id="theme-section-px"
                       value={themeSettings.sectionPaddingX}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionPaddingX: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, sectionPaddingX: e.target.value })}
                       data-testid="input-theme-section-px"
                     />
                   </div>
@@ -4082,7 +4096,7 @@ Example format:
                     <Input
                       id="theme-section-py"
                       value={themeSettings.sectionPaddingY}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionPaddingY: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, sectionPaddingY: e.target.value })}
                       data-testid="input-theme-section-py"
                     />
                   </div>
@@ -4091,7 +4105,7 @@ Example format:
                     <Input
                       id="theme-section-mb"
                       value={themeSettings.sectionMarginBottom}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, sectionMarginBottom: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, sectionMarginBottom: e.target.value })}
                       data-testid="input-theme-section-mb"
                     />
                   </div>
@@ -4100,7 +4114,7 @@ Example format:
                     <Input
                       id="theme-field-spacing"
                       value={themeSettings.fieldSpacing}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, fieldSpacing: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, fieldSpacing: e.target.value })}
                       data-testid="input-theme-field-spacing"
                     />
                   </div>
@@ -4109,7 +4123,7 @@ Example format:
                     <Input
                       id="theme-input-px"
                       value={themeSettings.inputPaddingX}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, inputPaddingX: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, inputPaddingX: e.target.value })}
                       data-testid="input-theme-input-px"
                     />
                   </div>
@@ -4118,7 +4132,7 @@ Example format:
                     <Input
                       id="theme-input-py"
                       value={themeSettings.inputPaddingY}
-                      onChange={(e) => setThemeSettings({ ...themeSettings, inputPaddingY: e.target.value })}
+                      onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, inputPaddingY: e.target.value })}
                       data-testid="input-theme-input-py"
                     />
                   </div>
@@ -4190,14 +4204,14 @@ Example format:
                           <input
                             type="color"
                             value={themeSettings[key]}
-                            onChange={(e) => setThemeSettings({ ...themeSettings, [key]: e.target.value })}
+                            onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, [key]: e.target.value })}
                             className="w-9 h-9 rounded-md border border-[var(--t-color-border)] cursor-pointer p-0.5"
                             data-testid={`color-theme-${key}`}
                           />
                           <Input
                             id={`theme-${key}`}
                             value={themeSettings[key]}
-                            onChange={(e) => setThemeSettings({ ...themeSettings, [key]: e.target.value })}
+                            onChange={(e) => setThemeSettingsWithDirty({ ...themeSettings, [key]: e.target.value })}
                             className="flex-1"
                             data-testid={`input-theme-${key}`}
                           />

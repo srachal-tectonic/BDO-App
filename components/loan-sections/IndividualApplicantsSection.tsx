@@ -30,6 +30,117 @@ function parseNum(val: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+// ---------------------------------------------------------------------------
+// Schedule primitives
+// ---------------------------------------------------------------------------
+
+function ScheduleSubtext({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] text-[color:var(--t-color-text-muted)] mb-2 leading-relaxed">{children}</p>;
+}
+
+function ScheduleAddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1 text-[12px] text-[color:var(--t-color-primary-light)] border border-[color:var(--t-color-border)] rounded-md px-2.5 py-1 hover:bg-[color:var(--t-color-primary-palest)] transition-colors mt-2"
+      data-testid={`button-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    >
+      <Plus className="w-3 h-3" />
+      {label}
+    </button>
+  );
+}
+
+function ScheduleDeleteButton({ onClick, testId }: { onClick: () => void; testId: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-[color:var(--t-color-primary-pale)] hover:text-[color:var(--t-color-danger-text)] transition-colors p-0.5"
+      data-testid={testId}
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function ScheduleTableHeader({ columns }: { columns: string[] }) {
+  return (
+    <div className="hidden md:grid gap-1 px-1 py-1.5 bg-[color:var(--t-color-primary-palest)] rounded-t-md" style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr) 28px` }}>
+      {columns.map((col, i) => (
+        <span key={i} className="text-[11px] uppercase tracking-wider font-semibold text-[color:var(--t-color-primary-light)] px-1">{col}</span>
+      ))}
+      <span />
+    </div>
+  );
+}
+
+function ScheduleInput({ value, onChange, placeholder, type, testId }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; testId?: string;
+}) {
+  return (
+    <input
+      type={type || 'text'}
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder || ''}
+      className="w-full px-2 py-1 border border-[color:var(--t-color-border)] rounded-md text-[13px]"
+      data-testid={testId}
+    />
+  );
+}
+
+function ScheduleSelect({ value, onChange, options, testId }: {
+  value: string; onChange: (v: string) => void; options: string[]; testId?: string;
+}) {
+  return (
+    <select
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-2 py-1 border border-[color:var(--t-color-border)] rounded-md text-[13px] bg-[color:var(--t-color-card-bg)]"
+      data-testid={testId}
+    >
+      <option value="">Select...</option>
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function PfsScheduleTextarea({ title, subtext, field, pfs, updatePfs, idx }: {
+  title: string; subtext: string; field: string;
+  pfs: PersonalFinancialStatement; updatePfs: (u: Partial<PersonalFinancialStatement>) => void; idx: string;
+}) {
+  return (
+    <CollapsibleSection title={title} defaultExpanded={false}>
+      <ScheduleSubtext>{subtext}</ScheduleSubtext>
+      <textarea
+        value={(pfs as any)[field] || ''}
+        onChange={(e) => updatePfs({ [field]: e.target.value } as any)}
+        rows={3}
+        className="w-full px-3 py-2 border border-[color:var(--t-color-border)] rounded-md text-[13px] min-h-[80px] resize-y"
+        data-testid={`pfs-${field}-${idx}`}
+      />
+    </CollapsibleSection>
+  );
+}
+
+const emptyNote = { noteholder: '', originalBalance: '', currentBalance: '', paymentAmount: '', frequency: '', collateral: '' };
+const emptySecurity = { numberOfShares: '', nameOfSecurities: '', cost: '', marketValue: '', dateOfQuotation: '', totalValue: '' };
+interface RealEstateItem {
+  type: string;
+  address: string;
+  datePurchased: string;
+  originalCost: string;
+  presentMarketValue: string;
+  mortgageHolder: string;
+  mortgageAccountNumber: string;
+  mortgageBalance: string;
+  monthlyPayment: string;
+  status: string;
+}
+const emptyRealEstate: RealEstateItem = { type: '', address: '', datePurchased: '', originalCost: '', presentMarketValue: '', mortgageHolder: '', mortgageAccountNumber: '', mortgageBalance: '', monthlyPayment: '', status: '' };
+
 const defaultPFS: PersonalFinancialStatement = {
   name: '',
   asOfDate: '',
@@ -62,9 +173,9 @@ const defaultPFS: PersonalFinancialStatement = {
   legalClaimsJudgments: '',
   provisionFederalIncomeTax: '',
   otherSpecialDebt: '',
-  notesPayable: [],
-  securities: [],
-  realEstateOwned: [],
+  notesPayable: [{ ...emptyNote }],
+  securities: [{ ...emptySecurity }],
+  realEstateOwned: [{ ...emptyRealEstate }],
   otherPersonalPropertyDescription: '',
   unpaidTaxesDescription: '',
   otherLiabilitiesDescription: '',
@@ -100,6 +211,15 @@ const defaultIndividualApplicant: IndividualApplicant = {
 const inputCls =
   'w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] outline-none';
 
+// Compact label class used by the new Section-style blocks
+const labelCls = 'block text-[11px] font-medium text-[color:var(--t-color-text-muted)] mb-0.5';
+
+// Real Estate options + property metadata
+const realEstateTypeOptions = ['Primary Residence', 'Other Residence', 'Rental Property', 'Land', 'Commercial', 'Other'];
+const mortgageStatusOptions = ['Current', 'Delinquent', 'In Forbearance', 'Paid Off'];
+const PROPERTY_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+const MAX_PROPERTIES = 10;
+
 // ---------------------------------------------------------------------------
 // PFS sub-component
 // ---------------------------------------------------------------------------
@@ -116,6 +236,13 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
   const update = useCallback(
     (field: keyof PersonalFinancialStatement, value: any) => {
       updatePersonalFinancialStatement(applicantId, { ...pfs, [field]: value } as PersonalFinancialStatement);
+    },
+    [applicantId, pfs, updatePersonalFinancialStatement],
+  );
+
+  const updatePfs = useCallback(
+    (u: Partial<PersonalFinancialStatement>) => {
+      updatePersonalFinancialStatement(applicantId, { ...pfs, ...u } as PersonalFinancialStatement);
     },
     [applicantId, pfs, updatePersonalFinancialStatement],
   );
@@ -188,6 +315,9 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
     },
     [applicantId, pfs, updatePersonalFinancialStatement],
   );
+
+  // Section 4 — Real Estate Owned: tab state
+  const [activeTab, setActiveTab] = useState(0);
 
   return (
     <div className="mt-6">
@@ -345,239 +475,345 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
         </div>
       </div>
 
-      {/* ---------- Schedule 2: Notes Payable ---------- */}
-      <CollapsibleSection title="Schedule 2 - Notes Payable to Banks and Others" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          Use this section to itemize all notes payable, including the noteholder name, original and current balance, payment amount, frequency, and collateral securing the note.
-        </p>
-        {(pfs.notesPayable || []).map((row, idx) => (
-          <div key={idx} className="border border-[var(--t-color-border)] rounded-lg p-4 mb-3 bg-white relative">
-            <button
-              type="button"
-              onClick={() => removeScheduleRow('notesPayable', idx)}
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1"
-              aria-label="Remove row"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1">Noteholder Name</label>
-                <input type="text" value={row.noteholder} onChange={(e) => updateScheduleRow('notesPayable', idx, 'noteholder', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Original Balance</label>
-                <input type="text" value={row.originalBalance} onChange={(e) => updateScheduleRow('notesPayable', idx, 'originalBalance', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Current Balance</label>
-                <input type="text" value={row.currentBalance} onChange={(e) => updateScheduleRow('notesPayable', idx, 'currentBalance', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Payment Amount</label>
-                <input type="text" value={row.paymentAmount} onChange={(e) => updateScheduleRow('notesPayable', idx, 'paymentAmount', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Frequency</label>
-                <select value={row.frequency} onChange={(e) => updateScheduleRow('notesPayable', idx, 'frequency', e.target.value)} className={inputCls}>
-                  <option value="">Select</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="annually">Annually</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Collateral</label>
-                <input type="text" value={row.collateral} onChange={(e) => updateScheduleRow('notesPayable', idx, 'collateral', e.target.value)} className={inputCls} />
+      {/* ---------- Section 2: Notes Payable ---------- */}
+      {(() => {
+        const idx = applicantId;
+        const cols = ['Noteholder Name/Address', 'Original Bal.', 'Current Bal.', 'Payment', 'Frequency', 'How Secured'];
+        const rows = pfs.notesPayable || [];
+        const updateRow = (i: number, field: string, v: string) => updateScheduleRow('notesPayable', i, field, v);
+        const removeRow = (i: number) => removeScheduleRow('notesPayable', i);
+        const addRow = () => addScheduleRow('notesPayable');
+        return (
+          <CollapsibleSection title="Section 2. Notes Payable to Banks and Others" defaultExpanded={false}>
+            <ScheduleSubtext>Use attachments if necessary. Each attachment must be identified as part of this statement and signed.</ScheduleSubtext>
+            <div className="hidden md:block">
+              <ScheduleTableHeader columns={cols} />
+              <div className="space-y-1">
+                {rows.map((row, i) => (
+                  <div key={i} className="grid gap-1 px-1 py-1 border-b border-[color:var(--t-color-primary-palest)]" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 28px` }}>
+                    <div><ScheduleInput value={row.noteholder} onChange={v => updateRow(i, 'noteholder', v)} testId={`pfs-note-noteholder-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.originalBalance} onChange={v => updateRow(i, 'originalBalance', v)} type="number" placeholder="0" testId={`pfs-note-origBal-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.currentBalance} onChange={v => updateRow(i, 'currentBalance', v)} type="number" placeholder="0" testId={`pfs-note-curBal-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.paymentAmount} onChange={v => updateRow(i, 'paymentAmount', v)} type="number" placeholder="0" testId={`pfs-note-payment-${idx}-${i}`} /></div>
+                    <div><ScheduleSelect value={row.frequency} onChange={v => updateRow(i, 'frequency', v)} options={['Monthly', 'Quarterly', 'Annually', 'Other']} testId={`pfs-note-freq-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.collateral} onChange={v => updateRow(i, 'collateral', v)} testId={`pfs-note-collateral-${idx}-${i}`} /></div>
+                    <div className="flex items-center justify-center"><ScheduleDeleteButton onClick={() => removeRow(i)} testId={`pfs-note-delete-${idx}-${i}`} /></div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
-        <button type="button" onClick={() => addScheduleRow('notesPayable')} className="text-sm text-[color:var(--t-color-accent)] hover:underline flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Note
-        </button>
-      </CollapsibleSection>
+            <div className="md:hidden space-y-2">
+              {rows.map((row, i) => (
+                <div key={i} className="border border-[color:var(--t-color-border)] rounded-md p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[13px] font-semibold text-[color:var(--t-color-primary)]">Note {i + 1}</span>
+                    <ScheduleDeleteButton onClick={() => removeRow(i)} testId={`pfs-note-delete-m-${idx}-${i}`} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Noteholder Name/Address</label><ScheduleInput value={row.noteholder} onChange={v => updateRow(i, 'noteholder', v)} testId={`pfs-note-noteholder-m-${idx}-${i}`} /></div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Original Balance</label><ScheduleInput value={row.originalBalance} onChange={v => updateRow(i, 'originalBalance', v)} type="number" placeholder="0" /></div>
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Current Balance</label><ScheduleInput value={row.currentBalance} onChange={v => updateRow(i, 'currentBalance', v)} type="number" placeholder="0" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Payment Amount</label><ScheduleInput value={row.paymentAmount} onChange={v => updateRow(i, 'paymentAmount', v)} type="number" placeholder="0" /></div>
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Frequency</label><ScheduleSelect value={row.frequency} onChange={v => updateRow(i, 'frequency', v)} options={['Monthly', 'Quarterly', 'Annually', 'Other']} /></div>
+                    </div>
+                    <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">How Secured / Collateral</label><ScheduleInput value={row.collateral} onChange={v => updateRow(i, 'collateral', v)} /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <ScheduleAddButton onClick={addRow} label="Add Note Row" />
+          </CollapsibleSection>
+        );
+      })()}
 
-      {/* ---------- Schedule 3: Stocks and Bonds ---------- */}
-      <CollapsibleSection title="Schedule 3 - Stocks and Bonds" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          List all stocks, bonds, and other securities owned. Include the number of shares, name, cost, market value, and date of quotation.
-        </p>
-        {(pfs.securities || []).map((row, idx) => (
-          <div key={idx} className="border border-[var(--t-color-border)] rounded-lg p-4 mb-3 bg-white relative">
-            <button
-              type="button"
-              onClick={() => removeScheduleRow('securities', idx)}
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1"
-              aria-label="Remove row"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1">Number of Shares</label>
-                <input type="text" value={row.numberOfShares} onChange={(e) => updateScheduleRow('securities', idx, 'numberOfShares', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Name of Securities</label>
-                <input type="text" value={row.nameOfSecurities} onChange={(e) => updateScheduleRow('securities', idx, 'nameOfSecurities', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Cost</label>
-                <input type="text" value={row.cost} onChange={(e) => updateScheduleRow('securities', idx, 'cost', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Market Value</label>
-                <input type="text" value={row.marketValue} onChange={(e) => updateScheduleRow('securities', idx, 'marketValue', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Date of Quotation</label>
-                <input type="date" value={row.dateOfQuotation} onChange={(e) => updateScheduleRow('securities', idx, 'dateOfQuotation', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Total Value</label>
-                <input type="text" value={row.totalValue} onChange={(e) => updateScheduleRow('securities', idx, 'totalValue', e.target.value)} placeholder="$0" className={inputCls} />
+      {/* ---------- Section 3: Stocks and Bonds ---------- */}
+      {(() => {
+        const idx = applicantId;
+        const cols = ['# Shares', 'Name of Securities', 'Cost', 'Market Value', 'Date of Quotation', 'Total Value'];
+        const rows = pfs.securities || [];
+        const updateRow = (i: number, field: string, v: string) => updateScheduleRow('securities', i, field, v);
+        const removeRow = (i: number) => removeScheduleRow('securities', i);
+        const addRow = () => addScheduleRow('securities');
+        return (
+          <CollapsibleSection title="Section 3. Stocks and Bonds" defaultExpanded={false}>
+            <ScheduleSubtext>Use attachments if necessary. Each attachment must be identified as part of this statement and signed.</ScheduleSubtext>
+            <div className="hidden md:block">
+              <ScheduleTableHeader columns={cols} />
+              <div className="space-y-1">
+                {rows.map((row, i) => (
+                  <div key={i} className="grid gap-1 px-1 py-1 border-b border-[color:var(--t-color-primary-palest)]" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 28px` }}>
+                    <div><ScheduleInput value={row.numberOfShares} onChange={v => updateRow(i, 'numberOfShares', v)} type="number" testId={`pfs-sec-shares-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.nameOfSecurities} onChange={v => updateRow(i, 'nameOfSecurities', v)} testId={`pfs-sec-name-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.cost} onChange={v => updateRow(i, 'cost', v)} type="number" placeholder="0" testId={`pfs-sec-cost-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.marketValue} onChange={v => updateRow(i, 'marketValue', v)} type="number" placeholder="0" testId={`pfs-sec-marketVal-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.dateOfQuotation} onChange={v => updateRow(i, 'dateOfQuotation', v)} type="date" testId={`pfs-sec-date-${idx}-${i}`} /></div>
+                    <div><ScheduleInput value={row.totalValue} onChange={v => updateRow(i, 'totalValue', v)} type="number" placeholder="0" testId={`pfs-sec-totalVal-${idx}-${i}`} /></div>
+                    <div className="flex items-center justify-center"><ScheduleDeleteButton onClick={() => removeRow(i)} testId={`pfs-sec-delete-${idx}-${i}`} /></div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
-        <button type="button" onClick={() => addScheduleRow('securities')} className="text-sm text-[color:var(--t-color-accent)] hover:underline flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Security
-        </button>
-      </CollapsibleSection>
-
-      {/* ---------- Schedule 4: Real Estate Owned ---------- */}
-      <CollapsibleSection title="Schedule 4 - Real Estate Owned" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          List all real estate owned. Provide property type, address, purchase date, original cost, current market value, mortgage details, and status.
-        </p>
-        {(pfs.realEstateOwned || []).map((row, idx) => (
-          <div key={idx} className="border border-[var(--t-color-border)] rounded-lg p-4 mb-3 bg-white relative">
-            <button
-              type="button"
-              onClick={() => removeScheduleRow('realEstateOwned', idx)}
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700 p-1"
-              aria-label="Remove row"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1">Property Type</label>
-                <select value={row.type} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'type', e.target.value)} className={inputCls}>
-                  <option value="">Select</option>
-                  <option value="primary-residence">Primary Residence</option>
-                  <option value="investment">Investment Property</option>
-                  <option value="commercial">Commercial</option>
-                  <option value="land">Land</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium mb-1">Address</label>
-                <input type="text" value={row.address} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'address', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Date Purchased</label>
-                <input type="date" value={row.datePurchased} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'datePurchased', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Original Cost</label>
-                <input type="text" value={row.originalCost} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'originalCost', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Present Market Value</label>
-                <input type="text" value={row.presentMarketValue} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'presentMarketValue', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Mortgage Holder</label>
-                <input type="text" value={row.mortgageHolder} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'mortgageHolder', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Mortgage Account #</label>
-                <input type="text" value={row.mortgageAccountNumber} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'mortgageAccountNumber', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Mortgage Balance</label>
-                <input type="text" value={row.mortgageBalance} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'mortgageBalance', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Monthly Payment</label>
-                <input type="text" value={row.monthlyPayment} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'monthlyPayment', e.target.value)} placeholder="$0" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Status</label>
-                <select value={row.status} onChange={(e) => updateScheduleRow('realEstateOwned', idx, 'status', e.target.value)} className={inputCls}>
-                  <option value="">Select</option>
-                  <option value="current">Current</option>
-                  <option value="delinquent">Delinquent</option>
-                  <option value="foreclosure">In Foreclosure</option>
-                </select>
-              </div>
+            <div className="md:hidden space-y-2">
+              {rows.map((row, i) => (
+                <div key={i} className="border border-[color:var(--t-color-border)] rounded-md p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[13px] font-semibold text-[color:var(--t-color-primary)]">Security {i + 1}</span>
+                    <ScheduleDeleteButton onClick={() => removeRow(i)} testId={`pfs-sec-delete-m-${idx}-${i}`} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]"># of Shares</label><ScheduleInput value={row.numberOfShares} onChange={v => updateRow(i, 'numberOfShares', v)} type="number" /></div>
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Name of Securities</label><ScheduleInput value={row.nameOfSecurities} onChange={v => updateRow(i, 'nameOfSecurities', v)} /></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Cost</label><ScheduleInput value={row.cost} onChange={v => updateRow(i, 'cost', v)} type="number" placeholder="0" /></div>
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Market Value</label><ScheduleInput value={row.marketValue} onChange={v => updateRow(i, 'marketValue', v)} type="number" placeholder="0" /></div>
+                      <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Total Value</label><ScheduleInput value={row.totalValue} onChange={v => updateRow(i, 'totalValue', v)} type="number" placeholder="0" /></div>
+                    </div>
+                    <div><label className="text-[11px] text-[color:var(--t-color-text-muted)]">Date of Quotation</label><ScheduleInput value={row.dateOfQuotation} onChange={v => updateRow(i, 'dateOfQuotation', v)} type="date" /></div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-        <button type="button" onClick={() => addScheduleRow('realEstateOwned')} className="text-sm text-[color:var(--t-color-accent)] hover:underline flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Property
-        </button>
-      </CollapsibleSection>
+            <ScheduleAddButton onClick={addRow} label="Add Security Row" />
+          </CollapsibleSection>
+        );
+      })()}
 
-      {/* ---------- Schedule 5: Other Personal Property ---------- */}
-      <CollapsibleSection title="Schedule 5 - Other Personal Property" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          Describe other personal property of significant value (art, jewelry, collections, etc.) that is not listed elsewhere.
-        </p>
-        <textarea
-          value={pfs.otherPersonalPropertyDescription || ''}
-          onChange={(e) => update('otherPersonalPropertyDescription', e.target.value)}
-          placeholder="Describe other personal property..."
-          rows={4}
-          className={`${inputCls} resize-none`}
-        />
-      </CollapsibleSection>
+      {/* ---------- Section 4: Real Estate Owned ---------- */}
+      {(() => {
+        const idx = applicantId;
+        const properties = pfs.realEstateOwned || [];
+        const safeTab = Math.min(activeTab, Math.max(0, properties.length - 1));
+        const prop = properties[safeTab] || emptyRealEstate;
+        const updateProp = (field: string, value: string) => updateScheduleRow('realEstateOwned', safeTab, field, value);
+        const addProperty = () => {
+          if (properties.length >= MAX_PROPERTIES) return;
+          addScheduleRow('realEstateOwned');
+          setActiveTab(properties.length);
+        };
+        const removeProperty = () => {
+          removeScheduleRow('realEstateOwned', safeTab);
+          setActiveTab(Math.max(0, safeTab - 1));
+        };
+        return (
+          <CollapsibleSection title="Section 4. Real Estate Owned" defaultExpanded={false}>
+            <ScheduleSubtext>List each parcel separately. Use attachment if necessary. Each attachment must be identified as a part of this statement and signed.</ScheduleSubtext>
 
-      {/* ---------- Schedule 6: Unpaid Taxes ---------- */}
-      <CollapsibleSection title="Schedule 6 - Unpaid Taxes" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          Describe any unpaid taxes including the type of tax, the taxing authority, the amount owed, and any payment arrangements.
-        </p>
-        <textarea
-          value={pfs.unpaidTaxesDescription || ''}
-          onChange={(e) => update('unpaidTaxesDescription', e.target.value)}
-          placeholder="Describe unpaid taxes..."
-          rows={4}
-          className={`${inputCls} resize-none`}
-        />
-      </CollapsibleSection>
+            <div className="flex flex-wrap items-center gap-1 border-b border-[color:var(--t-color-border)] mb-3 pb-0">
+              {properties.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveTab(i)}
+                  className={`px-3 py-1.5 text-[13px] font-medium rounded-t-md transition-colors -mb-px ${
+                    i === safeTab
+                      ? 'bg-[color:var(--t-color-primary)] text-white border border-[color:var(--t-color-primary)] border-b-transparent'
+                      : 'bg-[color:var(--t-color-primary-palest)] text-[color:var(--t-color-primary-light)] border border-transparent hover:bg-[color:var(--t-color-primary-pale)]'
+                  }`}
+                  data-testid={`pfs-re-tab-${idx}-${i}`}
+                >
+                  Property {PROPERTY_LABELS[i]}
+                </button>
+              ))}
+              {properties.length < MAX_PROPERTIES && (
+                <button
+                  type="button"
+                  onClick={addProperty}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] text-[color:var(--t-color-primary-light)] hover:bg-[color:var(--t-color-primary-palest)] rounded-t-md transition-colors"
+                  data-testid={`pfs-re-add-property-${idx}`}
+                >
+                  + Add Property
+                </button>
+              )}
+            </div>
 
-      {/* ---------- Schedule 7: Other Liabilities ---------- */}
-      <CollapsibleSection title="Schedule 7 - Other Liabilities" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          Describe any other liabilities not covered above, including judgments, garnishments, or other obligations.
-        </p>
-        <textarea
-          value={pfs.otherLiabilitiesDescription || ''}
-          onChange={(e) => update('otherLiabilitiesDescription', e.target.value)}
-          placeholder="Describe other liabilities..."
-          rows={4}
-          className={`${inputCls} resize-none`}
-        />
-      </CollapsibleSection>
+            {properties.length === 0 ? (
+              <div className="text-center py-8 text-[13px] text-[color:var(--t-color-text-muted)]" data-testid={`pfs-re-empty-${idx}`}>
+                No properties added. Click &lsquo;+ Add Property&rsquo; to begin.
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1.5 mb-1.5">
+                  <div>
+                    <label className={labelCls}>Type of Real Estate</label>
+                    <select
+                      value={prop.type || ''}
+                      onChange={(e) => updateProp('type', e.target.value)}
+                      className={inputCls}
+                      data-testid={`pfs-re-type-${idx}-${safeTab}`}
+                    >
+                      <option value="">Select...</option>
+                      {realEstateTypeOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
 
-      {/* ---------- Schedule 8: Life Insurance ---------- */}
-      <CollapsibleSection title="Schedule 8 - Life Insurance Held" defaultExpanded={false}>
-        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-          Provide details about life insurance policies including the insurance company, beneficiary, face amount, and cash surrender value.
-        </p>
-        <textarea
-          value={pfs.lifeInsuranceDescription || ''}
-          onChange={(e) => update('lifeInsuranceDescription', e.target.value)}
-          placeholder="Describe life insurance policies held..."
-          rows={4}
-          className={`${inputCls} resize-none`}
-        />
-      </CollapsibleSection>
+                <div className="mb-1.5">
+                  <label className={labelCls}>Address</label>
+                  <input
+                    type="text"
+                    value={prop.address || ''}
+                    onChange={(e) => updateProp('address', e.target.value)}
+                    className={inputCls}
+                    data-testid={`pfs-re-address-${idx}-${safeTab}`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1.5 mb-1.5">
+                  <div>
+                    <label className={labelCls}>Date Purchased</label>
+                    <input
+                      type="date"
+                      value={prop.datePurchased || ''}
+                      onChange={(e) => updateProp('datePurchased', e.target.value)}
+                      className={inputCls}
+                      data-testid={`pfs-re-datePurchased-${idx}-${safeTab}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Original Cost</label>
+                    <input
+                      type="number"
+                      value={prop.originalCost || ''}
+                      onChange={(e) => updateProp('originalCost', e.target.value)}
+                      placeholder="0"
+                      className={inputCls}
+                      data-testid={`pfs-re-originalCost-${idx}-${safeTab}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Present Market Value</label>
+                    <input
+                      type="number"
+                      value={prop.presentMarketValue || ''}
+                      onChange={(e) => updateProp('presentMarketValue', e.target.value)}
+                      placeholder="0"
+                      className={inputCls}
+                      data-testid={`pfs-re-presentMarketValue-${idx}-${safeTab}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1.5 mb-1.5">
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Mortgage Holder Name/Address</label>
+                    <input
+                      type="text"
+                      value={prop.mortgageHolder || ''}
+                      onChange={(e) => updateProp('mortgageHolder', e.target.value)}
+                      className={inputCls}
+                      data-testid={`pfs-re-mortgageHolder-${idx}-${safeTab}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Mortgage Account Number</label>
+                    <input
+                      type="text"
+                      value={prop.mortgageAccountNumber || ''}
+                      onChange={(e) => updateProp('mortgageAccountNumber', e.target.value)}
+                      className={inputCls}
+                      data-testid={`pfs-re-mortgageAccountNumber-${idx}-${safeTab}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1.5 mb-1.5">
+                  <div>
+                    <label className={labelCls}>Mortgage Balance</label>
+                    <input
+                      type="number"
+                      value={prop.mortgageBalance || ''}
+                      onChange={(e) => updateProp('mortgageBalance', e.target.value)}
+                      placeholder="0"
+                      className={inputCls}
+                      data-testid={`pfs-re-mortgageBalance-${idx}-${safeTab}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Payment per Month</label>
+                    <input
+                      type="number"
+                      value={prop.monthlyPayment || ''}
+                      onChange={(e) => updateProp('monthlyPayment', e.target.value)}
+                      placeholder="0"
+                      className={inputCls}
+                      data-testid={`pfs-re-monthlyPayment-${idx}-${safeTab}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Status of Mortgage</label>
+                    <select
+                      value={prop.status || ''}
+                      onChange={(e) => updateProp('status', e.target.value)}
+                      className={inputCls}
+                      data-testid={`pfs-re-status-${idx}-${safeTab}`}
+                    >
+                      <option value="">Select...</option>
+                      {mortgageStatusOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-[color:var(--t-color-primary-palest)]">
+                  <button
+                    type="button"
+                    onClick={removeProperty}
+                    className="text-[12px] text-[color:var(--t-color-danger-text)] hover:text-[color:var(--t-color-danger)] transition-colors flex items-center gap-1"
+                    data-testid={`pfs-re-remove-${idx}-${safeTab}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Remove this property
+                  </button>
+                </div>
+              </div>
+            )}
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* ---------- Section 5: Other Personal Property and Other Assets ---------- */}
+      {(() => {
+        const idx = applicantId;
+        return (
+          <PfsScheduleTextarea
+            title="Section 5. Other Personal Property and Other Assets"
+            subtext="Describe, and if any is pledged as security, state name and address of lien holder, amount of lien, terms of payment and, if delinquent, describe delinquency."
+            field="otherPersonalPropertyDescription"
+            pfs={pfs} updatePfs={updatePfs} idx={idx}
+          />
+        );
+      })()}
+
+      {/* ---------- Sections 6–8: PFS Schedule Textareas ---------- */}
+      {(() => {
+        const idx = applicantId;
+        return (
+          <>
+            <PfsScheduleTextarea
+              title="Section 6. Unpaid Taxes"
+              subtext="Describe in detail as to type, to whom payable, when due, amount, and to what property, if any, a tax lien attaches."
+              field="unpaidTaxesDescription"
+              pfs={pfs} updatePfs={updatePfs} idx={idx}
+            />
+            <PfsScheduleTextarea
+              title="Section 7. Other Liabilities"
+              subtext="Describe in detail."
+              field="otherLiabilitiesDescription"
+              pfs={pfs} updatePfs={updatePfs} idx={idx}
+            />
+            <PfsScheduleTextarea
+              title="Section 8. Life Insurance Held"
+              subtext="Give face amount and cash surrender value of policies — name of insurance company and beneficiaries."
+              field="lifeInsuranceDescription"
+              pfs={pfs} updatePfs={updatePfs} idx={idx}
+            />
+          </>
+        );
+      })()}
     </div>
   );
 }
