@@ -419,7 +419,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                             {individual.firstName} {individual.lastName}
                           </td>
                           <td className="py-2 px-2 text-[13px]">{individual.projectRole || '-'}</td>
-                          <td className="py-2 px-2 text-[13px]">{individual.ownershipPercentage?.toFixed(2)}%</td>
+                          <td className="py-2 px-2 text-[13px]">{Number(individual.ownershipPercentage ?? 0).toFixed(2)}%</td>
                           <td className="py-2 px-2 text-[13px]">{individual.businessRole || '-'}</td>
                           <td className="py-2 px-2 text-[13px]">{experience}</td>
                           <td className="py-2 px-2 text-[13px]">{formatCurrency(individual.netWorth)}</td>
