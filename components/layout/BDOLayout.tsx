@@ -72,8 +72,8 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
 
   const appTitle = userInfo?.role === 'PQ Committee' ? 'PQ Committee Portal' : 'BDO Loan Tool';
 
-  // Check if we're on the projects list page
-  const isProjectsListPage = pathname === '/bdo/projects';
+  // Highlight Projects tab on the list page and any project detail page (/bdo/projects/[id]/...)
+  const isProjectsSection = pathname === '/bdo/projects' || pathname.startsWith('/bdo/projects/');
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -85,7 +85,7 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
               <img
                 src="/images/TBank-logo.png"
                 alt="T Bank Logo"
-                className="h-8 w-auto brightness-0 invert"
+                className="h-10 w-auto brightness-0 invert"
               />
             </Link>
           </div>
@@ -93,7 +93,7 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
             <Link
               href="/bdo/projects"
               className={`px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
-                isProjectsListPage
+                isProjectsSection
                   ? 'text-white/90 hover:text-white bg-white/15'
                   : 'text-white/60 hover:text-white'
               }`}

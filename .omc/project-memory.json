@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776092163196,
+  "lastScanned": 1776259773151,
   "projectRoot": "/mnt/c/Users/srachal/Desktop/BDO App April",
   "techStack": {
     "languages": [
@@ -68,7 +68,6 @@
     "mainDirectories": [
       "app",
       "components",
-      "docs",
       "lib",
       "public",
       "scripts"
@@ -81,7 +80,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1776092163079,
+      "lastAccessed": 1776259773083,
       "keyFiles": [
         "favicon.ico",
         "globals.css",
@@ -93,7 +92,7 @@
       "path": "components",
       "purpose": "UI components",
       "fileCount": 10,
-      "lastAccessed": 1776092163098,
+      "lastAccessed": 1776259773096,
       "keyFiles": [
         "ConfirmDialog.tsx",
         "CreditMatrixScoring.tsx",
@@ -106,27 +105,18 @@
       "path": "contexts",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1776092163110,
+      "lastAccessed": 1776259773104,
       "keyFiles": [
         "Auth0Context.tsx",
         "FirebaseAuthContext.tsx",
         "ThemeContext.tsx"
       ]
     },
-    "docs": {
-      "path": "docs",
-      "purpose": "Documentation",
-      "fileCount": 1,
-      "lastAccessed": 1776092163117,
-      "keyFiles": [
-        "SOURCE_OF_TRUTH.md"
-      ]
-    },
     "hooks": {
       "path": "hooks",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776092163124,
+      "lastAccessed": 1776259773109,
       "keyFiles": [
         "use-mobile.tsx",
         "use-toast.ts"
@@ -136,7 +126,7 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 21,
-      "lastAccessed": 1776092163130,
+      "lastAccessed": 1776259773112,
       "keyFiles": [
         "apiAuth.ts",
         "apiSecurityHeaders.ts",
@@ -149,7 +139,7 @@
       "path": "openspec",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776092163136,
+      "lastAccessed": 1776259773115,
       "keyFiles": [
         "AGENTS.md",
         "project.md"
@@ -158,18 +148,20 @@
     "pdfs": {
       "path": "pdfs",
       "purpose": null,
-      "fileCount": 2,
-      "lastAccessed": 1776092163142,
+      "fileCount": 4,
+      "lastAccessed": 1776259773117,
       "keyFiles": [
-        "SBA_Form_159_-_Fee_Disclosure_Form (1).pdf",
-        "Testing.pdf"
+        "Blanks_Business_Questionnaire.pdf",
+        "Blanks_Individual_Applicant.pdf",
+        "Individual_Applicant_Personal_Financial_Information 6.xlsx",
+        "blank_Business_Applicant_Project_Information.pdf"
       ]
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1776092163148,
+      "lastAccessed": 1776259773120,
       "keyFiles": [
         "404.html",
         "file.svg",
@@ -178,20 +170,11 @@
         "next.svg"
       ]
     },
-    "replit": {
-      "path": "replit",
-      "purpose": null,
-      "fileCount": 1,
-      "lastAccessed": 1776092163154,
-      "keyFiles": [
-        "OtherOwnedBusinessesSection.tsx.bak"
-      ]
-    },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1776092163160,
+      "lastAccessed": 1776259773123,
       "keyFiles": [
         "diagnose-pdf-extraction.mjs",
         "extract-pdf-fields.ts",
@@ -203,10 +186,9 @@
     "services": {
       "path": "services",
       "purpose": "Business logic services",
-      "fileCount": 5,
-      "lastAccessed": 1776092163166,
+      "fileCount": 4,
+      "lastAccessed": 1776259773126,
       "keyFiles": [
-        "FIRESTORE_STRUCTURE.md",
         "brokerTokens.ts",
         "firestore.ts",
         "firestoreAdmin.ts",
@@ -217,7 +199,7 @@
       "path": "sheets",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776092163171,
+      "lastAccessed": 1776259773128,
       "keyFiles": [
         "BDO Spread Template Newest.xlsx",
         "Spreads Template.xlsx"
@@ -227,7 +209,7 @@
       "path": "types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1776092163175,
+      "lastAccessed": 1776259773131,
       "keyFiles": [
         "index.ts"
       ]
@@ -236,15 +218,21 @@
       "path": "app/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1776092163178,
+      "lastAccessed": 1776259773134,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
       "path": "app/bdo/projects/[id]/page.tsx",
-      "accessCount": 60,
-      "lastAccessed": 1775682158235,
+      "accessCount": 72,
+      "lastAccessed": 1776113585851,
+      "type": "file"
+    },
+    {
+      "path": "app/bdo/admin/page.tsx",
+      "accessCount": 64,
+      "lastAccessed": 1776266507430,
       "type": "file"
     },
     {
@@ -257,12 +245,6 @@
       "path": "components/loan-sections/IndividualApplicantsSection.tsx",
       "accessCount": 29,
       "lastAccessed": 1775678396814,
-      "type": "file"
-    },
-    {
-      "path": "app/bdo/admin/page.tsx",
-      "accessCount": 23,
-      "lastAccessed": 1775661587838,
       "type": "file"
     },
     {
@@ -284,15 +266,15 @@
       "type": "file"
     },
     {
-      "path": "components/loan-sections/BusinessApplicantSection.tsx",
-      "accessCount": 15,
-      "lastAccessed": 1775674980021,
+      "path": "components/loan-sections/RiskScoresSection.tsx",
+      "accessCount": 16,
+      "lastAccessed": 1776264894120,
       "type": "file"
     },
     {
-      "path": "components/loan-sections/RiskScoresSection.tsx",
-      "accessCount": 14,
-      "lastAccessed": 1775667064101,
+      "path": "components/loan-sections/BusinessApplicantSection.tsx",
+      "accessCount": 15,
+      "lastAccessed": 1775674980021,
       "type": "file"
     },
     {
@@ -305,6 +287,12 @@
       "path": "components/LearnMorePanel.tsx",
       "accessCount": 13,
       "lastAccessed": 1775678764962,
+      "type": "file"
+    },
+    {
+      "path": "components/layout/BDOLayout.tsx",
+      "accessCount": 13,
+      "lastAccessed": 1776261686911,
       "type": "file"
     },
     {
@@ -350,6 +338,12 @@
       "type": "file"
     },
     {
+      "path": "components/loan-sections/BorrowerFormsSection.tsx",
+      "accessCount": 10,
+      "lastAccessed": 1776109656157,
+      "type": "file"
+    },
+    {
       "path": "app/bdo/projects/[id]/individual/[applicantId]/page.tsx",
       "accessCount": 9,
       "lastAccessed": 1775665117819,
@@ -374,27 +368,21 @@
       "type": "file"
     },
     {
-      "path": "components/loan-sections/BorrowerFormsSection.tsx",
-      "accessCount": 8,
-      "lastAccessed": 1775667071557,
-      "type": "file"
-    },
-    {
       "path": "components/loan-sections/FileTypeSelectionModal.tsx",
       "accessCount": 8,
       "lastAccessed": 1775667142306,
       "type": "file"
     },
     {
-      "path": "components/ui/CollapsibleCard.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1775665192386,
+      "path": "components/loan-sections/BusinessQuestionnaireSection.tsx",
+      "accessCount": 8,
+      "lastAccessed": 1776113478401,
       "type": "file"
     },
     {
-      "path": "components/layout/BDOLayout.tsx",
+      "path": "components/ui/CollapsibleCard.tsx",
       "accessCount": 7,
-      "lastAccessed": 1775670162728,
+      "lastAccessed": 1775665192386,
       "type": "file"
     },
     {
@@ -416,12 +404,6 @@
       "type": "file"
     },
     {
-      "path": "components/loan-sections/BusinessQuestionnaireSection.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1775667043200,
-      "type": "file"
-    },
-    {
       "path": "components/loan-sections/ReviewSection.tsx",
       "accessCount": 6,
       "lastAccessed": 1775667285973,
@@ -431,6 +413,18 @@
       "path": "components/loan-sections/PasswordToggle.tsx",
       "accessCount": 6,
       "lastAccessed": 1775675569625,
+      "type": "file"
+    },
+    {
+      "path": "components/layout/BorrowerLayout.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1776113036930,
+      "type": "file"
+    },
+    {
+      "path": "components/layout/BDOSidebar.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1776261442950,
       "type": "file"
     },
     {
@@ -458,12 +452,6 @@
       "type": "directory"
     },
     {
-      "path": "components/layout/BorrowerLayout.tsx",
-      "accessCount": 4,
-      "lastAccessed": 1775665194665,
-      "type": "file"
-    },
-    {
       "path": "components/loan-sections/BusinessFilesSection.tsx",
       "accessCount": 3,
       "lastAccessed": 1775667004410,
@@ -488,6 +476,12 @@
       "type": "file"
     },
     {
+      "path": "contexts/FirebaseAuthContext.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1776106165386,
+      "type": "file"
+    },
+    {
       "path": "contexts/ThemeContext.tsx",
       "accessCount": 2,
       "lastAccessed": 1775661539258,
@@ -506,21 +500,9 @@
       "type": "file"
     },
     {
-      "path": "contexts/FirebaseAuthContext.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1775660046847,
-      "type": "file"
-    },
-    {
       "path": "components/ui/textarea.tsx",
       "accessCount": 1,
       "lastAccessed": 1775664840506,
-      "type": "file"
-    },
-    {
-      "path": "components/layout/BDOSidebar.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1775664840659,
       "type": "file"
     },
     {

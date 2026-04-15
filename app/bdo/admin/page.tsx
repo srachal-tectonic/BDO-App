@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
@@ -17,9 +18,9 @@ import type { ThemeSettings } from '@/contexts/ThemeContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
-import { DollarSign, Edit, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Users, Wand2, X } from 'lucide-react';
+import { DollarSign, Download, Edit, FileDown, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Upload, Users, Wand2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
 
 interface AIPrompt {
@@ -93,6 +94,87 @@ interface FileUploadInstructions {
   projectFiles?: string;
 }
 
+type RiskScoreCategory = 'repayment' | 'management' | 'credit' | 'equity' | 'collateral' | 'liquidity';
+
+const RISK_SCORE_CATEGORIES: RiskScoreCategory[] = ['repayment', 'management', 'credit', 'equity', 'collateral', 'liquidity'];
+
+const RISK_SCORE_CATEGORY_LABELS: Record<RiskScoreCategory, string> = {
+  repayment: 'Repayment',
+  management: 'Management',
+  credit: 'Credit',
+  equity: 'Equity',
+  collateral: 'Collateral',
+  liquidity: 'Working Capital/Liquidity',
+};
+
+// Full descriptions per category/score. Can be overridden at runtime via settings.riskScoreMatrixDescriptions
+// (populated from a JSON import's score_matrix_reference and per-rule score_matrix_descriptions).
+const DEFAULT_RISK_SCORE_MATRIX_DESCRIPTIONS: Record<RiskScoreCategory, Record<number, string>> = {
+  repayment: {
+    0: 'N/A',
+    1: 'Projection based or start-up.',
+    2: 'Pro forma DSC of 1.15x or better in most recent FYE and interim plus positive trends. Projection Based or Start Up with Approved Franchise.',
+    3: 'Pro forma DSC of 1.25x or better in most recent FYE and interim plus stable/positive trends.',
+    4: 'Pro forma DSC of 1.40x or better for most recent year plus 1.25x for 1 prior year plus stable/positive trends.',
+    5: 'Pro forma DSC of 1.40x in most recent year and 1.25x or better for prior 2 years plus stable/positive trends.',
+  },
+  management: {
+    0: 'Remote management or long distance management with no prior experience.',
+    1: 'Less than 2 years transferable management experience OR reliant on prior owner/franchisor for training.',
+    2: '2 years transferable management experience not specific to this industry or non-approved franchise.',
+    3: '2 years ownership in any industry, OR 3 years transferable management experience, OR approved franchise.',
+    4: '2+ years ownership in SBC or 3 years experience in near identical business.',
+    5: '3+ years ownership in SBC, OR 3 years as primary responsible employee, OR 5 years recent near identical experience.',
+  },
+  credit: {
+    0: 'BK in the last 3 years.',
+    1: 'FICO Score less than 650.',
+    2: 'FICO Score 650-699.',
+    3: 'FICO Score 700-749.',
+    4: 'FICO Score greater than 750.',
+    5: 'N/A',
+  },
+  equity: {
+    0: 'Any other allowable SBA SOP structure that does not require injection.',
+    1: 'Less than 10% injection AND/OR 50% or more equity from Seller note on full standby.',
+    2: '10% cash equity from any source.',
+    3: '20% cash equity from any source OR 15% from personal sources.',
+    4: '25% cash equity from any source OR 20% from personal sources.',
+    5: '25% cash equity from personal sources.',
+  },
+  collateral: {
+    0: 'No CRE included in collateral OR only junior liens on residential.',
+    1: 'Less than 50% secured with any collateral OR less than 25% 1st lien on RE.',
+    2: 'Secured 50% of loan on discounted basis with any collateral OR 25% with 1st lien on RE.',
+    3: 'Secured 75% of loan on discounted basis with any collateral OR 50% with 1st lien on RE.',
+    4: 'Secured 100% of loan on discounted basis with any collateral OR 75% with 1st lien on RE.',
+    5: 'Secured 120% of loan on discounted basis with any collateral OR 100% secured with 1st lien on RE.',
+  },
+  liquidity: {
+    0: 'Working capital included in loan proceeds exceeds 50% of borrower cash injection.',
+    1: 'All, or substantially all of W/C is included in loan and borrower has little or no residual liquidity.',
+    2: 'Borrower has sufficient documented working capital to inject from own resources.',
+    3: 'No or minimal working capital requirement OR Borrower has 1.5X working capital from own liquid resources.',
+    4: 'N/A',
+    5: 'N/A',
+  },
+};
+
+type RiskScoreMatrixOverrides = Partial<Record<RiskScoreCategory, Record<number, string>>>;
+
+interface RiskScoreRule {
+  id: string;
+  riskCategories: RiskScoreCategory[];
+  applicableScores: number[];
+  ruleText: string;
+  frequency: 'always' | 'conditional';
+  conditionDescription?: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface AdminSettings {
   aiPrompts: AIPrompt[];
   questionnaireRules: QuestionnaireRule[];
@@ -100,6 +182,8 @@ interface AdminSettings {
   noteTags: string[];
   defaultValues: DefaultValues;
   projectTypeRules: ProjectTypeRule[];
+  riskScoreRules: RiskScoreRule[];
+  riskScoreMatrixDescriptions?: RiskScoreMatrixOverrides;
   fileUploadInstructions?: FileUploadInstructions;
   feeConfigurations?: FeeConfiguration[];
 }
@@ -594,6 +678,8 @@ Example format:
       dscrPeriod4: '',
     },
     projectTypeRules: [],
+    riskScoreRules: [],
+    riskScoreMatrixDescriptions: {},
     feeConfigurations: [],
   });
   const [newTagInput, setNewTagInput] = useState('');
@@ -608,6 +694,22 @@ Example format:
   const [rulesCategoryFilter, setRulesCategoryFilter] = useState<string>('All');
   const [rulesSortField, setRulesSortField] = useState<string>('questionOrder');
   const [rulesSortDir, setRulesSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Risk Score Rules state
+  type RiskScoreRuleFormData = Omit<RiskScoreRule, 'id' | 'createdAt' | 'updatedAt'>;
+  const [riskRuleModalOpen, setRiskRuleModalOpen] = useState(false);
+  const [editingRiskRule, setEditingRiskRule] = useState<RiskScoreRule | null>(null);
+  const [riskRuleCategoryFilter, setRiskRuleCategoryFilter] = useState<string>('All');
+  const riskRulesFileInputRef = useRef<HTMLInputElement>(null);
+  const [riskRuleForm, setRiskRuleForm] = useState<RiskScoreRuleFormData>({
+    riskCategories: [],
+    applicableScores: [],
+    ruleText: '',
+    frequency: 'always',
+    conditionDescription: '',
+    enabled: true,
+    sortOrder: 0,
+  });
 
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -947,6 +1049,259 @@ Example format:
       });
       setHasUnsavedChanges(true);
     }
+  };
+
+  // Risk Score Rules — derived data
+  const riskScoreRulesList = settings.riskScoreRules ?? [];
+  const getRiskScoreDescription = (cat: RiskScoreCategory, score: number): string => {
+    const override = settings.riskScoreMatrixDescriptions?.[cat]?.[score];
+    if (override !== undefined && override !== '') return override;
+    return DEFAULT_RISK_SCORE_MATRIX_DESCRIPTIONS[cat]?.[score] ?? '';
+  };
+  const filteredRiskRules = (riskRuleCategoryFilter === 'All'
+    ? riskScoreRulesList
+    : riskScoreRulesList.filter((r) => (r.riskCategories || []).includes(riskRuleCategoryFilter as RiskScoreCategory))
+  ).slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  // Risk Score Rules — handlers
+  const openRiskRuleModal = (rule?: RiskScoreRule) => {
+    if (rule) {
+      setEditingRiskRule(rule);
+      setRiskRuleForm({
+        riskCategories: rule.riskCategories || [],
+        applicableScores: rule.applicableScores || [],
+        ruleText: rule.ruleText || '',
+        frequency: rule.frequency || 'always',
+        conditionDescription: rule.conditionDescription || '',
+        enabled: rule.enabled !== false,
+        sortOrder: rule.sortOrder ?? 0,
+      });
+    } else {
+      setEditingRiskRule(null);
+      setRiskRuleForm({
+        riskCategories: [],
+        applicableScores: [],
+        ruleText: '',
+        frequency: 'always',
+        conditionDescription: '',
+        enabled: true,
+        sortOrder: riskScoreRulesList.length > 0
+          ? Math.max(...riskScoreRulesList.map((r) => r.sortOrder ?? 0)) + 1
+          : 0,
+      });
+    }
+    setRiskRuleModalOpen(true);
+  };
+
+  const upsertRiskRule = (updater: (rules: RiskScoreRule[]) => RiskScoreRule[]) => {
+    setSettings({ ...settings, riskScoreRules: updater(riskScoreRulesList) });
+    setHasUnsavedChanges(true);
+  };
+
+  // Mutation-shaped wrappers (match provided JSX API)
+  const toggleRiskRuleEnabledMutation = {
+    mutate: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      upsertRiskRule((rules) => rules.map((r) => (r.id === id ? { ...r, enabled, updatedAt: new Date().toISOString() } : r))),
+  };
+  const deleteRiskRuleMutation = {
+    mutate: (id: string) => upsertRiskRule((rules) => rules.filter((r) => r.id !== id)),
+  };
+
+  const handleRiskRuleSubmit = () => {
+    const now = new Date().toISOString();
+    if (editingRiskRule) {
+      upsertRiskRule((rules) =>
+        rules.map((r) =>
+          r.id === editingRiskRule.id
+            ? { ...r, ...riskRuleForm, id: r.id, createdAt: r.createdAt, updatedAt: now }
+            : r
+        )
+      );
+    } else {
+      const newRule: RiskScoreRule = {
+        id: `risk-rule-${Date.now()}`,
+        ...riskRuleForm,
+        createdAt: now,
+        updatedAt: now,
+      };
+      upsertRiskRule((rules) => [...rules, newRule]);
+    }
+    setRiskRuleModalOpen(false);
+    setEditingRiskRule(null);
+  };
+
+  // CSV helpers
+  const RISK_RULES_CSV_HEADERS = ['id', 'riskCategories', 'applicableScores', 'ruleText', 'frequency', 'conditionDescription', 'enabled', 'sortOrder'];
+  const escapeCSV = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const downloadBlob = (filename: string, content: string, mime = 'text/csv') => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadRiskRulesTemplate = () => {
+    const sample = [
+      RISK_RULES_CSV_HEADERS.join(','),
+      `,"repayment;management","1;2","Sample rule text","always",,true,0`,
+    ].join('\n');
+    downloadBlob('risk-score-rules-template.csv', sample);
+  };
+
+  const exportRiskRulesCSV = () => {
+    const lines = [RISK_RULES_CSV_HEADERS.join(',')];
+    for (const r of riskScoreRulesList) {
+      lines.push([
+        r.id,
+        (r.riskCategories || []).join(';'),
+        (r.applicableScores || []).join(';'),
+        escapeCSV(r.ruleText || ''),
+        r.frequency || 'always',
+        escapeCSV(r.conditionDescription || ''),
+        String(r.enabled !== false),
+        String(r.sortOrder ?? 0),
+      ].join(','));
+    }
+    downloadBlob('risk-score-rules.csv', lines.join('\n'));
+  };
+
+  const parseCSVLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQuotes = false; }
+        else { cur += ch; }
+      } else {
+        if (ch === ',') { out.push(cur); cur = ''; }
+        else if (ch === '"') { inQuotes = true; }
+        else { cur += ch; }
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+
+  const importRiskRulesJSON = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result ?? '');
+        const parsed = JSON.parse(text);
+        // Accept either { rules: [...] } or a bare array of rule objects
+        const rawRules: any[] = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.rules) ? parsed.rules : [];
+        if (rawRules.length === 0) {
+          alert('JSON contains no rules. Expected a "rules" array.');
+          return;
+        }
+
+        // Build the matrix-description overrides: start from score_matrix_reference,
+        // then merge in every rule's score_matrix_descriptions (last-write-wins per cat/score).
+        const matrixOverrides: RiskScoreMatrixOverrides = {};
+        const mergeMatrix = (src: any) => {
+          if (!src || typeof src !== 'object') return;
+          for (const cat of Object.keys(src)) {
+            if (!RISK_SCORE_CATEGORIES.includes(cat as RiskScoreCategory)) continue;
+            const bucket = (matrixOverrides[cat as RiskScoreCategory] ??= {});
+            const inner = src[cat] ?? {};
+            for (const scoreKey of Object.keys(inner)) {
+              const n = Number(scoreKey);
+              if (Number.isNaN(n)) continue;
+              const val = String(inner[scoreKey] ?? '');
+              if (val) bucket[n] = val;
+            }
+          }
+        };
+        mergeMatrix(parsed?.score_matrix_reference);
+        for (const r of rawRules) mergeMatrix(r?.score_matrix_descriptions);
+
+        const imported: RiskScoreRule[] = rawRules.map((r, idx) => {
+          const categories = (r.risk_categories ?? r.riskCategories ?? []) as string[];
+          const scores = (r.applicable_scores ?? r.applicableScores ?? []) as number[];
+          const freq = (r.frequency ?? 'always') === 'conditional' ? 'conditional' : 'always';
+          return {
+            id: String(r.id ?? `risk-rule-${Date.now()}-${idx}`),
+            riskCategories: categories.filter((c): c is RiskScoreCategory => RISK_SCORE_CATEGORIES.includes(c as RiskScoreCategory)),
+            applicableScores: scores.map((s) => Number(s)).filter((n) => !Number.isNaN(n)),
+            ruleText: String(r.rule_text ?? r.ruleText ?? ''),
+            frequency: freq,
+            conditionDescription: r.condition_description ?? r.conditionDescription ?? '',
+            enabled: r.enabled !== false,
+            sortOrder: Number(r.sort_order ?? r.sortOrder ?? 0) || 0,
+            createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
+            updatedAt: r.updated_at ?? r.updatedAt ?? new Date().toISOString(),
+          };
+        });
+
+        // Merge into existing matrix overrides rather than blowing them away.
+        const mergedMatrix: RiskScoreMatrixOverrides = { ...(settings.riskScoreMatrixDescriptions ?? {}) };
+        for (const cat of Object.keys(matrixOverrides) as RiskScoreCategory[]) {
+          mergedMatrix[cat] = { ...(mergedMatrix[cat] ?? {}), ...(matrixOverrides[cat] ?? {}) };
+        }
+
+        setSettings({
+          ...settings,
+          riskScoreRules: imported,
+          riskScoreMatrixDescriptions: mergedMatrix,
+        });
+        setHasUnsavedChanges(true);
+        alert(`Imported ${imported.length} risk score rule(s) from JSON. Remember to save settings.`);
+      } catch (err: any) {
+        alert(`Failed to import JSON: ${err.message ?? err}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const importRiskRulesFile = (file: File) => {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.json')) {
+      importRiskRulesJSON(file);
+    } else {
+      importRiskRulesCSV(file);
+    }
+  };
+
+  const importRiskRulesCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result ?? '');
+        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length < 2) { alert('CSV has no data rows.'); return; }
+        const header = parseCSVLine(lines[0]).map((h) => h.trim());
+        const idx = (name: string) => header.indexOf(name);
+        const imported: RiskScoreRule[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = parseCSVLine(lines[i]);
+          const categories = (cols[idx('riskCategories')] || '').split(/[;|]/).map((s) => s.trim()).filter(Boolean) as RiskScoreCategory[];
+          const scores = (cols[idx('applicableScores')] || '').split(/[;|]/).map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n));
+          const freqRaw = (cols[idx('frequency')] || 'always').trim().toLowerCase();
+          imported.push({
+            id: cols[idx('id')]?.trim() || `risk-rule-${Date.now()}-${i}`,
+            riskCategories: categories,
+            applicableScores: scores,
+            ruleText: cols[idx('ruleText')] || '',
+            frequency: freqRaw === 'conditional' ? 'conditional' : 'always',
+            conditionDescription: cols[idx('conditionDescription')] || '',
+            enabled: (cols[idx('enabled')] || 'true').trim().toLowerCase() !== 'false',
+            sortOrder: Number(cols[idx('sortOrder')] || 0) || 0,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        upsertRiskRule(() => imported);
+        alert(`Imported ${imported.length} risk score rule(s). Remember to save settings.`);
+      } catch (err: any) {
+        alert(`Failed to import CSV: ${err.message ?? err}`);
+      }
+    };
+    reader.readAsText(file);
   };
 
 
@@ -1365,10 +1720,10 @@ Example format:
           <TabsTrigger value="default-values" data-testid="tab-default-inputs">Default Inputs</TabsTrigger>
           <TabsTrigger value="ai-prompts" data-testid="tab-ai-prompts">AI Prompts</TabsTrigger>
           <TabsTrigger value="questionnaire-rules" data-testid="tab-questionnaire-rules">Questionnaire Rules</TabsTrigger>
+          <TabsTrigger value="risk-score-rules" data-testid="tab-risk-score-rules">Risk Score Rules</TabsTrigger>
           <TabsTrigger value="ai-block-templates" data-testid="tab-ai-templates">AI Block Templates</TabsTrigger>
           <TabsTrigger value="note-tags" data-testid="tab-note-tags">Note Tags</TabsTrigger>
           <TabsTrigger value="file-upload-instructions" data-testid="tab-file-upload-instructions">File Upload Instructions</TabsTrigger>
-          <TabsTrigger value="project-type-rules" data-testid="tab-project-type-rules">Risk Assessment</TabsTrigger>
           <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">BDO Directory</TabsTrigger>
           <TabsTrigger value="borrower-forms" data-testid="tab-borrower-forms">Borrower Forms</TabsTrigger>
           <TabsTrigger value="borrower-forms-full" data-testid="tab-borrower-forms-full">Borrower Forms - Full Form</TabsTrigger>
@@ -2269,118 +2624,340 @@ Example format:
         </Dialog>
 
         {/* Project Type Rules Tab */}
-        <TabsContent value="project-type-rules" className="space-y-6">
-          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-project-type-rules-title">Risk Assessment Rules</h2>
-                <p className="text-sm text-[color:var(--t-color-text-muted)]">
-                  Configure project types and risk levels that are automatically assigned based on BDO answers to classification questions.
-                  Rules are evaluated by priority (lowest number first), and the first matching rule determines the project type and risk level.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button onClick={handleImportRiskAssessmentRules} variant="outline" data-testid="button-import-risk-rules">
-                  <FileUp className="w-4 h-4 mr-2" />
-                  Import Rules
+        <TabsContent value="risk-score-rules" className="space-y-4">
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)]">Risk Score Rules</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" onClick={downloadRiskRulesTemplate} data-testid="button-download-risk-rules-template">
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Template
                 </Button>
-                <Button onClick={() => openProjectTypeRuleModal()} data-testid="button-add-project-type-rule">
+                <Button variant="outline" onClick={() => riskRulesFileInputRef.current?.click()} data-testid="button-import-risk-rules-csv">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import
+                </Button>
+                <input
+                  ref={riskRulesFileInputRef}
+                  type="file"
+                  accept=".json,.csv,application/json,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      importRiskRulesFile(file);
+                      e.target.value = '';
+                    }
+                  }}
+                  data-testid="input-import-risk-rules-file"
+                />
+                <Button variant="outline" onClick={exportRiskRulesCSV} disabled={riskScoreRulesList.length === 0} data-testid="button-export-risk-rules-csv">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                <Button onClick={() => openRiskRuleModal()} data-testid="button-add-risk-rule">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Project Type
+                  Add Rule
                 </Button>
               </div>
             </div>
 
-            {settings.projectTypeRules.length > 0 ? (
-              <div className="space-y-4">
-                {settings.projectTypeRules
-                  .sort((a, b) => (a.priority ?? ((a as unknown as {order?: number}).order) ?? 0) - (b.priority ?? ((b as unknown as {order?: number}).order) ?? 0))
-                  .map((rule) => (
-                    <div
-                      key={rule.id}
-                      className={`border rounded-lg p-4 ${rule.isFallback ? 'border-amber-300 bg-amber-50' : 'border-[var(--t-color-border)]'}`}
-                      data-testid={`project-type-rule-${rule.id}`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm text-[color:var(--t-color-text-muted)]">P{rule.priority ?? ((rule as unknown as {order?: number}).order) ?? 0}</span>
-                            <h3 className="font-semibold text-[color:var(--t-color-text-body)]" data-testid={`text-rule-name-${rule.id}`}>{rule.name}</h3>
-                            {rule.isFallback && (
-                              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">Fallback</Badge>
-                            )}
-                            <Badge
-                              variant="outline"
-                              className={
-                                rule.riskLevel === 'low'
-                                  ? 'bg-green-100 text-green-800 border-green-300'
-                                  : rule.riskLevel === 'low-medium'
-                                  ? 'bg-lime-100 text-lime-800 border-lime-300'
-                                  : rule.riskLevel === 'medium'
-                                  ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                                  : rule.riskLevel === 'medium-high'
-                                  ? 'bg-orange-100 text-orange-800 border-orange-300'
-                                  : rule.riskLevel === 'high'
-                                  ? 'bg-red-100 text-red-800 border-red-300'
-                                  : rule.riskLevel === 'very-high'
-                                  ? 'bg-red-200 text-red-900 border-red-400'
-                                  : 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                              }
-                              data-testid={`badge-risk-level-${rule.id}`}
-                            >
-                              {rule.riskLevel === 'low' ? 'Low' : rule.riskLevel === 'low-medium' ? 'Low-Medium' : rule.riskLevel === 'medium' ? 'Medium' : rule.riskLevel === 'medium-high' ? 'Medium-High' : rule.riskLevel === 'high' ? 'High' : rule.riskLevel === 'very-high' ? 'Very High' : 'Medium'}
+            <div className="flex gap-1 flex-wrap">
+              {['All', ...RISK_SCORE_CATEGORIES].map(cat => (
+                <Button
+                  key={cat}
+                  size="sm"
+                  variant={riskRuleCategoryFilter === cat ? 'default' : 'outline'}
+                  onClick={() => setRiskRuleCategoryFilter(cat)}
+                  data-testid={`button-filter-risk-${cat}`}
+                >
+                  {cat === 'All' ? 'All' : RISK_SCORE_CATEGORY_LABELS[cat as RiskScoreCategory] || cat}
+                  {cat === 'All' && (
+                    <span className="ml-1 opacity-70">({riskScoreRulesList.length})</span>
+                  )}
+                  {cat !== 'All' && (
+                    <span className="ml-1 opacity-70">
+                      ({riskScoreRulesList.filter(r => (r.riskCategories || []).includes(cat as RiskScoreCategory)).length})
+                    </span>
+                  )}
+                </Button>
+              ))}
+            </div>
+
+            <div className="bg-white rounded-lg border border-[var(--t-color-border)]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px]">
+                      <span className="text-xs">On</span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="text-xs font-medium">Categories</span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="text-xs font-medium">Scores</span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="text-xs font-medium">Rule Text</span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="text-xs font-medium">Frequency</span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="text-xs font-medium">Order</span>
+                    </TableHead>
+                    <TableHead className="w-[80px] text-right">
+                      <span className="text-xs font-medium">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRiskRules.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-[color:var(--t-color-text-muted)]">
+                        {riskScoreRulesList.length === 0
+                          ? 'No risk score rules yet. Add your first rule or import from CSV.'
+                          : 'No rules match the selected filter.'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {filteredRiskRules.map((rule) => (
+                    <TableRow key={rule.id} className={!rule.enabled ? 'opacity-50' : ''} data-testid={`risk-rule-row-${rule.id}`}>
+                      <TableCell>
+                        <Switch
+                          checked={rule.enabled}
+                          onCheckedChange={(checked) => {
+                            toggleRiskRuleEnabledMutation.mutate({ id: rule.id, enabled: checked });
+                          }}
+                          data-testid={`switch-risk-rule-enabled-${rule.id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          {(rule.riskCategories || []).map(cat => (
+                            <Badge key={cat} variant="outline" className="text-xs" data-testid={`badge-risk-category-${rule.id}-${cat}`}>
+                              {RISK_SCORE_CATEGORY_LABELS[cat as RiskScoreCategory] || cat}
                             </Badge>
-                          </div>
-                          {rule.description && (
-                            <p className="text-sm text-[color:var(--t-color-text-muted)] mb-3">{rule.description}</p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {getConditionBadge(rule.isStartup, 'Startup')}
-                            {getConditionBadge(rule.hasExistingCashflow, 'Existing Cashflow')}
-                            {getConditionBadge(rule.hasTransitionRisk, 'Transition Risk')}
-                            {getConditionBadge(rule.includesRealEstate, 'Real Estate')}
-                            {rule.creScope !== 'any' && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                CRE: {rule.creScope === 'purchase' ? 'Purchase' : 'Improvement'}
-                              </span>
-                            )}
-                            {getConditionBadge(rule.isPartnerBuyout, 'Partner Buyout')}
-                            {getConditionBadge(rule.involvesConstruction, 'Construction')}
-                            {getConditionBadge(rule.includesDebtRefinance, 'Debt Refinance')}
-                            {getConditionBadge(rule.debtRefinancePrimary, 'Debt Refi Primary')}
-                          </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openProjectTypeRuleModal(rule)}
-                            data-testid={`button-edit-rule-${rule.id}`}
-                          >
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`text-risk-scores-${rule.id}`}>
+                          {(rule.applicableScores || []).sort((a, b) => a - b).map(score => {
+                            const firstCat = (rule.riskCategories || [])[0];
+                            const desc = firstCat ? getRiskScoreDescription(firstCat as RiskScoreCategory, score) : '';
+                            return (
+                              <div key={score} className="text-xs">
+                                <span className="font-medium text-[color:var(--t-color-text-body)]">Score {score}</span>
+                                {desc && (rule.riskCategories || []).length === 1 && (
+                                  <span className="text-[color:var(--t-color-text-muted)]"> - {desc}</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-[color:var(--t-color-text-body)] line-clamp-2" data-testid={`text-risk-rule-text-${rule.id}`}>
+                          {rule.ruleText}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={rule.frequency === 'always' ? 'default' : 'outline'} className="text-xs" data-testid={`badge-risk-frequency-${rule.id}`}>
+                          {rule.frequency === 'always' ? 'Always' : 'Conditional'}
+                        </Badge>
+                        {rule.frequency === 'conditional' && rule.conditionDescription && (
+                          <p className="text-xs text-[color:var(--t-color-text-muted)] mt-0.5">{rule.conditionDescription}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-[color:var(--t-color-text-body)]">{rule.sortOrder}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="icon" onClick={() => openRiskRuleModal(rule)} data-testid={`button-edit-risk-rule-${rule.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => deleteProjectTypeRule(rule.id)}
-                            data-testid={`button-delete-rule-${rule.id}`}
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this rule?')) {
+                                deleteRiskRuleMutation.mutate(rule.id);
+                              }
+                            }}
+                            data-testid={`button-delete-risk-rule-${rule.id}`}
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                      </div>
-                    </div>
+                      </TableCell>
+                    </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+        {/* Risk Score Rule Modal */}
+        <Dialog open={riskRuleModalOpen} onOpenChange={setRiskRuleModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-risk-rule-form">
+          <DialogHeader>
+            <DialogTitle>{editingRiskRule ? 'Edit Risk Score Rule' : 'Add Risk Score Rule'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div>
+              <Label>Risk Categories *</Label>
+              <p className="text-xs text-[color:var(--t-color-text-muted)] mb-2">Select which risk categories this rule applies to.</p>
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2" data-testid="risk-categories-list">
+                {RISK_SCORE_CATEGORIES.map((cat) => {
+                  const checked = riskRuleForm.riskCategories.includes(cat);
+                  return (
+                    <div key={cat} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`risk-cat-${cat}`}
+                        checked={checked}
+                        onCheckedChange={(isChecked) => {
+                          const updated = isChecked
+                            ? [...riskRuleForm.riskCategories, cat]
+                            : riskRuleForm.riskCategories.filter(c => c !== cat);
+                          setRiskRuleForm({ ...riskRuleForm, riskCategories: updated as RiskScoreCategory[] });
+                        }}
+                        data-testid={`checkbox-risk-cat-${cat}`}
+                      />
+                      <Label htmlFor={`risk-cat-${cat}`} className="text-sm font-normal cursor-pointer">{RISK_SCORE_CATEGORY_LABELS[cat as RiskScoreCategory]}</Label>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="text-center py-12 text-[color:var(--t-color-text-muted)]" data-testid="text-no-project-type-rules">
-                <ShieldAlert className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No project type rules configured yet.</p>
-                <p className="text-sm mt-1">Add rules to automatically classify projects based on BDO answers.</p>
+            </div>
+
+            <div>
+              <Label htmlFor="risk-rule-text">Rule Text *</Label>
+              <Textarea
+                id="risk-rule-text"
+                value={riskRuleForm.ruleText}
+                onChange={(e) => setRiskRuleForm({ ...riskRuleForm, ruleText: e.target.value })}
+                placeholder="Enter the guidance text to display to BDOs"
+                className="min-h-[80px]"
+                data-testid="textarea-risk-rule-text"
+              />
+            </div>
+
+            <div>
+              <Label>Visibility *</Label>
+              <p className="text-xs text-[color:var(--t-color-text-muted)] mb-2">When should this rule be shown in the selected categories?</p>
+              <RadioGroup
+                value={riskRuleForm.frequency}
+                onValueChange={(value) => {
+                  if (value === 'always') {
+                    setRiskRuleForm({ ...riskRuleForm, frequency: 'always', applicableScores: [0, 1, 2, 3, 4, 5], conditionDescription: '' });
+                  } else {
+                    setRiskRuleForm({ ...riskRuleForm, frequency: 'conditional', applicableScores: [] });
+                  }
+                }}
+                data-testid="radio-risk-frequency"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="always" id="freq-always" data-testid="radio-freq-always" />
+                  <Label htmlFor="freq-always">Always visible (show whenever this category is expanded, regardless of score)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="conditional" id="freq-conditional" data-testid="radio-freq-conditional" />
+                  <Label htmlFor="freq-conditional">Only for specific scores (show only when the assigned score matches)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {riskRuleForm.frequency === 'conditional' && (
+              <div>
+                <Label>Applicable Scores *</Label>
+                <p className="text-xs text-[color:var(--t-color-text-muted)] mb-2">Select which score values should display this rule.</p>
+                <div className="border rounded-md p-3 space-y-2" data-testid="applicable-scores-list">
+                  {[0, 1, 2, 3, 4, 5].map((score) => {
+                    const checked = riskRuleForm.applicableScores.includes(score);
+                    const firstCategory = riskRuleForm.riskCategories[0];
+                    const desc = firstCategory ? getRiskScoreDescription(firstCategory, score) : '';
+                    return (
+                      <div key={score} className="flex items-start space-x-2">
+                        <Checkbox
+                          id={`risk-score-${score}`}
+                          checked={checked}
+                          onCheckedChange={(isChecked) => {
+                            const updated = isChecked
+                              ? [...riskRuleForm.applicableScores, score].sort((a, b) => a - b)
+                              : riskRuleForm.applicableScores.filter(s => s !== score);
+                            setRiskRuleForm({ ...riskRuleForm, applicableScores: updated });
+                          }}
+                          className="mt-0.5"
+                          data-testid={`checkbox-risk-score-${score}`}
+                        />
+                        <div>
+                          <Label htmlFor={`risk-score-${score}`} className="text-sm font-normal cursor-pointer">
+                            Score {score}
+                          </Label>
+                          {desc && (
+                            <p className="text-xs text-[color:var(--t-color-text-muted)]">{desc}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
+
+            {riskRuleForm.frequency === 'conditional' && (
+              <div>
+                <Label htmlFor="risk-condition-desc">Condition Description</Label>
+                <Input
+                  id="risk-condition-desc"
+                  value={riskRuleForm.conditionDescription || ''}
+                  onChange={(e) => setRiskRuleForm({ ...riskRuleForm, conditionDescription: e.target.value })}
+                  placeholder='e.g., "When score is 2 or below"'
+                  data-testid="input-risk-condition-desc"
+                />
+                <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">Optional label describing when this rule appears.</p>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="risk-sort-order">Sort Order</Label>
+              <Input
+                id="risk-sort-order"
+                type="number"
+                value={riskRuleForm.sortOrder}
+                onChange={(e) => setRiskRuleForm({ ...riskRuleForm, sortOrder: parseInt(e.target.value) || 0 })}
+                data-testid="input-risk-sort-order"
+              />
+              <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">Lower numbers appear first within each category.</p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="risk-rule-enabled"
+                checked={riskRuleForm.enabled}
+                onCheckedChange={(checked) => setRiskRuleForm({ ...riskRuleForm, enabled: checked })}
+                data-testid="switch-risk-rule-enabled"
+              />
+              <Label htmlFor="risk-rule-enabled">Enabled</Label>
+            </div>
           </div>
-        </TabsContent>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRiskRuleModalOpen(false)} data-testid="button-cancel-risk-rule">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRiskRuleSubmit}
+              disabled={!riskRuleForm.ruleText || riskRuleForm.riskCategories.length === 0 || (riskRuleForm.frequency === 'conditional' && riskRuleForm.applicableScores.length === 0)}
+              data-testid="button-submit-risk-rule"
+            >
+              {editingRiskRule ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
         {/* Project Type Rule Modal */}
         <Dialog open={projectTypeRuleModalOpen} onOpenChange={setProjectTypeRuleModalOpen}>
