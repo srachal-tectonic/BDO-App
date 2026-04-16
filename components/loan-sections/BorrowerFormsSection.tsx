@@ -1,14 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { FileText, Send, Check, Clock, Download, AlertCircle, Copy, ExternalLink, Loader2, RefreshCw, Upload, File, ChevronDown, ChevronRight, CheckCircle, XCircle, Edit2, Play, Eye, Trash2 } from 'lucide-react';
+import { FileText, Send, Check, Clock, Download, AlertCircle, Copy, ExternalLink, Loader2, RefreshCw, Upload, File, ChevronDown, ChevronRight, CheckCircle, XCircle, Edit2, Play, Eye, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getGeneratedForms, generateFormsForProject, deleteGeneratedForm, type GeneratedForm } from '@/services/firestore';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useApplication } from '@/lib/applicationStore';
 import { ExtractionStatus, ExtractedFieldStatus, ExtractedFieldValue, ExtractionRecord } from '@/types';
+
+/** Form IDs that are per-individual (not per-business). */
+const INDIVIDUAL_FORM_IDS = new Set([
+  'blank-individual-applicant',
+  'individual-pfi-worksheet',
+]);
 
 interface BorrowerFormsSectionProps {
   projectId: string;
@@ -99,6 +106,9 @@ function getFieldStatusIcon(status: ExtractedFieldStatus) {
 
 export default function BorrowerFormsSection({ projectId }: BorrowerFormsSectionProps) {
   const { currentUser, userInfo } = useFirebaseAuth();
+  const { data: appData } = useApplication();
+  const individuals = appData.individualApplicants || [];
+
   const [forms, setForms] = useState<GeneratedForm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -107,6 +117,9 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   const [isRegeneratingToken, setIsRegeneratingToken] = useState(false);
   const [borrowerUploads, setBorrowerUploads] = useState<BorrowerUpload[]>([]);
   const [isLoadingUploads, setIsLoadingUploads] = useState(false);
+
+  // Per-form selected individual (keyed by form ID)
+  const [selectedIndividual, setSelectedIndividual] = useState<Record<string, string>>({});
 
   // Extraction review state
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
@@ -775,6 +788,24 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {INDIVIDUAL_FORM_IDS.has(form.id) && individuals.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-[color:var(--t-color-text-secondary)] flex-shrink-0" />
+                        <select
+                          value={selectedIndividual[form.id] || ''}
+                          onChange={(e) => setSelectedIndividual(prev => ({ ...prev, [form.id]: e.target.value }))}
+                          className="text-sm border border-[var(--t-color-border)] rounded-md px-2 py-1.5 bg-[var(--t-color-card-bg)] text-[color:var(--t-color-text-body)] focus:border-[var(--t-color-accent)] focus:outline-none focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] min-w-[160px]"
+                          data-testid={`select-individual-${form.id}`}
+                        >
+                          <option value="">Select Individual</option>
+                          {individuals.map((ind) => (
+                            <option key={ind.id} value={ind.id}>
+                              {[ind.firstName, ind.lastName].filter(Boolean).join(' ') || 'Unnamed'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

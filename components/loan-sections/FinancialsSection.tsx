@@ -1,15 +1,113 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, ArrowLeft, Trash2, FileSpreadsheet, Calendar, Layers, X, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import FinancialAnalysisPanel from '@/components/FinancialAnalysisPanel';
 import SpreadComparisonTable, { SPREAD_SECTIONS, formatSpreadValue, isSpreadNegative } from '@/components/SpreadComparisonTable';
+import { useApplication, type FinancingSource as StoreFinancingSource } from '@/lib/applicationStore';
 
 const SECTIONS = SPREAD_SECTIONS;
 const formatValue = formatSpreadValue;
 const isNegative = isSpreadNegative;
+
+// ── Mapping helpers: parsed spreadsheet → application store ──
+
+/**
+ * Map Excel "Financing Source" names to store financingType values.
+ */
+const FINANCING_TYPE_MAP: Record<string, string> = {
+  '7a standard': 'SBA 7(a) Standard',
+  'sba 504': 'SBA 504',
+  'debenture': 'CDC Debenture',
+  'cdc debenture': 'CDC Debenture',
+  'seller': 'Seller Note',
+  'seller note': 'Seller Note',
+  '3rd party': '3rd Party',
+  'equity': 'Equity',
+  '7a express': 'SBA 7(a) Express',
+  'sba capline': 'SBA CAPLine',
+};
+
+function mapFinancingType(raw: string): string {
+  const norm = raw.trim().toLowerCase();
+  return FINANCING_TYPE_MAP[norm] || raw.trim();
+}
+
+function toNumber(v: any): number {
+  if (typeof v === 'number') return v;
+  if (v === null || v === undefined || v === '' || v === 'N/A') return 0;
+  const n = parseFloat(String(v));
+  return isNaN(n) ? 0 : n;
+}
+
+function toPercent(v: any): number {
+  const n = toNumber(v);
+  // If value looks like a decimal ratio (e.g. 0.75 = 75%), convert
+  if (n > 0 && n <= 1) return Math.round(n * 100);
+  return n;
+}
+
+function toRate(v: any): number {
+  const n = toNumber(v);
+  // If value looks like a decimal ratio (e.g. 0.09 = 9%), convert to display %
+  if (n > 0 && n < 1) return parseFloat((n * 100).toFixed(2));
+  return n;
+}
+
+/**
+ * Map Sources & Uses column headers from the spreadsheet to store column keys.
+ * The spreadsheet uses "7a", "504", "Debenture", "Seller Note", "Equity", "Total".
+ * The store uses "tBankLoan", "sba504", "cdcDebenture", "sellerNote", "thirdParty", "equity".
+ */
+const SU_COLUMN_MAP: Record<string, string> = {
+  '7a': 'tBankLoan',
+  '504': 'sba504',
+  'sba 504': 'sba504',
+  'debenture': 'cdcDebenture',
+  'cdc debenture': 'cdcDebenture',
+  'seller note': 'sellerNote',
+  'seller': 'sellerNote',
+  '3rd party': 'thirdParty',
+  'equity': 'equity',
+};
+
+function mapSuColumn(header: string): string | null {
+  const norm = header.trim().toLowerCase();
+  if (norm === 'total') return null; // skip total column
+  return SU_COLUMN_MAP[norm] || null;
+}
+
+/**
+ * Map Sources & Uses row labels from the spreadsheet to store category keys.
+ */
+const SU_ROW_MAP: Record<string, string> = {
+  'real estate acquisition': 'realEstate',
+  'debt refi - cre': 'debtRefiCRE',
+  'debt refi - non-cre': 'debtRefiNonCRE',
+  'machinery & equipment': 'equipment',
+  'furniture & fixtures (tis)': 'furnitureFixtures',
+  'furniture & fixtures': 'furnitureFixtures',
+  'inventory': 'inventory',
+  'business acquisition': 'businessAcquisition',
+  'working capital': 'workingCapital',
+  'working capital - pre opening': 'workingCapitalPreOpening',
+  'franchise fees': 'franchiseFees',
+  'construction hard costs': 'constructionHardCosts',
+  'interim interest reserve': 'interimInterestReserve',
+  'construction contingency': 'constructionContingency',
+  'other construction soft costs': 'otherConstructionSoftCosts',
+  'closing costs': 'closingCosts',
+  'sba gty fee': 'sbaGtyFee',
+  'other': 'other',
+};
+
+function mapSuRow(label: string): string | null {
+  const norm = label.trim().toLowerCase();
+  if (norm === 'total' || norm === 'percentage of project') return null;
+  return SU_ROW_MAP[norm] || null;
+}
 
 interface FinancialPeriod {
   periodLabel?: string;
@@ -30,25 +128,135 @@ interface FinancialsSectionProps {
   children?: React.ReactNode;
 }
 
+const FIXED_PERIOD_COUNT = 4;
+
 export default function FinancialsSection({ projectId, children }: FinancialsSectionProps) {
   const [spreads, setSpreads] = useState<FinancialSpread[]>([]);
   const [selectedSpreadId, setSelectedSpreadId] = useState<string | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('comparison');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleDelete = (id: string) => {
+  const {
+    data: appData,
+    addFinancingSource,
+    removeFinancingSource,
+    updateSourcesUses,
+  } = useApplication();
+
+  // Load spreads from API on mount
+  const loadSpreads = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/financials`);
+      if (res.ok) {
+        const data = await res.json();
+        setSpreads(data);
+      }
+    } catch (err) {
+      console.error('Failed to load spreads:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { loadSpreads(); }, [loadSpreads]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/financials?spreadId=${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete spread:', err);
+    }
     setSpreads(prev => prev.filter(s => s.id !== id));
     setSelectedSpreadId(null);
   };
 
-  const handleSetActive = (id: string) => {
+  const handleSetActive = async (id: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/financials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spreadId: id, isActive: true }),
+      });
+    } catch (err) {
+      console.error('Failed to activate spread:', err);
+    }
     setSpreads(prev => prev.map(s => ({ ...s, isActive: s.id === id })));
   };
 
-  const handleUploadSuccess = (newSpread: FinancialSpread) => {
+  /**
+   * After a successful upload, populate the application store's Financing Sources
+   * and Sources & Uses tables from the parsed spreadsheet data.
+   */
+  const populateStoreFromSpread = useCallback((spreadData: any) => {
+    // ── Financing Sources ──
+    const parsedSources = spreadData.financingSources;
+    if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+      // Remove existing sources
+      const existing = appData.financingSources || [];
+      existing.forEach((s: StoreFinancingSource) => removeFinancingSource(s.id));
+
+      // Add new ones from spreadsheet
+      parsedSources.forEach((src: any, i: number) => {
+        const baseRate = toRate(src.baseRate);
+        const spreadVal = toRate(src.spread);
+        addFinancingSource({
+          id: `fs-import-${i}-${Date.now()}`,
+          financingType: mapFinancingType(src.financingSource || src.label || ''),
+          guaranteePercent: toPercent(src.guaranteePercent),
+          amount: toNumber(src.amount),
+          rateType: String(src.rateType || '').toLowerCase() === 'variable' ? 'variable'
+            : String(src.rateType || '').toLowerCase() === 'fixed' ? 'fixed' : '',
+          termYears: toNumber(src.termYears),
+          amortizationMonths: toNumber(src.amortizationMonths),
+          baseRate,
+          spread: spreadVal,
+          totalRate: parseFloat((baseRate + spreadVal).toFixed(2)),
+        });
+      });
+    }
+
+    // ── Sources & Uses ──
+    const parsedSU = spreadData.sourcesUses;
+    const parsedHeaders = spreadData.sourcesUsesHeaders;
+    if (Array.isArray(parsedSU) && parsedSU.length > 0 && Array.isArray(parsedHeaders)) {
+      // Build column key mapping from parsed headers
+      const colMap: Record<string, string> = {};
+      for (const header of parsedHeaders) {
+        const storeKey = mapSuColumn(header);
+        if (storeKey) colMap[header] = storeKey;
+      }
+
+      // Build sourcesUses update
+      const suUpdates: Record<string, any> = {};
+      for (const row of parsedSU) {
+        const categoryKey = mapSuRow(row.label);
+        if (!categoryKey) continue;
+
+        const rowData: Record<string, number> = {};
+        for (const [header, storeCol] of Object.entries(colMap)) {
+          const val = row.values?.[header];
+          if (typeof val === 'number' && val !== 0) {
+            rowData[storeCol] = val;
+          }
+        }
+
+        if (Object.keys(rowData).length > 0) {
+          suUpdates[categoryKey] = rowData;
+        }
+      }
+
+      if (Object.keys(suUpdates).length > 0) {
+        updateSourcesUses(suUpdates as any);
+      }
+    }
+  }, [appData.financingSources, addFinancingSource, removeFinancingSource, updateSourcesUses]);
+
+  const handleUploadSuccess = (newSpread: FinancialSpread & { financingSources?: any[]; sourcesUses?: any[]; sourcesUsesHeaders?: string[] }) => {
     setSpreads(prev => [...prev, newSpread]);
     setShowUploadDialog(false);
+    populateStoreFromSpread(newSpread);
   };
 
   const selectedSpread = spreads.find(s => s.id === selectedSpreadId);
@@ -84,7 +292,12 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
         </Button>
       </div>
 
-      {spreads.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-[#2563eb]" />
+          <span className="ml-2 text-[13px] text-[#7da1d4]">Loading spreads...</span>
+        </div>
+      ) : spreads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 px-4">
           <div className="w-12 h-12 rounded-full bg-[#f0f4ff] flex items-center justify-center mb-3">
             <FileSpreadsheet className="w-6 h-6 text-[#2563eb]" />
@@ -204,24 +417,36 @@ function UploadDialog({ projectId, onClose, onSuccess }: { projectId: string; on
   const [versionLabel, setVersionLabel] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleUpload = async () => {
     if (!selectedFile || !versionLabel.trim()) {
-      alert('Please select a file and enter a version label.');
+      setError('Please select a file and enter a version label.');
       return;
     }
     setUploading(true);
+    setError(null);
+
     try {
-      // Create a local spread entry from the uploaded file
-      const newSpread: FinancialSpread = {
-        id: `spread-${Date.now()}`,
-        versionLabel: versionLabel.trim(),
-        fileName: selectedFile.name,
-        isActive: false,
-        uploadedAt: new Date().toISOString(),
-        periodData: [],
-      };
-      onSuccess(newSpread);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('versionLabel', versionLabel.trim());
+
+      const res = await fetch(`/api/projects/${projectId}/financials`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Upload failed. Please try again.');
+        return;
+      }
+
+      onSuccess(data);
+    } catch (err: any) {
+      setError(err.message || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -256,7 +481,7 @@ function UploadDialog({ projectId, onClose, onSuccess }: { projectId: string; on
               ref={fileRef}
               type="file"
               accept=".xlsx,.xls,.xlsm"
-              onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+              onChange={e => { setSelectedFile(e.target.files?.[0] || null); setError(null); }}
               className="hidden"
               data-testid="input-file-upload"
             />
@@ -278,6 +503,12 @@ function UploadDialog({ projectId, onClose, onSuccess }: { projectId: string; on
             </div>
           </div>
 
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[12px] text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={onClose} className="flex-1" data-testid="button-cancel-upload">
               Cancel
@@ -289,7 +520,7 @@ function UploadDialog({ projectId, onClose, onSuccess }: { projectId: string; on
               data-testid="button-confirm-upload"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {uploading ? 'Uploading...' : 'Upload & Parse'}
+              {uploading ? 'Parsing...' : 'Upload & Parse'}
             </Button>
           </div>
         </div>
@@ -315,6 +546,16 @@ function SpreadDetailView({
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const periods = spread.periodData || [];
+
+  // Build fixed period tabs — always show Period 1-4
+  const periodTabs = Array.from({ length: FIXED_PERIOD_COUNT }, (_, idx) => {
+    const period = periods[idx];
+    return {
+      key: `period-${idx}`,
+      label: period?.periodLabel || `Period ${idx + 1}`,
+      hasPeriodData: !!period,
+    };
+  });
 
   return (
     <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -347,6 +588,7 @@ function SpreadDetailView({
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
+      {/* Fixed tabs: Comparison View | Period 1 | Period 2 | Period 3 | Period 4 | AI Analysis */}
       <div className="border-b border-[#c5d4e8] px-4 flex gap-0 overflow-x-auto">
         <button
           onClick={() => setActiveTab('comparison')}
@@ -359,18 +601,18 @@ function SpreadDetailView({
         >
           Comparison View
         </button>
-        {periods.map((period, idx) => (
+        {periodTabs.map((tab) => (
           <button
-            key={idx}
-            onClick={() => setActiveTab(`period-${idx}`)}
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
             className={`px-3 py-2 text-[11px] font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === `period-${idx}`
+              activeTab === tab.key
                 ? 'border-[#2563eb] text-[#2563eb]'
                 : 'border-transparent text-[#7da1d4] hover:text-[#1a1a1a]'
             }`}
-            data-testid={`tab-period-${idx}`}
+            data-testid={`tab-${tab.key}`}
           >
-            {period.periodLabel || `Period ${idx + 1}`}
+            {tab.label}
           </button>
         ))}
         <button
@@ -397,9 +639,13 @@ function SpreadDetailView({
           />
         ) : activeTab === 'comparison' ? (
           <SpreadComparisonTable periods={periods} />
-        ) : (
-          <PeriodDetail period={periods[parseInt(activeTab.split('-')[1])]} index={parseInt(activeTab.split('-')[1])} />
-        )}
+        ) : (() => {
+          const periodIdx = parseInt(activeTab.split('-')[1]);
+          const period = periods[periodIdx];
+          return period
+            ? <PeriodDetail period={period} index={periodIdx} />
+            : <p className="text-[#7da1d4] text-center py-10 text-[13px]">No data available for this period.</p>;
+        })()}
       </div>
     </div>
   );
