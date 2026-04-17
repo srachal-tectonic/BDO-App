@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminStorage, Timestamp } from '@/lib/firebaseAdmin';
 import { extractPdfFields } from '@/lib/pdf-extraction';
 import { ExtractionStatus, ExtractedFieldStatus } from '@/types';
+import { logAuditEvent, getClientIp } from '@/lib/auditLog';
 
 // Allowed file types for upload
 const ALLOWED_MIME_TYPES = [
@@ -375,6 +376,22 @@ export async function POST(
 
     const successCount = uploadResults.filter((r) => r.success).length;
     const failureCount = uploadResults.filter((r) => !r.success).length;
+
+    // Audit: borrower file uploads
+    if (successCount > 0) {
+      const fileNames = uploadResults.filter(r => r.success).map(r => r.filename);
+      logAuditEvent({
+        action: 'file_uploaded',
+        category: 'file',
+        projectId,
+        resourceType: 'file',
+        resourceId: projectId,
+        summary: `Borrower uploaded ${successCount} file(s) via portal: ${fileNames.join(', ')}`,
+        metadata: { fileNames, successCount, failureCount, tokenPrefix: token.substring(0, 8) },
+        ipAddress: getClientIp(request.headers),
+        userAgent: request.headers.get('user-agent') || undefined,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       message: `Successfully uploaded ${successCount} file(s)${failureCount > 0 ? `, ${failureCount} failed` : ''}`,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { HelpCircle } from 'lucide-react';
 import AddressInput from '@/components/loan-sections/AddressInput';
 import LearnMorePanel from '@/components/LearnMorePanel';
 import { useApplication } from '@/lib/applicationStore';
@@ -20,9 +21,11 @@ export default function SellerInfoSection() {
     ...secondary,
   ];
 
-  const isAcquisition = allPurposes.includes('Business Acquisition');
-  const isCREConstruction = allPurposes.includes('CRE: Construction');
-  const isCREPurchase = allPurposes.includes('CRE: Purchase');
+  // Primary purpose drives section visibility for Business Acquisition, CRE sections
+  const primaryPurposes: string[] = Array.isArray(primary) ? primary : primary ? [primary] : [];
+  const isAcquisition = primaryPurposes.includes('Business Acquisition');
+  const isCREConstruction = primaryPurposes.includes('CRE: Construction');
+  const isCREPurchase = primaryPurposes.includes('CRE: Purchase');
   const isDebtRefinance = allPurposes.includes('Debt Refinance');
   const isEquipmentPurchase = allPurposes.includes('Equipment Purchase');
 
@@ -255,14 +258,16 @@ export default function SellerInfoSection() {
                 </div>
                 <div>
                   <label className={labelClass}>
-                    Type of Acquisition
-                    <button
-                      type="button"
-                      className="ml-1.5 text-[#2563eb] text-[12px] underline hover:text-[#1d4ed8] bg-transparent border-none cursor-pointer p-0"
-                      onClick={() => setShowAcquisitionTypeInfo(true)}
-                    >
-                      Learn More
-                    </button>
+                    <span className="flex items-center gap-1">
+                      Type of Acquisition
+                      <button
+                        type="button"
+                        className="text-[#2563eb] hover:text-[#1d4ed8] transition-colors flex-shrink-0"
+                        onClick={() => setShowAcquisitionTypeInfo(true)}
+                      >
+                        <HelpCircle className="w-4 h-4" />
+                      </button>
+                    </span>
                   </label>
                   <div className="flex gap-4 mt-1">
                     <label className="flex items-center gap-1.5 text-[13px] text-[#1a1a1a] cursor-pointer">
@@ -425,50 +430,39 @@ export default function SellerInfoSection() {
                 />
               </div>
 
-              {/* Land Owned, Land Value/Price */}
+              {/* Land Already Owned? */}
+              <div>
+                <label className={labelClass}>Land Already Owned?</label>
+                <div className="flex gap-4 mt-1">
+                  <label className="flex items-center gap-1.5 text-[13px] text-[#1a1a1a] cursor-pointer">
+                    <input
+                      type="radio"
+                      name="landOwned"
+                      value="yes"
+                      checked={val('landOwned') === 'yes'}
+                      onChange={(e) => handleChange('landOwned', e.target.value)}
+                      className="accent-[#2563eb]"
+                    />
+                    Yes
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[13px] text-[#1a1a1a] cursor-pointer">
+                    <input
+                      type="radio"
+                      name="landOwned"
+                      value="no"
+                      checked={val('landOwned') === 'no'}
+                      onChange={(e) => handleChange('landOwned', e.target.value)}
+                      className="accent-[#2563eb]"
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
+
+              {/* Total Construction Cost, Contractor, Timeline */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={labelClass}>Land Currently Owned?</label>
-                  <div className="flex gap-4 mt-1">
-                    <label className="flex items-center gap-1.5 text-[13px] text-[#1a1a1a] cursor-pointer">
-                      <input
-                        type="radio"
-                        name="landOwned"
-                        value="yes"
-                        checked={val('landOwned') === 'yes'}
-                        onChange={(e) => handleChange('landOwned', e.target.value)}
-                        className="accent-[#2563eb]"
-                      />
-                      Yes
-                    </label>
-                    <label className="flex items-center gap-1.5 text-[13px] text-[#1a1a1a] cursor-pointer">
-                      <input
-                        type="radio"
-                        name="landOwned"
-                        value="no"
-                        checked={val('landOwned') === 'no'}
-                        onChange={(e) => handleChange('landOwned', e.target.value)}
-                        className="accent-[#2563eb]"
-                      />
-                      No
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass}>{val('landOwned') === 'yes' ? 'Land Value' : 'Land Purchase Price'}</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#6b7280]">$</span>
-                    <input
-                      className={currencyInputClass}
-                      type="number"
-                      value={numVal('landValue') || ''}
-                      onChange={(e) => handleChange('landValue', e.target.value ? Number(e.target.value) : undefined)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass}>Construction Cost</label>
+                  <label className={labelClass}>Total Construction Cost</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#6b7280]">$</span>
                     <input
@@ -480,12 +474,8 @@ export default function SellerInfoSection() {
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* Contractor, Timeline */}
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>Contractor Name</label>
+                  <label className={labelClass}>General Contractor Name</label>
                   <input
                     className={inputClass}
                     value={val('contractorName')}
@@ -494,12 +484,12 @@ export default function SellerInfoSection() {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Estimated Timeline</label>
+                  <label className={labelClass}>Construction Timeline (months)</label>
                   <input
                     className={inputClass}
                     value={val('constructionTimeline')}
                     onChange={(e) => handleChange('constructionTimeline', e.target.value)}
-                    placeholder="e.g. 12 months"
+                    placeholder="e.g. 12"
                   />
                 </div>
               </div>
@@ -507,7 +497,7 @@ export default function SellerInfoSection() {
               {/* Sqft, Occupancy %, After-Construction Value */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={labelClass}>Square Footage</label>
+                  <label className={labelClass}>Proposed Square Footage</label>
                   <input
                     className={inputClass}
                     type="number"
@@ -517,7 +507,7 @@ export default function SellerInfoSection() {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Occupancy %</label>
+                  <label className={labelClass}>Owner-Occupancy % (post-construction)</label>
                   <input
                     className={inputClass}
                     type="number"
@@ -527,7 +517,7 @@ export default function SellerInfoSection() {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>After-Construction Value</label>
+                  <label className={labelClass}>Projected After-Construction Value</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#6b7280]">$</span>
                     <input
@@ -580,12 +570,18 @@ export default function SellerInfoSection() {
                 </div>
                 <div>
                   <label className={labelClass}>Property Type</label>
-                  <input
+                  <select
                     className={inputClass}
                     value={val('crePropertyType')}
                     onChange={(e) => handleChange('crePropertyType', e.target.value)}
-                    placeholder="e.g. Office, Retail, Industrial"
-                  />
+                  >
+                    <option value="">Select...</option>
+                    <option value="Office">Office</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Industrial">Industrial</option>
+                    <option value="Mixed-Use">Mixed-Use</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div>
                   <label className={labelClass}>Square Footage</label>
@@ -630,9 +626,9 @@ export default function SellerInfoSection() {
                       <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Balance</th>
                       <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Rate</th>
                       <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Mo. Payment</th>
-                      <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Maturity</th>
+                      <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Maturity Date</th>
                       <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Purpose</th>
-                      <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Collateral</th>
+                      <th className="bg-[#133c7f] text-white px-2 py-1.5 text-left font-semibold text-[12px]">Collateral Type</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -676,6 +672,7 @@ export default function SellerInfoSection() {
                         </td>
                         <td className="px-1 py-1">
                           <input
+                            type="date"
                             className={tableCellInputClass}
                             value={item.maturityDate || ''}
                             onChange={(e) => updateDebtRefinanceRow(i, 'maturityDate', e.target.value)}
@@ -689,11 +686,18 @@ export default function SellerInfoSection() {
                           />
                         </td>
                         <td className="px-1 py-1">
-                          <input
+                          <select
                             className={tableCellInputClass}
                             value={item.collateral || ''}
                             onChange={(e) => updateDebtRefinanceRow(i, 'collateral', e.target.value)}
-                          />
+                          >
+                            <option value="">Select...</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Equipment">Equipment</option>
+                            <option value="Business Assets">Business Assets</option>
+                            <option value="Unsecured">Unsecured</option>
+                            <option value="Other">Other</option>
+                          </select>
                         </td>
                       </tr>
                     ))}
@@ -807,17 +811,27 @@ export default function SellerInfoSection() {
         onClose={() => setShowAcquisitionTypeInfo(false)}
         title="Type of Acquisition"
       >
+        <p className="mb-3 text-[14px] leading-relaxed font-semibold">What information is being requested?</p>
         <p className="mb-3 text-[14px] leading-relaxed">
-          <strong>Stock Purchase:</strong> The buyer purchases the ownership shares (stock) of the selling entity.
-          The business entity itself continues to exist with all its assets, liabilities, contracts, and obligations intact.
-          The buyer essentially steps into the shoes of the previous owner(s).
+          We&apos;re asking whether you are buying the stock of the existing company or buying the assets of the business.
+          This determines how the transaction is structured, which affects what you are acquiring, what liabilities you
+          may take on, and how the SBA will evaluate the loan.
         </p>
-        <p className="text-[14px] leading-relaxed">
-          <strong>Asset Purchase:</strong> The buyer purchases specific assets (and sometimes assumes certain liabilities)
-          from the selling entity. The buyer typically forms a new entity to hold the acquired assets.
-          This is the more common structure for SBA-financed acquisitions as it allows the buyer to select which assets
-          to acquire and which liabilities to assume.
+        <p className="mb-2 text-[14px] leading-relaxed">You will choose one of the following:</p>
+        <ul className="mb-4 text-[14px] leading-relaxed list-disc pl-5 space-y-1">
+          <li><strong>Stock Acquisition</strong> &ndash; You purchase the ownership interests of the company.</li>
+          <li><strong>Asset Acquisition</strong> &ndash; You purchase the business&apos;s assets (e.g., equipment, inventory, customer contracts, goodwill) but not the company&apos;s legal entity.</li>
+        </ul>
+        <p className="mb-3 text-[14px] leading-relaxed font-semibold">Why we need this information</p>
+        <p className="mb-3 text-[14px] leading-relaxed">
+          The SBA requires us to understand the exact structure of the transaction because it affects how we analyze
+          the business, assess risk, and structure the loan.
         </p>
+        <p className="mb-2 text-[14px] leading-relaxed font-semibold">Loan Eligibility &amp; Collateral</p>
+        <ul className="text-[14px] leading-relaxed list-disc pl-5 space-y-1">
+          <li>Asset deals allow us to identify and secure specific assets being purchased.</li>
+          <li>Stock deals have different collateral and eligibility considerations because you acquire the company as-is, including its liabilities.</li>
+        </ul>
       </LearnMorePanel>
 
       <LearnMorePanel

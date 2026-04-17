@@ -18,7 +18,8 @@ import type { ThemeSettings } from '@/contexts/ThemeContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
-import { DollarSign, Download, Edit, FileDown, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Upload, Users, Wand2, X } from 'lucide-react';
+import { Activity, DollarSign, Download, Edit, FileDown, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Upload, Users, Wand2, X } from 'lucide-react';
+import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
@@ -1743,6 +1744,7 @@ Example format:
           <TabsTrigger value="borrower-forms-full" data-testid="tab-borrower-forms-full">Borrower Forms - Full Form</TabsTrigger>
           <TabsTrigger value="label-comparison" data-testid="tab-label-comparison">Field Label Comparison</TabsTrigger>
           <TabsTrigger value="theme" data-testid="tab-theme">Theme / CSS</TabsTrigger>
+          <TabsTrigger value="audit-trail" data-testid="tab-audit-trail">Audit Trail</TabsTrigger>
         </TabsList>
 
         {/* Default Values Tab */}
@@ -4271,6 +4273,20 @@ Example format:
                 </div>
               </div>
             </div>
+          </div>
+        </TabsContent>
+
+        {/* ── Audit Trail Tab ── */}
+        <TabsContent value="audit-trail" className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Audit Trail</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              View a complete log of all actions across the application — who changed what, when, and the before/after values.
+            </p>
+            <GlobalAuditTrail />
           </div>
         </TabsContent>
 

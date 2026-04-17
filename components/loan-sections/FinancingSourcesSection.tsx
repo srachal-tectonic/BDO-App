@@ -20,6 +20,9 @@ const FINANCING_TYPE_OPTIONS = [
   'Seller Note',
   '3rd Party',
   'Equity',
+  'USDA',
+  'P&E',
+  'Conventional',
 ] as const;
 
 const DEFAULT_FINANCING_TYPES = [

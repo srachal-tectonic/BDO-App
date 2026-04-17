@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+import { logAuditEvent } from '@/lib/auditLog';
 
 // GET /api/projects — list all projects
 export async function GET(request: NextRequest) {
@@ -49,6 +50,24 @@ export async function POST(request: NextRequest) {
 
     const col = await getCollection(COLLECTIONS.PROJECTS);
     await col.insertOne(project);
+
+    // Audit: project created
+    logAuditEvent({
+      action: 'project_created',
+      category: 'project',
+      userId: body.bdoUserId,
+      userName: body.bdoUserName,
+      projectId: id,
+      resourceType: 'project',
+      resourceId: id,
+      summary: `Created project "${body.projectName || body.businessName || id}"`,
+      metadata: {
+        projectName: body.projectName,
+        businessName: body.businessName,
+        loanAmount: body.loanAmount,
+        stage: body.stage,
+      },
+    }).catch(() => {});
 
     return NextResponse.json(project, { status: 201 });
   } catch (error: any) {

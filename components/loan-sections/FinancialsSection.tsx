@@ -28,6 +28,11 @@ const FINANCING_TYPE_MAP: Record<string, string> = {
   'equity': 'Equity',
   '7a express': 'SBA 7(a) Express',
   'sba capline': 'SBA CAPLine',
+  'capline': 'SBA CAPLine',
+  'usda': 'USDA',
+  'p&e': 'P&E',
+  'pe': 'P&E',
+  'conventional': 'Conventional',
 };
 
 function mapFinancingType(raw: string): string {
@@ -145,48 +150,8 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     updateSourcesUses,
   } = useApplication();
 
-  // Load spreads from API on mount
-  const loadSpreads = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/financials`);
-      if (res.ok) {
-        const data = await res.json();
-        setSpreads(data);
-      }
-    } catch (err) {
-      console.error('Failed to load spreads:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => { loadSpreads(); }, [loadSpreads]);
-
-  const handleDelete = async (id: string) => {
-    try {
-      await fetch(`/api/projects/${projectId}/financials?spreadId=${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.error('Failed to delete spread:', err);
-    }
-    setSpreads(prev => prev.filter(s => s.id !== id));
-    setSelectedSpreadId(null);
-  };
-
-  const handleSetActive = async (id: string) => {
-    try {
-      await fetch(`/api/projects/${projectId}/financials`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spreadId: id, isActive: true }),
-      });
-    } catch (err) {
-      console.error('Failed to activate spread:', err);
-    }
-    setSpreads(prev => prev.map(s => ({ ...s, isActive: s.id === id })));
-  };
-
   /**
-   * After a successful upload, populate the application store's Financing Sources
+   * After a successful upload (or on reload), populate the application store's Financing Sources
    * and Sources & Uses tables from the parsed spreadsheet data.
    */
   const populateStoreFromSpread = useCallback((spreadData: any) => {
@@ -252,6 +217,56 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       }
     }
   }, [appData.financingSources, addFinancingSource, removeFinancingSource, updateSourcesUses]);
+
+  // Use a ref so loadSpreads doesn't depend on populateStoreFromSpread (avoids infinite loop)
+  const populateStoreRef = useRef(populateStoreFromSpread);
+  populateStoreRef.current = populateStoreFromSpread;
+
+  // Load spreads from API on mount
+  const loadSpreads = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/financials`);
+      if (res.ok) {
+        const data = await res.json();
+        setSpreads(data);
+
+        // Re-populate the Zustand store from the active (or most recent) spread
+        const active = data.find((s: any) => s.isActive) || (data.length > 0 ? data[0] : null);
+        if (active) {
+          populateStoreRef.current(active);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load spreads:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { loadSpreads(); }, [loadSpreads]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/financials?spreadId=${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete spread:', err);
+    }
+    setSpreads(prev => prev.filter(s => s.id !== id));
+    setSelectedSpreadId(null);
+  };
+
+  const handleSetActive = async (id: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/financials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spreadId: id, isActive: true }),
+      });
+    } catch (err) {
+      console.error('Failed to activate spread:', err);
+    }
+    setSpreads(prev => prev.map(s => ({ ...s, isActive: s.id === id })));
+  };
 
   const handleUploadSuccess = (newSpread: FinancialSpread & { financingSources?: any[]; sourcesUses?: any[]; sourcesUsesHeaders?: string[] }) => {
     setSpreads(prev => [...prev, newSpread]);

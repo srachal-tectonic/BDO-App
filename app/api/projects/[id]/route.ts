@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+import { logAuditEvent } from '@/lib/auditLog';
+import { diffObjects } from '@/lib/auditDiff';
+import { FIELD_LABELS } from '@/lib/fieldLabels';
 
 // GET /api/projects/:id
 export async function GET(
@@ -31,6 +34,9 @@ export async function PUT(
     const updates = await request.json();
     const col = await getCollection(COLLECTIONS.PROJECTS);
 
+    // Fetch current state for diff
+    const existing = await col.findOne({ id });
+
     const result = await col.findOneAndUpdate(
       { id },
       { $set: { ...updates, updatedAt: new Date().toISOString() } },
@@ -40,6 +46,43 @@ export async function PUT(
     if (!result.value) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
+
+    // Audit: project updated with field-level diffs
+    if (existing) {
+      const { _id, ...oldData } = existing as any;
+      const changes = diffObjects(oldData, updates, FIELD_LABELS);
+
+      if (changes.length > 0) {
+        // Detect stage change specifically
+        const stageChange = changes.find(c => c.field === 'stage');
+        if (stageChange) {
+          logAuditEvent({
+            action: 'status_changed',
+            category: 'project',
+            userId: updates.bdoUserId || (existing as any).bdoUserId,
+            userName: updates.bdoUserName || (existing as any).bdoUserName,
+            projectId: id,
+            resourceType: 'project',
+            resourceId: id,
+            summary: `Project stage changed from "${stageChange.oldValue}" to "${stageChange.newValue}"`,
+            changes: [stageChange],
+          }).catch(() => {});
+        }
+
+        logAuditEvent({
+          action: 'project_updated',
+          category: 'project',
+          userId: updates.bdoUserId || (existing as any).bdoUserId,
+          userName: updates.bdoUserName || (existing as any).bdoUserName,
+          projectId: id,
+          resourceType: 'project',
+          resourceId: id,
+          summary: `Updated ${changes.length} field(s): ${changes.map(c => c.label).join(', ')}`,
+          changes,
+        }).catch(() => {});
+      }
+    }
+
     return NextResponse.json(result.value);
   } catch (error: any) {
     console.error('Error updating project:', error);
@@ -65,6 +108,17 @@ export async function DELETE(
     if (!result.value) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
+
+    // Audit: project deleted
+    logAuditEvent({
+      action: 'project_deleted',
+      category: 'project',
+      projectId: id,
+      resourceType: 'project',
+      resourceId: id,
+      summary: `Deleted project "${(result.value as any).projectName || (result.value as any).businessName || id}"`,
+    }).catch(() => {});
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting project:', error);

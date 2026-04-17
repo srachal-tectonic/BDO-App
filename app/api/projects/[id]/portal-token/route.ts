@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+import { logAuditEvent } from '@/lib/auditLog';
 
 /**
  * Portal Token Management API Route (Azure Cosmos DB MongoDB API)
@@ -154,6 +155,19 @@ export async function POST(
       }
     );
 
+    // Audit: portal token created
+    logAuditEvent({
+      action: 'portal_token_created',
+      category: 'portal',
+      userId: createdBy,
+      userName: createdByName,
+      projectId,
+      resourceType: 'portal_token',
+      resourceId: projectId,
+      summary: `Created portal token for project ${projectId} (expires ${expiresAt.toISOString()})`,
+      metadata: { expirationDays, expiresAt: expiresAt.toISOString() },
+    }).catch(() => {});
+
     return NextResponse.json({
       token,
       expiresAt: expiresAt.toISOString(),
@@ -202,6 +216,16 @@ export async function DELETE(
       { id: projectId },
       { $set: { formPortalToken: null, updatedAt: new Date().toISOString() } }
     );
+
+    // Audit: portal token revoked
+    logAuditEvent({
+      action: 'portal_token_revoked',
+      category: 'portal',
+      projectId,
+      resourceType: 'portal_token',
+      resourceId: projectId,
+      summary: `Revoked portal token for project ${projectId}`,
+    }).catch(() => {});
 
     return NextResponse.json({ message: 'Token revoked successfully' });
   } catch (error) {

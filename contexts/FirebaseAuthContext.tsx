@@ -97,6 +97,15 @@ function parseEasyAuthUser(profile: Record<string, unknown>): { authUser: AuthUs
   return { authUser, userInfo };
 }
 
+// Fire-and-forget auth audit log
+function logAuthEvent(event: string, data: Record<string, unknown>) {
+  fetch('/api/auth/audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event, ...data }),
+  }).catch(() => {}); // never block auth flow
+}
+
 export function FirebaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -147,6 +156,11 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         if (result) {
           setCurrentUser(result.authUser);
           setUserInfo(result.userInfo);
+          logAuthEvent('login', {
+            userId: result.authUser.uid,
+            userEmail: result.authUser.email,
+            userName: result.authUser.displayName,
+          });
         }
         setIsLoading(false);
       }
@@ -179,9 +193,11 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         setError(null);
         localStorage.setItem('dev-auth-token', DEV_TOKEN);
         localStorage.setItem('dev-auth-user', JSON.stringify({ authUser, userInfo: info }));
+        logAuthEvent('login', { userId: devUser.uid, userEmail: email, userName: devUser.displayName });
         return;
       }
       setError('Dev mode: email not in allowed dev users list');
+      logAuthEvent('login_failed', { userEmail: email, error: 'Email not in allowed dev users list' });
       throw new Error('Dev mode: email not in allowed dev users list');
     }
 
@@ -200,16 +216,22 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   };
 
   const logout = async (): Promise<void> => {
+    const logoutUserId = currentUser?.uid;
+    const logoutEmail = currentUser?.email;
+    const logoutName = currentUser?.displayName;
+
     if (isDevMode()) {
       setCurrentUser(null);
       setUserInfo(null);
       setError(null);
       localStorage.removeItem('dev-auth-token');
       localStorage.removeItem('dev-auth-user');
+      logAuthEvent('logout', { userId: logoutUserId, userEmail: logoutEmail, userName: logoutName });
       return;
     }
 
     // Clear local state and redirect to Easy Auth logout
+    logAuthEvent('logout', { userId: logoutUserId, userEmail: logoutEmail, userName: logoutName });
     setCurrentUser(null);
     setUserInfo(null);
     window.location.href = '/.auth/logout?post_logout_redirect_uri=/bdo/login';

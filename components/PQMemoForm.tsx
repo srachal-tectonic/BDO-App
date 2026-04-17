@@ -34,6 +34,7 @@ const SOURCES_USES_ROW_LABELS: Record<string, string> = {
 export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   const { data: applicationData, updateProjectOverview } = useApplication();
 
+  const [spreadFinancingSources, setSpreadFinancingSources] = useState<any[]>([]);
   const [goodFitHelpExpanded, setGoodFitHelpExpanded] = useState(false);
   const [scoreExplanations, setScoreExplanations] = useState({
     repayment: '',
@@ -112,6 +113,26 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
     return {};
   };
 
+  // Fetch financing sources from the active spread
+  useEffect(() => {
+    async function fetchFinancingSources() {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/financials`);
+        if (res.ok) {
+          const data = await res.json();
+          // Find the active spread, or use the most recent one
+          const active = data.find((s: any) => s.isActive) || (data.length > 0 ? data[data.length - 1] : null);
+          if (active?.financingSources) {
+            setSpreadFinancingSources(active.financingSources);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading financing sources:', err);
+      }
+    }
+    if (projectId) fetchFinancingSources();
+  }, [projectId]);
+
   const calculateSourcesUsesTotals = () => {
     const colKeys = ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty'] as const;
     const totals: Record<string, number> = { tBankLoan: 0, borrower: 0, sellerNote: 0, thirdParty: 0 };
@@ -176,7 +197,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
         <div className="bg-gradient-to-r from-gray-700 to-blue-600 text-white p-5">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5">
             <div>
-              <h1 className="text-xl font-semibold mb-1" data-testid="text-borrower-name">
+              <h1 className="text-xl font-bold text-white mb-1" data-testid="text-borrower-name">
                 {projectOverview.projectName || 'Business Name'}
               </h1>
               <div className="text-sm opacity-95 mb-0.5" data-testid="text-bdo-names">
@@ -234,85 +255,107 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
                   Loan Structure & Project Information
                 </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {loan1.type && (
-                <div className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid="card-loan1">
-                  <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">T Bank Loan</h3>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[13px]">
-                      <span>Program:</span>
-                      <strong className="text-gray-700">{loan1.type}</strong>
-                    </div>
-                    {loan1.amount != null && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Amount:</span>
-                        <strong className="text-gray-700">{formatCurrency(loan1.amount)}</strong>
-                      </div>
-                    )}
-                    {loan1.totalRate != null && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Rate:</span>
-                        <strong className="text-gray-700">{formatPercent(loan1.totalRate, 2)}</strong>
-                      </div>
-                    )}
-                    {loan1.term != null && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Term:</span>
-                        <strong className="text-gray-700">{Math.round(loan1.term / 12)} years</strong>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+            {(() => {
+              const formatRate = (val: any) => {
+                if (val == null || val === '') return '-';
+                const n = typeof val === 'string' ? parseFloat(val) : val;
+                if (isNaN(n)) return String(val);
+                // If value is already > 1, it's already a percentage
+                return `${n < 1 ? (n * 100).toFixed(2) : n.toFixed(2)}%`;
+              };
 
-              {loan2.type && (
-                <div className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid="card-loan2">
-                  <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">T Bank Companion Loan</h3>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[13px]">
-                      <span>Program:</span>
-                      <strong className="text-gray-700">{loan2.type}</strong>
-                    </div>
-                    {loan2.amount != null && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Amount:</span>
-                        <strong className="text-gray-700">{formatCurrency(loan2.amount)}</strong>
-                      </div>
-                    )}
-                    {loan2.baseRate && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Rate:</span>
-                        <strong className="text-gray-700">{loan2.baseRate}</strong>
-                      </div>
-                    )}
-                    {loan2.term != null && (
-                      <div className="flex justify-between text-[13px]">
-                        <span>Term:</span>
-                        <strong className="text-gray-700">{Math.round(loan2.term / 12)} years</strong>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              // Use actual sources from the spread, or show placeholder cards
+              const PLACEHOLDER_CARDS = ['P&E', 'USDA', 'Conventional', 'SBA 7(a) Express', 'SBA CAPLine', 'Equity', 'Seller Notes', '3rd Party'];
+              const hasSpreadData = spreadFinancingSources.length > 0;
 
-              <div className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid="card-project-info">
-                <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">Project Information</h3>
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[13px]">
-                    <span>Type:</span>
-                    <strong className="text-gray-700">{primaryProjectPurpose || '-'}</strong>
-                  </div>
-                  <div className="flex justify-between text-[13px]">
-                    <span>NAICS:</span>
-                    <strong className="text-gray-700">{projectOverview.naicsCode || '-'}</strong>
-                  </div>
-                  <div className="flex justify-between text-[13px]">
-                    <span>Industry:</span>
-                    <strong className="text-gray-700">{projectOverview.industry || '-'}</strong>
+              // Build cards: use spread data if available, otherwise show placeholders
+              const sourceCards = hasSpreadData
+                ? spreadFinancingSources.map((src: any, i: number) => ({
+                    key: `src-${i}`,
+                    label: src.financingSource || src.label || `Source ${i + 1}`,
+                    src,
+                  }))
+                : PLACEHOLDER_CARDS.map((label, i) => ({
+                    key: `placeholder-${i}`,
+                    label,
+                    src: null,
+                  }));
+
+              // Pad to 8 cards if fewer sources than 8
+              while (sourceCards.length < 8) {
+                const idx = sourceCards.length;
+                sourceCards.push({
+                  key: `empty-${idx}`,
+                  label: PLACEHOLDER_CARDS[idx] || `Source ${idx + 1}`,
+                  src: null,
+                });
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {sourceCards.map((card) => (
+                    <div key={card.key} className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid={`card-${card.key}`}>
+                      <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">{card.label}</h3>
+                      <div className="flex flex-col gap-1">
+                        {card.src ? (
+                          <>
+                            <div className="flex justify-between text-[13px]">
+                              <span>Amount:</span>
+                              <strong className="text-gray-700">{formatCurrency(card.src.amount)}</strong>
+                            </div>
+                            {card.src.guaranteePercent && String(card.src.guaranteePercent).trim() && (
+                              <div className="flex justify-between text-[13px]">
+                                <span>Guarantee:</span>
+                                <strong className="text-gray-700">{card.src.guaranteePercent}</strong>
+                              </div>
+                            )}
+                            {card.src.rateType && (
+                              <div className="flex justify-between text-[13px]">
+                                <span>Rate Type:</span>
+                                <strong className="text-gray-700">{card.src.rateType}</strong>
+                              </div>
+                            )}
+                            {card.src.totalRate != null && card.src.totalRate !== '' && (
+                              <div className="flex justify-between text-[13px]">
+                                <span>Rate:</span>
+                                <strong className="text-gray-700">{formatRate(card.src.totalRate)}</strong>
+                              </div>
+                            )}
+                            {card.src.termYears != null && card.src.termYears !== '' && (
+                              <div className="flex justify-between text-[13px]">
+                                <span>Term:</span>
+                                <strong className="text-gray-700">{card.src.termYears} years</strong>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-[13px] text-gray-400 italic">No data</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Project Information card — always last */}
+                  <div className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid="card-project-info">
+                    <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">Project Information</h3>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[13px]">
+                        <span>Type:</span>
+                        <strong className="text-gray-700">{primaryProjectPurpose || '-'}</strong>
+                      </div>
+                      <div className="flex justify-between text-[13px]">
+                        <span>NAICS:</span>
+                        <strong className="text-gray-700">{projectOverview.naicsCode || '-'}</strong>
+                      </div>
+                      <div className="flex justify-between text-[13px]">
+                        <span>Industry:</span>
+                        <strong className="text-gray-700">{projectOverview.industry || '-'}</strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
               <div className="mb-5">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { logAuditEvent } from '@/lib/auditLog';
 
 // Must match the FORM_TEMPLATES in services/firestore.ts
 const FORM_FILES: Record<string, { fileName: string; contentType: string }> = {
@@ -45,6 +46,16 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Audit: form template downloaded
+    logAuditEvent({
+      action: 'file_downloaded',
+      category: 'file',
+      resourceType: 'file',
+      resourceId: formId,
+      summary: `Downloaded form template "${form.fileName}"`,
+      metadata: { fileName: form.fileName, formId },
+    }).catch(() => {});
 
     return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,

@@ -69,6 +69,14 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       await col.createIndex({ projectId: 1, generatedAt: -1 }).catch(() => {});
     } else if (collectionName === 'portalTokens') {
       await col.createIndex({ projectId: 1, createdAt: -1 }).catch(() => {});
+    } else if (collectionName === 'financialSpreads') {
+      await col.createIndex({ projectId: 1, uploadedAt: -1 }).catch(() => {});
+    } else if (collectionName === 'auditLogs') {
+      await col.createIndex({ projectId: 1, timestamp: -1 }).catch(() => {});
+      await col.createIndex({ userId: 1, timestamp: -1 }).catch(() => {});
+      await col.createIndex({ action: 1, timestamp: -1 }).catch(() => {});
+      await col.createIndex({ category: 1, timestamp: -1 }).catch(() => {});
+      await col.createIndex({ timestamp: -1 }).catch(() => {});
     }
   } catch (e) {
     // Index creation may fail if it already exists — that's fine
@@ -90,4 +98,5 @@ export const COLLECTIONS = {
   EXTRACTION_RECORDS: 'extractionRecords',
   FINANCIAL_SPREADS: 'financialSpreads',
   ADMIN_SETTINGS: 'adminSettings',
+  AUDIT_LOGS: 'auditLogs',
 } as const;

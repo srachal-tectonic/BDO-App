@@ -5,6 +5,7 @@ import {
   applyEnvelopeFieldsToData,
   ENVELOPE_FIELD_MAP,
 } from '@/lib/pdf-extraction/envelope-pdf';
+import { logAuditEvent } from '@/lib/auditLog';
 
 /**
  * POST /api/projects/:id/envelope-pdf/apply
@@ -129,6 +130,17 @@ export async function POST(
     );
 
     const { _id: _ignored, ...returnedDoc } = (await loanAppCol.findOne({ projectId })) as any;
+
+    // Audit: PDF data imported
+    logAuditEvent({
+      action: 'pdf_data_imported',
+      category: 'loan_application',
+      projectId,
+      resourceType: 'loanApplication',
+      resourceId: projectId,
+      summary: `Imported envelope PDF: ${appliedFieldCount} fields applied (${extractedFieldCount} extracted, ${nonEmptyFieldCount} non-empty, ${mappedFieldCount} mapped)`,
+      metadata: { fileName: body.fileName, extractedFieldCount, nonEmptyFieldCount, mappedFieldCount, appliedFieldCount },
+    }).catch(() => {});
 
     return NextResponse.json({
       loanApplication: returnedDoc,

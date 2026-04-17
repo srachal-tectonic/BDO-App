@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebaseAdmin';
+import { logAuditEvent } from '@/lib/auditLog';
 
 /**
  * DELETE /api/projects/[id]/borrower-uploads/[uploadId]
@@ -74,6 +75,17 @@ export async function DELETE(
 
     // Delete the upload record from database
     await uploadRef.delete();
+
+    // Audit: file deleted
+    logAuditEvent({
+      action: 'file_deleted',
+      category: 'file',
+      projectId,
+      resourceType: 'file',
+      resourceId: uploadId,
+      summary: `Deleted borrower upload "${uploadData?.originalName || uploadData?.filename || uploadId}"`,
+      metadata: { fileName: uploadData?.originalName || uploadData?.filename, uploadId },
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

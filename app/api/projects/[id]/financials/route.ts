@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { parseFinancialSpreadsheet } from '@/lib/parseSpreadsheet';
 import { ObjectId } from 'mongodb';
+import { logAuditEvent } from '@/lib/auditLog';
 
 // GET /api/projects/:id/financials
 export async function GET(
@@ -68,6 +69,17 @@ export async function POST(
     const col = await getCollection(COLLECTIONS.FINANCIAL_SPREADS);
     const result = await col.insertOne(doc as any);
 
+    // Audit: spread uploaded
+    logAuditEvent({
+      action: 'spread_uploaded',
+      category: 'financial',
+      projectId,
+      resourceType: 'financialSpread',
+      resourceId: result.insertedId.toString(),
+      summary: `Uploaded financial spread "${versionLabel.trim()}" (${file.name})`,
+      metadata: { fileName: file.name, versionLabel: versionLabel.trim() },
+    }).catch(() => {});
+
     return NextResponse.json({
       id: result.insertedId.toString(),
       ...doc,
@@ -96,6 +108,16 @@ export async function DELETE(
 
     const col = await getCollection(COLLECTIONS.FINANCIAL_SPREADS);
     await col.deleteOne({ _id: new ObjectId(spreadId), projectId });
+
+    // Audit: spread deleted
+    logAuditEvent({
+      action: 'spread_deleted',
+      category: 'financial',
+      projectId,
+      resourceType: 'financialSpread',
+      resourceId: spreadId,
+      summary: `Deleted financial spread ${spreadId}`,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -131,6 +153,16 @@ export async function PATCH(
       { _id: new ObjectId(spreadId), projectId },
       { $set: { isActive: !!isActive } }
     );
+
+    // Audit: spread activated/deactivated
+    logAuditEvent({
+      action: isActive ? 'spread_activated' : 'spread_deactivated',
+      category: 'financial',
+      projectId,
+      resourceType: 'financialSpread',
+      resourceId: spreadId,
+      summary: `${isActive ? 'Activated' : 'Deactivated'} financial spread ${spreadId}`,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

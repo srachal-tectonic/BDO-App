@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+import { logAuditEvent } from '@/lib/auditLog';
 
 // GET /api/projects/:id/notes
 export async function GET(
@@ -44,6 +45,20 @@ export async function POST(
 
     const col = await getCollection(COLLECTIONS.NOTES);
     await col.insertOne(note);
+
+    // Audit: note created
+    const contentSnippet = (body.content || body.text || '').substring(0, 100);
+    logAuditEvent({
+      action: 'note_created',
+      category: 'note',
+      userId: body.createdBy,
+      userName: body.createdByName,
+      projectId,
+      resourceType: 'note',
+      resourceId: id,
+      summary: `Added note: "${contentSnippet}${contentSnippet.length >= 100 ? '...' : ''}"`,
+      metadata: { tags: body.tags },
+    }).catch(() => {});
 
     return NextResponse.json(note, { status: 201 });
   } catch (error: any) {

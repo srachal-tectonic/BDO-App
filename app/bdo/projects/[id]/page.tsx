@@ -450,28 +450,30 @@ export default function BDOToolsPage() {
                   Previous
                 </button>
               )}
-              <button
-                onClick={() => {
-                  const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info', 'business-questionnaire'] as const;
-                  const idx = tabs.indexOf(loanAppSubTab);
-                  if (idx < tabs.length - 1) setLoanAppSubTab(tabs[idx + 1]);
-                }}
-                className="px-6 py-3 bg-[var(--t-color-primary)] text-white text-[length:var(--t-font-size-base)] font-medium rounded-md cursor-pointer transition-all border-none hover-elevate active-elevate-2 flex items-center gap-2"
-              >
-                Continue
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              {loanAppSubTab !== 'business-questionnaire' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['business-applicant', 'individual-applicants', 'other-businesses', 'project-info', 'business-questionnaire'] as const;
+                    const idx = tabs.indexOf(loanAppSubTab);
+                    if (idx < tabs.length - 1) setLoanAppSubTab(tabs[idx + 1]);
+                  }}
+                  className="px-6 py-3 bg-[var(--t-color-primary)] text-white text-[length:var(--t-font-size-base)] font-medium rounded-md cursor-pointer transition-all border-none hover-elevate active-elevate-2 flex items-center gap-2"
+                >
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="spreads" className="mt-0">
+        <TabsContent value="spreads" className="mt-0" forceMount style={{ display: activeTab === 'spreads' ? undefined : 'none' }}>
           <FinancialsSection projectId={projectId}>
             <FundingStructureSection isReadOnly={false} />
           </FinancialsSection>
         </TabsContent>
 
-        <TabsContent value="pq-memo" className="mt-0">
+        <TabsContent value="pq-memo" className="mt-0" forceMount style={{ display: activeTab === 'pq-memo' ? undefined : 'none' }}>
           <PQMemoForm projectId={projectId} />
         </TabsContent>
 

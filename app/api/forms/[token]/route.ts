@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, Timestamp } from '@/lib/firebaseAdmin';
+import { logAuditEvent, getClientIp } from '@/lib/auditLog';
 
 /**
  * GET /api/forms/[token]
@@ -75,6 +76,19 @@ export async function GET(
         downloadedAt: data.downloadedAt?.toDate?.() || data.downloadedAt,
       };
     });
+
+    // Audit: borrower portal accessed
+    logAuditEvent({
+      action: 'borrower_portal_accessed',
+      category: 'portal',
+      projectId,
+      resourceType: 'portal_token',
+      resourceId: projectId,
+      summary: `Borrower portal accessed for project "${projectData?.projectName || projectId}"`,
+      metadata: { tokenPrefix: token.substring(0, 8) },
+      ipAddress: getClientIp(request.headers),
+      userAgent: request.headers.get('user-agent') || undefined,
+    }).catch(() => {});
 
     return NextResponse.json({
       projectId,
