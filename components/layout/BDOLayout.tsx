@@ -5,6 +5,8 @@ import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import tbankLogo from "@/public/images/TBank-logo.png";
 
 interface BDOLayoutProps {
   children: React.ReactNode;
@@ -82,10 +84,12 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
         <div className="max-w-[1280px] mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-6">
             <Link href="/bdo/projects" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <img
-                src="/images/TBank-logo.png"
+              <Image
+                src={tbankLogo}
                 alt="T Bank Logo"
                 className="h-10 w-auto brightness-0 invert"
+                height={40}
+                priority
               />
             </Link>
           </div>

@@ -669,6 +669,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               )}
             </Button>
 
+            {/* Temporarily hidden: Copy Portal Link and Open Portal buttons
             <Button
               variant="outline"
               onClick={copyPortalLink}
@@ -688,6 +689,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
               <ExternalLink className="w-4 h-4" />
               Open Portal
             </Button>
+            */}
           </div>
 
           {/* Shared hidden file input — the per-form Import buttons below click this. */}
@@ -844,8 +846,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         </Card>
       )}
 
-      {/* Portal Link Section */}
-      {forms.length > 0 && (
+      {/* Portal Link Section — temporarily hidden */}
+      {false && forms.length > 0 && (
         <Card className="bg-[var(--t-color-info-bg)] border-[var(--t-color-info-border)]">
           <CardContent className="p-6">
             <h3 className="font-medium text-[color:var(--t-color-text-primary)] mb-2 flex items-center gap-2">

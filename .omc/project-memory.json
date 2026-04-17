@@ -231,15 +231,15 @@
       "type": "file"
     },
     {
-      "path": "app/bdo/admin/page.tsx",
-      "accessCount": 81,
-      "lastAccessed": 1776437260088,
+      "path": "app/bdo/projects/[id]/page.tsx",
+      "accessCount": 82,
+      "lastAccessed": 1776447356293,
       "type": "file"
     },
     {
-      "path": "app/bdo/projects/[id]/page.tsx",
-      "accessCount": 80,
-      "lastAccessed": 1776442683920,
+      "path": "app/bdo/admin/page.tsx",
+      "accessCount": 81,
+      "lastAccessed": 1776437260088,
       "type": "file"
     },
     {
@@ -250,8 +250,8 @@
     },
     {
       "path": "components/loan-sections/BorrowerFormsSection.tsx",
-      "accessCount": 30,
-      "lastAccessed": 1776284246090,
+      "accessCount": 35,
+      "lastAccessed": 1776448038468,
       "type": "file"
     },
     {
@@ -285,6 +285,12 @@
       "type": "file"
     },
     {
+      "path": "components/layout/BDOLayout.tsx",
+      "accessCount": 17,
+      "lastAccessed": 1776448326116,
+      "type": "file"
+    },
+    {
       "path": "components/loan-sections/BusinessApplicantSection.tsx",
       "accessCount": 16,
       "lastAccessed": 1776435695911,
@@ -300,12 +306,6 @@
       "path": "components/LearnMorePanel.tsx",
       "accessCount": 13,
       "lastAccessed": 1775678764962,
-      "type": "file"
-    },
-    {
-      "path": "components/layout/BDOLayout.tsx",
-      "accessCount": 13,
-      "lastAccessed": 1776261686911,
       "type": "file"
     },
     {
@@ -363,6 +363,12 @@
       "type": "file"
     },
     {
+      "path": "components/layout/BorrowerLayout.tsx",
+      "accessCount": 10,
+      "lastAccessed": 1776448370052,
+      "type": "file"
+    },
+    {
       "path": "app/bdo/projects/[id]/individual/[applicantId]/page.tsx",
       "accessCount": 9,
       "lastAccessed": 1775665117819,
@@ -384,6 +390,12 @@
       "path": "contexts/FirebaseAuthContext.tsx",
       "accessCount": 9,
       "lastAccessed": 1776436392692,
+      "type": "file"
+    },
+    {
+      "path": "components/layout/BDOSidebar.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1776448342341,
       "type": "file"
     },
     {
@@ -435,18 +447,6 @@
       "type": "file"
     },
     {
-      "path": "components/layout/BorrowerLayout.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1776113036930,
-      "type": "file"
-    },
-    {
-      "path": "components/layout/BDOSidebar.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1776261442950,
-      "type": "file"
-    },
-    {
       "path": "app/layout.tsx",
       "accessCount": 4,
       "lastAccessed": 1775661696205,
@@ -465,6 +465,12 @@
       "type": "file"
     },
     {
+      "path": "next.config.ts",
+      "accessCount": 4,
+      "lastAccessed": 1776448295132,
+      "type": "file"
+    },
+    {
       "path": "components/loan-sections/BusinessFilesSection.tsx",
       "accessCount": 3,
       "lastAccessed": 1775667004410,
@@ -480,12 +486,6 @@
       "path": "tailwind.config.ts",
       "accessCount": 3,
       "lastAccessed": 1775669597794,
-      "type": "file"
-    },
-    {
-      "path": "next.config.ts",
-      "accessCount": 3,
-      "lastAccessed": 1776100268059,
       "type": "file"
     },
     {

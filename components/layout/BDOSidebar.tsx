@@ -8,6 +8,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import tbankLogo from "@/public/images/TBank-logo.png";
 import { useFirebaseAuth } from "@/contexts/FirebaseAuthContext";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -80,10 +82,11 @@ export function BDOSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="data-[slot=sidebar-menu-button]:!p-1.5"
               >
                 <Link href="/bdo/projects" className="flex items-center gap-2">
-                  <img
-                    src="/images/TBank-logo.png"
+                  <Image
+                    src={tbankLogo}
                     alt="T Bank Logo"
                     className="h-6 w-auto"
+                    height={24}
                   />
                   {userRole === 'PQ Committee' && <span className="text-base font-semibold">{appTitle}</span>}
                 </Link>

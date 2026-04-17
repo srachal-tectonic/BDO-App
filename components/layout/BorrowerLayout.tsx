@@ -5,6 +5,8 @@ import { useAuth0Borrower } from "@/contexts/Auth0Context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import tbankLogo from "@/public/images/TBank-logo.png";
 
 interface BorrowerLayoutProps {
   children: React.ReactNode;
@@ -55,10 +57,11 @@ export function BorrowerLayout({ children, title }: BorrowerLayoutProps) {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-8 lg:px-16 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/borrower/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <img
-                src="/images/TBank-logo.png"
+              <Image
+                src={tbankLogo}
                 alt="T Bank Logo"
                 className="h-10 w-auto"
+                height={40}
               />
               <span className="text-sm text-[color:var(--t-color-text-secondary)]">Borrower Portal</span>
             </Link>
