@@ -147,7 +147,8 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     data: appData,
     addFinancingSource,
     removeFinancingSource,
-    updateSourcesUses,
+    updateSourcesUses7a,
+    updateDSCR,
   } = useApplication();
 
   /**
@@ -213,10 +214,31 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       }
 
       if (Object.keys(suUpdates).length > 0) {
-        updateSourcesUses(suUpdates as any);
+        updateSourcesUses7a(suUpdates as any);
       }
     }
-  }, [appData.financingSources, addFinancingSource, removeFinancingSource, updateSourcesUses]);
+
+    // ── DSCR from period data ──
+    const periods = spreadData.periodData;
+    if (Array.isArray(periods) && periods.length > 0) {
+      const dscrUpdate: Record<string, any> = {};
+      periods.slice(0, 4).forEach((period: any, i: number) => {
+        const idx = i + 1;
+        if (period.periodLabel) {
+          dscrUpdate[`period${idx}`] = period.periodLabel;
+        }
+        if (period.debtCoverageRatio != null) {
+          const val = typeof period.debtCoverageRatio === 'string'
+            ? parseFloat(period.debtCoverageRatio)
+            : period.debtCoverageRatio;
+          dscrUpdate[`dscr${idx}`] = isNaN(val) ? null : parseFloat(val.toFixed(2));
+        }
+      });
+      if (Object.keys(dscrUpdate).length > 0) {
+        updateDSCR(dscrUpdate);
+      }
+    }
+  }, [appData.financingSources, addFinancingSource, removeFinancingSource, updateSourcesUses7a, updateDSCR]);
 
   // Use a ref so loadSpreads doesn't depend on populateStoreFromSpread (avoids infinite loop)
   const populateStoreRef = useRef(populateStoreFromSpread);

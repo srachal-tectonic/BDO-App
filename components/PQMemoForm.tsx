@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2 } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import { useApplication } from '@/lib/applicationStore';
@@ -30,6 +30,71 @@ const SOURCES_USES_ROW_LABELS: Record<string, string> = {
   closingCosts: 'Closing Costs',
   other: 'Other',
 };
+
+function BDOSummaryEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isInternalChange = useRef(false);
+
+  // Initialize editor content
+  useEffect(() => {
+    if (editorRef.current && !isInternalChange.current) {
+      if (editorRef.current.innerHTML !== value) {
+        editorRef.current.innerHTML = value || '';
+      }
+    }
+  }, [value]);
+
+  const handleInput = useCallback(() => {
+    if (editorRef.current) {
+      isInternalChange.current = true;
+      onChange(editorRef.current.innerHTML);
+      requestAnimationFrame(() => { isInternalChange.current = false; });
+    }
+  }, [onChange]);
+
+  const execCommand = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    handleInput();
+  };
+
+  const toolbarBtnClass = "px-2.5 py-1 rounded hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors text-xs font-medium flex items-center gap-1";
+
+  return (
+    <div className="border border-[#d1d5db] rounded-lg overflow-hidden bg-white">
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#e5e7eb] bg-[#f9fafb]">
+        <button type="button" onClick={() => execCommand('bold')} className={toolbarBtnClass} title="Bold">
+          Bold
+        </button>
+        <button type="button" onClick={() => execCommand('italic')} className={toolbarBtnClass} title="Italic">
+          Italic
+        </button>
+        <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+        <button type="button" onClick={() => execCommand('insertUnorderedList')} className={toolbarBtnClass} title="Bullet List">
+          Bullet
+        </button>
+        <button type="button" onClick={() => execCommand('insertOrderedList')} className={toolbarBtnClass} title="Numbered List">
+          Numbered List
+        </button>
+        <div className="w-px h-5 bg-[#d1d5db] mx-1" />
+        <button type="button" onClick={() => execCommand('formatBlock', '<h3>')} className={toolbarBtnClass} title="Heading">
+          Heading
+        </button>
+      </div>
+
+      {/* Editable area */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        className="min-h-[400px] px-4 py-3 text-[15px] text-[#1a1a1a] font-sans outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-[#9ca3af] [&:empty]:before:pointer-events-none prose prose-sm max-w-none"
+        data-placeholder="Write your thoughts on this deal..."
+        data-testid="editor-bdo-summary"
+      />
+    </div>
+  );
+}
 
 export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   const { data: applicationData, updateProjectOverview } = useApplication();
@@ -574,80 +639,12 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
                   BDO Summary
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  Executive summary and notes for Business Development Officers.
-                </p>
               </div>
 
-              <div className="mb-6">
-                <label htmlFor="pq-project-description" className="block text-sm font-medium text-[#374151] mb-1.5">
-                  Project Description
-                </label>
-                <textarea
-                  id="pq-project-description"
-                  value={projectOverview.projectDescription || ''}
-                  onChange={(e) => updateProjectOverview({ projectDescription: e.target.value })}
-                  placeholder="Provide a brief description of the project, including the purpose of the loan and how the funds will be used"
-                  className="w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-[15px] text-[#1a1a1a] transition-all bg-white shadow-none outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] min-h-[100px] resize-vertical font-sans placeholder:text-[#9ca3af]"
-                  data-testid="textarea-project-description"
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Affiliates / Corporate Guarantors</h3>
-                <textarea
-                  value={projectOverview.affiliatesCorporateGuarantors || ''}
-                  onChange={(e) => updateProjectOverview({ affiliatesCorporateGuarantors: e.target.value })}
-                  placeholder="List any affiliates or corporate guarantors..."
-                  className="w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-[15px] text-[#1a1a1a] transition-all bg-white shadow-none outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] min-h-[100px] resize-vertical font-sans placeholder:text-[#9ca3af]"
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Why this loan would be a good fit for T Bank?</h3>
-
-                <button
-                  onClick={() => setGoodFitHelpExpanded(!goodFitHelpExpanded)}
-                  className="mb-3 text-xs text-[#2563eb] hover:text-[#1d4ed8] font-medium flex items-center gap-1"
-                  data-testid="button-expand-good-fit-help"
-                >
-                  {goodFitHelpExpanded ? 'Hide' : 'View'} guidance
-                  <ChevronDown className={`w-3 h-3 transition-transform ${goodFitHelpExpanded ? 'rotate-180' : ''}`} />
-                </button>
-
-                {goodFitHelpExpanded && (
-                  <div className="mb-3 p-3 bg-[#f8f9fb] rounded-lg border border-gray-200 text-sm text-gray-600">
-                    Summarize the most compelling aspects of the borrower, business and structure.
-                  </div>
-                )}
-
-                <textarea
-                  value={projectOverview.goodFitSummary || ''}
-                  onChange={(e) => updateProjectOverview({ goodFitSummary: e.target.value })}
-                  placeholder="Explain why this loan is a good fit for T Bank..."
-                  className="w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-[15px] text-[#1a1a1a] transition-all bg-white shadow-none outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] min-h-[120px] resize-vertical font-sans placeholder:text-[#9ca3af]"
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Describe weaknesses of this loan</h3>
-                <textarea
-                  value={projectOverview.loanWeaknesses || ''}
-                  onChange={(e) => updateProjectOverview({ loanWeaknesses: e.target.value })}
-                  placeholder="Describe any weaknesses, risks, or concerns with this loan..."
-                  className="w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-[15px] text-[#1a1a1a] transition-all bg-white shadow-none outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] min-h-[120px] resize-vertical font-sans placeholder:text-[#9ca3af]"
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">BDO Comments</h3>
-                <textarea
-                  value={projectOverview.bdoComments || ''}
-                  onChange={(e) => updateProjectOverview({ bdoComments: e.target.value })}
-                  placeholder="Add any additional BDO comments or notes..."
-                  className="w-full px-3 py-2 border border-[#d1d5db] rounded-lg text-[15px] text-[#1a1a1a] transition-all bg-white shadow-none outline-none focus:border-[#2563eb] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] min-h-[120px] resize-vertical font-sans placeholder:text-[#9ca3af]"
-                />
-              </div>
+              <BDOSummaryEditor
+                value={projectOverview.bdoComments || ''}
+                onChange={(html) => updateProjectOverview({ bdoComments: html })}
+              />
             </div>
           </TabsContent>
 
