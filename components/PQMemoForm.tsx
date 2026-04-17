@@ -6,7 +6,7 @@ import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Ital
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import { useApplication } from '@/lib/applicationStore';
-import type { SourcesUsesRow } from '@/lib/schema';
+
 
 interface PQMemoFormProps {
   projectId: string;
@@ -169,11 +169,11 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
            creditScoring.collateral + creditScoring.credit + creditScoring.liquidity;
   };
 
-  // Extract row data from SourcesUses (which stores rows as SourcesUsesRow objects)
-  const getRow = (key: string): SourcesUsesRow => {
+  // Extract row data from SourcesUses (dynamic column keys)
+  const getRow = (key: string): Record<string, any> => {
     const row = (sourcesUses as Record<string, unknown>)?.[key];
     if (row && typeof row === 'object' && !Array.isArray(row)) {
-      return row as SourcesUsesRow;
+      return row as Record<string, any>;
     }
     return {};
   };
@@ -198,21 +198,34 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
     if (projectId) fetchFinancingSources();
   }, [projectId]);
 
+  // Build dynamic S&U columns from financing sources in the store, deduplicating
+  const financingSources = applicationData.financingSources || [];
+  const suColumns = financingSources.length > 0
+    ? (() => {
+        const counts: Record<string, number> = {};
+        return financingSources.map(fs => {
+          const base = fs.financingType || fs.id;
+          counts[base] = (counts[base] || 0) + 1;
+          return counts[base] > 1 ? `${base} (${counts[base]})` : base;
+        });
+      })()
+    : ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty']; // fallback
+
   const calculateSourcesUsesTotals = () => {
-    const colKeys = ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty'] as const;
-    const totals: Record<string, number> = { tBankLoan: 0, borrower: 0, sellerNote: 0, thirdParty: 0 };
+    const totals: Record<string, number> = {};
+    for (const col of suColumns) totals[col] = 0;
 
     for (const rowKey of SOURCES_USES_ROW_KEYS) {
       const row = getRow(rowKey);
-      for (const col of colKeys) {
+      for (const col of suColumns) {
         totals[col] += (row[col] || 0);
       }
     }
 
-    const grandTotal = totals.tBankLoan + totals.borrower + totals.sellerNote + totals.thirdParty;
+    const grandTotal = Object.values(totals).reduce((sum, v) => sum + v, 0);
 
     const percentages: Record<string, number> = {};
-    for (const col of colKeys) {
+    for (const col of suColumns) {
       percentages[col] = grandTotal > 0 ? (totals[col] / grandTotal) * 100 : 0;
     }
 
@@ -554,44 +567,40 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white">
                   <tr>
                     <th className="text-left py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Use Category</th>
-                    <th className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">T Bank Loan</th>
-                    <th className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Borrower</th>
-                    <th className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Seller Note</th>
-                    <th className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Third Party</th>
+                    {suColumns.map(col => (
+                      <th key={col} className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">{col}</th>
+                    ))}
                     <th className="text-right py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="bg-blue-50">
                     <td className="py-2 px-2 text-[13px] font-semibold text-blue-700">%</td>
-                    <td className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{formatPercent(percentages.tBankLoan)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{formatPercent(percentages.borrower)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{formatPercent(percentages.sellerNote)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{formatPercent(percentages.thirdParty)}</td>
+                    {suColumns.map(col => (
+                      <td key={col} className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{formatPercent(percentages[col])}</td>
+                    ))}
                     <td className="py-2 px-2 text-[13px] text-right font-semibold text-blue-700">{grandTotal > 0 ? '100%' : '-'}</td>
                   </tr>
                   {SOURCES_USES_ROW_KEYS.map((rowKey) => {
                     const row = getRow(rowKey);
-                    const rowTotal = (row.tBankLoan || 0) + (row.borrower || 0) + (row.sellerNote || 0) + (row.thirdParty || 0);
+                    const rowTotal = suColumns.reduce((sum, col) => sum + (row[col] || 0), 0);
                     if (rowTotal === 0) return null;
 
                     return (
                       <tr key={rowKey} className="bg-white border-b border-gray-200 hover:bg-gray-50">
                         <td className="py-2 px-2 text-[13px] font-medium text-gray-700">{SOURCES_USES_ROW_LABELS[rowKey]}</td>
-                        <td className="py-2 px-2 text-[13px] text-right">{(row.tBankLoan || 0) > 0 ? formatCurrency(row.tBankLoan) : ''}</td>
-                        <td className="py-2 px-2 text-[13px] text-right">{(row.borrower || 0) > 0 ? formatCurrency(row.borrower) : ''}</td>
-                        <td className="py-2 px-2 text-[13px] text-right">{(row.sellerNote || 0) > 0 ? formatCurrency(row.sellerNote) : ''}</td>
-                        <td className="py-2 px-2 text-[13px] text-right">{(row.thirdParty || 0) > 0 ? formatCurrency(row.thirdParty) : ''}</td>
+                        {suColumns.map(col => (
+                          <td key={col} className="py-2 px-2 text-[13px] text-right">{(row[col] || 0) > 0 ? formatCurrency(row[col]) : ''}</td>
+                        ))}
                         <td className="py-2 px-2 text-[13px] text-right font-medium">{formatCurrency(rowTotal)}</td>
                       </tr>
                     );
                   })}
                   <tr className="bg-gray-50 border-t-2 border-gray-700 font-semibold">
                     <td className="py-2 px-2 text-[13px] text-gray-700">Total</td>
-                    <td className="py-2 px-2 text-[13px] text-right text-gray-700">{formatCurrency(totals.tBankLoan)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right text-gray-700">{formatCurrency(totals.borrower)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right text-gray-700">{formatCurrency(totals.sellerNote)}</td>
-                    <td className="py-2 px-2 text-[13px] text-right text-gray-700">{formatCurrency(totals.thirdParty)}</td>
+                    {suColumns.map(col => (
+                      <td key={col} className="py-2 px-2 text-[13px] text-right text-gray-700">{formatCurrency(totals[col])}</td>
+                    ))}
                     <td className="py-2 px-2 text-[13px] text-right text-gray-700 font-semibold">{formatCurrency(grandTotal)}</td>
                   </tr>
                 </tbody>

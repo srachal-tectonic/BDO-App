@@ -7,23 +7,28 @@ import type { SourcesUses } from '@/lib/schema';
 // Table type identifier for the three Sources & Uses tables
 export type SourcesUsesTableType = '7a' | '504' | 'express';
 
-// Column definitions for the Sources & Uses matrix
-const SOURCE_COLUMNS = [
+// Column definition
+export interface SourceColumn {
+  key: string;
+  label: string;
+}
+
+// Default columns when no dynamic columns are provided
+const DEFAULT_SOURCE_COLUMNS: SourceColumn[] = [
   { key: 'tBankLoan', label: 'SBA 7(a) Standard' },
   { key: 'sba504', label: 'SBA 504' },
   { key: 'cdcDebenture', label: 'CDC Debenture' },
   { key: 'sellerNote', label: 'Seller Note' },
   { key: 'thirdParty', label: '3rd Party' },
   { key: 'equity', label: 'Equity' },
-] as const;
-
-type SourceColumnKey = typeof SOURCE_COLUMNS[number]['key'];
+];
 
 interface SourcesUsesMatrixProps {
   isReadOnly?: boolean;
   sourcesUses: SourcesUses;
   updateSourcesUses: (updates: Partial<SourcesUses>) => void;
   tableType?: SourcesUsesTableType;
+  columns?: SourceColumn[];
 }
 
 export default function SourcesUsesMatrix({
@@ -31,10 +36,13 @@ export default function SourcesUsesMatrix({
   sourcesUses,
   updateSourcesUses,
   tableType = '7a',
+  columns,
 }: SourcesUsesMatrixProps) {
   const [hideEmpty, setHideEmpty] = useState(true);
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const sourceColumns = columns || DEFAULT_SOURCE_COLUMNS;
 
   const formatCurrency = (value: number) => {
     return value === 0 ? '' : value.toLocaleString();
@@ -46,19 +54,19 @@ export default function SourcesUsesMatrix({
     return isNaN(num) || cleaned === '' ? 0 : num;
   };
 
-  const handleFocus = (category: keyof SourcesUses, source: SourceColumnKey) => {
+  const handleFocus = (category: string, source: string) => {
     const cellKey = `${category}-${source}`;
     setEditingCell(cellKey);
-    const categoryData = sourcesUses[category] as Record<string, number> | undefined;
+    const categoryData = (sourcesUses as any)[category] as Record<string, number> | undefined;
     const currentValue = categoryData?.[source] || 0;
     setEditValue(currentValue === 0 ? '' : currentValue.toString());
   };
 
-  const handleBlur = (category: keyof SourcesUses, source: SourceColumnKey) => {
+  const handleBlur = (category: string, source: string) => {
     const numValue = parseCurrency(editValue);
     updateSourcesUses({
       [category]: {
-        ...(sourcesUses[category] as any),
+        ...((sourcesUses as any)[category] as any),
         [source]: numValue,
       },
     } as any);
@@ -71,33 +79,33 @@ export default function SourcesUsesMatrix({
     setEditValue(cleaned);
   };
 
-  const getCellValue = (category: keyof SourcesUses, source: SourceColumnKey) => {
+  const getCellValue = (category: string, source: string) => {
     const cellKey = `${category}-${source}`;
     if (editingCell === cellKey) {
       return editValue;
     }
-    const categoryData = sourcesUses[category] as Record<string, number> | undefined;
+    const categoryData = (sourcesUses as any)[category] as Record<string, number> | undefined;
     return formatCurrency(categoryData?.[source] || 0);
   };
 
-  const getRowTotal = (category: keyof SourcesUses) => {
-    const row = sourcesUses[category] as Record<string, number> | undefined;
+  const getRowTotal = (category: string) => {
+    const row = (sourcesUses as any)[category] as Record<string, number> | undefined;
     if (!row || typeof row === 'number') return 0;
-    return SOURCE_COLUMNS.reduce((sum, col) => sum + (row[col.key] || 0), 0);
+    return sourceColumns.reduce((sum, col) => sum + (row[col.key] || 0), 0);
   };
 
-  const getColumnTotal = (source: SourceColumnKey) => {
+  const getColumnTotal = (source: string) => {
     return rows.reduce((sum, row) => {
-      const categoryData = sourcesUses[row.key] as Record<string, number> | undefined;
+      const categoryData = (sourcesUses as any)[row.key] as Record<string, number> | undefined;
       return sum + (categoryData?.[source] || 0);
     }, 0);
   };
 
   const getGrandTotal = () => {
-    return SOURCE_COLUMNS.reduce((sum, col) => sum + getColumnTotal(col.key), 0);
+    return sourceColumns.reduce((sum, col) => sum + getColumnTotal(col.key), 0);
   };
 
-  const getRowPercentage = (category: keyof SourcesUses) => {
+  const getRowPercentage = (category: string) => {
     const grandTotal = getGrandTotal();
     if (grandTotal === 0) return '0%';
     const rowTotal = getRowTotal(category);
@@ -105,7 +113,7 @@ export default function SourcesUsesMatrix({
     return percentage.toFixed(1) + '%';
   };
 
-  const rows: { label: string; key: keyof SourcesUses }[] = [
+  const rows = [
     { label: 'Real Estate Acquisition', key: 'realEstate' },
     { label: 'Debt Refi - CRE', key: 'debtRefiCRE' },
     { label: 'Debt Refi - Non-CRE', key: 'debtRefiNonCRE' },
@@ -152,7 +160,7 @@ export default function SourcesUsesMatrix({
           <thead>
             <tr>
               <th className={headerClass}>Use Category</th>
-              {SOURCE_COLUMNS.map(col => (
+              {sourceColumns.map(col => (
                 <th key={col.key} className={headerClass}>{col.label}</th>
               ))}
               <th className={headerClass}>Total</th>
@@ -165,7 +173,7 @@ export default function SourcesUsesMatrix({
                 <td className="px-1 py-1 border-b border-[var(--t-color-border)] font-medium text-[color:var(--t-color-text-body)] text-sm">
                   {row.label}
                 </td>
-                {SOURCE_COLUMNS.map(col => (
+                {sourceColumns.map(col => (
                   <td key={col.key} className="px-1 py-1 border-b border-[var(--t-color-border)]">
                     <input
                       type="text"
@@ -202,7 +210,7 @@ export default function SourcesUsesMatrix({
             {getGrandTotal() > 0 && (
               <tr className="font-semibold">
                 <td className="px-1 py-1 font-medium text-[color:var(--t-color-text-body)] text-sm">Total</td>
-                {SOURCE_COLUMNS.map(col => (
+                {sourceColumns.map(col => (
                   <td key={col.key} className="px-1 py-1">
                     <input
                       type="text"

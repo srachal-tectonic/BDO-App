@@ -110,10 +110,10 @@ function cellVal(ws: XLSX.WorkSheet, r: number, c: number): any {
 export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
   const wb = XLSX.read(buffer, { type: 'buffer' });
 
-  const ws = wb.Sheets['Financial Spread'];
+  const ws = wb.Sheets['Financial Spread'] || wb.Sheets['Financial Spreads'];
   if (!ws) {
     throw new Error(
-      'Sheet "Financial Spread" not found. Available sheets: ' +
+      'Sheet "Financial Spread" or "Financial Spreads" not found. Available sheets: ' +
         wb.SheetNames.join(', ')
     );
   }

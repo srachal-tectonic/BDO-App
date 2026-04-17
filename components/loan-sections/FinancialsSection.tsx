@@ -163,13 +163,17 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       const existing = appData.financingSources || [];
       existing.forEach((s: StoreFinancingSource) => removeFinancingSource(s.id));
 
-      // Add new ones from spreadsheet
+      // Add new ones from spreadsheet (deduplicate financing type names)
+      const fsCounts: Record<string, number> = {};
       parsedSources.forEach((src: any, i: number) => {
         const baseRate = toRate(src.baseRate);
         const spreadVal = toRate(src.spread);
+        const baseName = mapFinancingType(src.financingSource || src.label || '');
+        fsCounts[baseName] = (fsCounts[baseName] || 0) + 1;
+        const financingType = fsCounts[baseName] > 1 ? `${baseName} (${fsCounts[baseName]})` : baseName;
         addFinancingSource({
           id: `fs-import-${i}-${Date.now()}`,
-          financingType: mapFinancingType(src.financingSource || src.label || ''),
+          financingType,
           guaranteePercent: toPercent(src.guaranteePercent),
           amount: toNumber(src.amount),
           rateType: String(src.rateType || '').toLowerCase() === 'variable' ? 'variable'
@@ -187,24 +191,31 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     const parsedSU = spreadData.sourcesUses;
     const parsedHeaders = spreadData.sourcesUsesHeaders;
     if (Array.isArray(parsedSU) && parsedSU.length > 0 && Array.isArray(parsedHeaders)) {
-      // Build column key mapping from parsed headers
-      const colMap: Record<string, string> = {};
-      for (const header of parsedHeaders) {
-        const storeKey = mapSuColumn(header);
-        if (storeKey) colMap[header] = storeKey;
-      }
+      // Use the source names directly as column keys (excluding "Total")
+      const validHeaders = parsedHeaders.filter(
+        (h: string) => h.trim().toLowerCase() !== 'total'
+      );
 
-      // Build sourcesUses update
+      // Build deduplicated column keys matching what financing sources use
+      const headerCounts: Record<string, number> = {};
+      const mappedHeaders = validHeaders.map((h: string) => {
+        const mapped = mapFinancingType(h);
+        headerCounts[mapped] = (headerCounts[mapped] || 0) + 1;
+        const colKey = headerCounts[mapped] > 1 ? `${mapped} (${headerCounts[mapped]})` : mapped;
+        return { original: h, colKey };
+      });
+
+      // Build sourcesUses update using deduplicated keys
       const suUpdates: Record<string, any> = {};
       for (const row of parsedSU) {
         const categoryKey = mapSuRow(row.label);
         if (!categoryKey) continue;
 
         const rowData: Record<string, number> = {};
-        for (const [header, storeCol] of Object.entries(colMap)) {
-          const val = row.values?.[header];
+        for (const { original, colKey } of mappedHeaders) {
+          const val = row.values?.[original];
           if (typeof val === 'number' && val !== 0) {
-            rowData[storeCol] = val;
+            rowData[colKey] = val;
           }
         }
 

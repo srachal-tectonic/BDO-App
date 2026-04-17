@@ -297,6 +297,12 @@
       "type": "file"
     },
     {
+      "path": "components/loan-sections/FundingStructureSection.tsx",
+      "accessCount": 16,
+      "lastAccessed": 1776458219616,
+      "type": "file"
+    },
+    {
       "path": "components/loan-sections/OtherOwnedBusinessesSection.tsx",
       "accessCount": 13,
       "lastAccessed": 1775676994423,
@@ -330,12 +336,6 @@
       "path": "components/loan-sections/SBAEligibilitySection.tsx",
       "accessCount": 12,
       "lastAccessed": 1776440706519,
-      "type": "file"
-    },
-    {
-      "path": "components/loan-sections/FundingStructureSection.tsx",
-      "accessCount": 11,
-      "lastAccessed": 1775682322523,
       "type": "file"
     },
     {

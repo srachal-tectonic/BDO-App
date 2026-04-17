@@ -19,8 +19,22 @@ interface FundingStructureSectionProps {
 }
 
 export default function FundingStructureSection({ isReadOnly = false }: FundingStructureSectionProps) {
-  const { data, updateSourcesUses } = useApplication();
-  const { sourcesUses } = data;
+  const { data, updateSourcesUses7a } = useApplication();
+  const sourcesUses = data.sourcesUses7a;
+
+  // Build dynamic S&U columns from financing sources, deduplicating keys
+  const financingSources = data.financingSources || [];
+  const dynamicColumns = financingSources.length > 0
+    ? (() => {
+        const counts: Record<string, number> = {};
+        return financingSources.map(fs => {
+          const base = fs.financingType || fs.id;
+          counts[base] = (counts[base] || 0) + 1;
+          const key = counts[base] > 1 ? `${base} (${counts[base]})` : base;
+          return { key, label: key };
+        });
+      })()
+    : undefined; // undefined = use defaults
 
   const [dscrPeriod1, setDscrPeriod1] = useState('2022');
   const [dscrPeriod2, setDscrPeriod2] = useState('2023');
@@ -61,7 +75,7 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
         </div>
 
         <CollapsibleSection title="Sources and Uses">
-          <SourcesUsesMatrix isReadOnly={isReadOnly} sourcesUses={sourcesUses as any} updateSourcesUses={updateSourcesUses} />
+          <SourcesUsesMatrix isReadOnly={isReadOnly} sourcesUses={sourcesUses as any} updateSourcesUses={updateSourcesUses7a} columns={dynamicColumns} />
 
           <div className="mt-6 max-w-md">
             <label className="block text-sm font-semibold text-[#1a1a1a] mb-2">

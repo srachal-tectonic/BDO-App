@@ -1,7 +1,7 @@
 {
-  "tool_name": "Read",
-  "tool_input_preview": "{\"file_path\":\"/mnt/c/Users/srachal/Desktop/BDO App April/app/bdo/admin/page.tsx\"}",
-  "error": "File content (66833 tokens) exceeds maximum allowed tokens (25000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.",
-  "timestamp": "2026-04-17T14:21:01.891Z",
+  "tool_name": "Grep",
+  "tool_input_preview": "{\"pattern\":\"function SourcesUsesMatrix|SourcesUsesMatrix\",\"output_mode\":\"files_with_matches\"}",
+  "error": "spawn /home/shane/.nvm/versions/node/v24.6.0/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg ENOENT",
+  "timestamp": "2026-04-17T20:22:12.678Z",
   "retry_count": 2
 }
