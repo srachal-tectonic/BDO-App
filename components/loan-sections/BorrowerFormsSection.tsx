@@ -846,75 +846,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         </Card>
       )}
 
-      {/* Portal Link Section — temporarily hidden */}
-      {false && forms.length > 0 && (
+      {/* Portal Link Section — temporarily hidden
+      {forms.length > 0 && (
         <Card className="bg-[var(--t-color-info-bg)] border-[var(--t-color-info-border)]">
-          <CardContent className="p-6">
-            <h3 className="font-medium text-[color:var(--t-color-text-primary)] mb-2 flex items-center gap-2">
-              <Send className="w-4 h-4" />
-              Share with Borrower
-            </h3>
-            <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-4">
-              Copy the portal link below and send it to your borrower. They can download, fill out,
-              and upload all required forms through this secure portal.
-            </p>
-
-            {portalToken?.hasToken && !portalToken.isExpired && !portalToken.isRevoked ? (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <code className="flex-1 bg-[var(--t-color-card-bg)] px-3 py-2 rounded border border-[var(--t-color-info-border)] text-sm text-[color:var(--t-color-text-primary)] overflow-x-auto">
-                    {getPortalUrl()}
-                  </code>
-                  <Button
-                    size="sm"
-                    onClick={copyPortalLink}
-                    className="gap-2 flex-shrink-0 bg-[var(--t-color-primary)] hover:bg-[var(--t-color-primary-light)] text-white"
-                    data-testid="button-copy-portal-link"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy
-                  </Button>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  {portalToken.expiresAt && (
-                    <span className="text-[color:var(--t-color-text-secondary)]">
-                      Expires: {new Date(portalToken.expiresAt).toLocaleDateString()}
-                    </span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRegenerateToken}
-                    disabled={isRegeneratingToken}
-                    className="gap-2 text-[color:var(--t-color-primary-light)] hover:text-[color:var(--t-color-primary)] hover:bg-[var(--t-color-primary-palest)]"
-                  >
-                    {isRegeneratingToken ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4" />
-                    )}
-                    Regenerate Link
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-[color:var(--t-color-text-secondary)]">
-                  {portalToken?.isExpired ? 'Link has expired.' : portalToken?.isRevoked ? 'Link has been revoked.' : 'No portal link generated yet.'}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={copyPortalLink}
-                  className="gap-2 bg-[var(--t-color-primary)] hover:bg-[var(--t-color-primary-light)] text-white"
-                >
-                  <Copy className="w-4 h-4" />
-                  Generate & Copy Link
-                </Button>
-              </div>
-            )}
-          </CardContent>
+          ...Share with Borrower card...
         </Card>
       )}
+      */}
 
     </div>
   );
