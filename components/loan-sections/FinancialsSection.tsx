@@ -163,14 +163,13 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       const existing = appData.financingSources || [];
       existing.forEach((s: StoreFinancingSource) => removeFinancingSource(s.id));
 
-      // Add new ones from spreadsheet (deduplicate financing type names)
-      const fsCounts: Record<string, number> = {};
+      // Add new ones from spreadsheet. Keep the mapped base name (e.g. "SBA 7(a) Standard")
+      // so the Financing Type <select> matches an <option>. Column-key dedup happens downstream
+      // in FundingStructureSection and in the S&U header mapping below.
       parsedSources.forEach((src: any, i: number) => {
         const baseRate = toRate(src.baseRate);
         const spreadVal = toRate(src.spread);
-        const baseName = mapFinancingType(src.financingSource || src.label || '');
-        fsCounts[baseName] = (fsCounts[baseName] || 0) + 1;
-        const financingType = fsCounts[baseName] > 1 ? `${baseName} (${fsCounts[baseName]})` : baseName;
+        const financingType = mapFinancingType(src.financingSource || src.label || '');
         addFinancingSource({
           id: `fs-import-${i}-${Date.now()}`,
           financingType,

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776435469656,
+  "lastScanned": 1776693403831,
   "projectRoot": "/mnt/c/Users/srachal/Desktop/BDO App April",
   "techStack": {
     "languages": [
@@ -58,7 +58,7 @@
   },
   "conventions": {
     "namingStyle": "camelCase",
-    "importStyle": null,
+    "importStyle": "ES modules",
     "testPattern": null,
     "fileOrganization": null
   },
@@ -68,6 +68,7 @@
     "mainDirectories": [
       "app",
       "components",
+      "docs",
       "lib",
       "public",
       "scripts"
@@ -80,7 +81,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1776435469589,
+      "lastAccessed": 1776693403656,
       "keyFiles": [
         "favicon.ico",
         "globals.css",
@@ -91,32 +92,41 @@
     "components": {
       "path": "components",
       "purpose": "UI components",
-      "fileCount": 10,
-      "lastAccessed": 1776435469600,
+      "fileCount": 12,
+      "lastAccessed": 1776693403701,
       "keyFiles": [
+        "AuditTimeline.tsx",
         "ConfirmDialog.tsx",
         "CreditMatrixScoring.tsx",
         "FinancialAnalysisPanel.tsx",
-        "LearnMorePanel.tsx",
-        "PQMemoForm.tsx"
+        "GlobalAuditTrail.tsx"
       ]
     },
     "contexts": {
       "path": "contexts",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1776435469606,
+      "lastAccessed": 1776693403710,
       "keyFiles": [
         "Auth0Context.tsx",
         "FirebaseAuthContext.tsx",
         "ThemeContext.tsx"
       ]
     },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1776693403721,
+      "keyFiles": [
+        "AUDIT-LOGGING-PLAN.md"
+      ]
+    },
     "hooks": {
       "path": "hooks",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776435469610,
+      "lastAccessed": 1776693403729,
       "keyFiles": [
         "use-mobile.tsx",
         "use-toast.ts"
@@ -125,21 +135,21 @@
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 22,
-      "lastAccessed": 1776435469613,
+      "fileCount": 24,
+      "lastAccessed": 1776693403736,
       "keyFiles": [
         "apiAuth.ts",
         "apiSecurityHeaders.ts",
         "applicationStore.ts",
-        "auditLog.ts",
-        "authenticatedFetch.ts"
+        "auditDiff.ts",
+        "auditLog.ts"
       ]
     },
     "openspec": {
       "path": "openspec",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776435469615,
+      "lastAccessed": 1776693403743,
       "keyFiles": [
         "AGENTS.md",
         "project.md"
@@ -149,7 +159,7 @@
       "path": "pdfs",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1776435469618,
+      "lastAccessed": 1776693403754,
       "keyFiles": [
         "Blanks_Business_Questionnaire.pdf",
         "Blanks_Individual_Applicant.pdf",
@@ -161,7 +171,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1776435469624,
+      "lastAccessed": 1776693403765,
       "keyFiles": [
         "404.html",
         "file.svg",
@@ -174,7 +184,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1776435469630,
+      "lastAccessed": 1776693403775,
       "keyFiles": [
         "diagnose-pdf-extraction.mjs",
         "extract-pdf-fields.ts",
@@ -187,7 +197,7 @@
       "path": "services",
       "purpose": "Business logic services",
       "fileCount": 4,
-      "lastAccessed": 1776435469635,
+      "lastAccessed": 1776693403788,
       "keyFiles": [
         "brokerTokens.ts",
         "firestore.ts",
@@ -198,19 +208,18 @@
     "sheets": {
       "path": "sheets",
       "purpose": null,
-      "fileCount": 3,
-      "lastAccessed": 1776435469637,
+      "fileCount": 2,
+      "lastAccessed": 1776693403798,
       "keyFiles": [
-        "BDO Spread Template Newest.xlsx",
-        "Ferrell Electric Spreads - Full Import.xlsm",
-        "Spreads Template.xlsx"
+        "IMPORT TEST_New BDO Pre-Qual_04.2026.xlsx",
+        "New BDO Pre-Qual_04.2026 - V50414.xlsx"
       ]
     },
     "types": {
       "path": "types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1776435469640,
+      "lastAccessed": 1776693403802,
       "keyFiles": [
         "index.ts"
       ]
@@ -219,7 +228,7 @@
       "path": "app/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1776435469643,
+      "lastAccessed": 1776693403811,
       "keyFiles": []
     }
   },
@@ -291,15 +300,15 @@
       "type": "file"
     },
     {
-      "path": "components/loan-sections/BusinessApplicantSection.tsx",
-      "accessCount": 16,
-      "lastAccessed": 1776435695911,
+      "path": "components/loan-sections/FundingStructureSection.tsx",
+      "accessCount": 17,
+      "lastAccessed": 1776695842345,
       "type": "file"
     },
     {
-      "path": "components/loan-sections/FundingStructureSection.tsx",
+      "path": "components/loan-sections/BusinessApplicantSection.tsx",
       "accessCount": 16,
-      "lastAccessed": 1776458219616,
+      "lastAccessed": 1776435695911,
       "type": "file"
     },
     {
