@@ -52,14 +52,14 @@ function initFieldMap() {
   registerField('ba_entityType', 'businessApplicant', 'entityType', 'text');
   registerField('ba_ein', 'businessApplicant', 'ein', 'text');
   registerField('ba_website', 'businessApplicant', 'website', 'text');
-  registerField('ba_businessStreet', 'businessApplicant', 'businessAddress.street', 'text');
+  registerField('ba_businessStreet', 'businessApplicant', 'businessAddress.street1', 'text');
   registerField('ba_businessCity', 'businessApplicant', 'businessAddress.city', 'text');
   registerField('ba_businessState', 'businessApplicant', 'businessAddress.state', 'text');
-  registerField('ba_businessZip', 'businessApplicant', 'businessAddress.zip', 'text');
-  registerField('ba_projectStreet', 'businessApplicant', 'projectAddress.street', 'text');
+  registerField('ba_businessZip', 'businessApplicant', 'businessAddress.zipCode', 'text');
+  registerField('ba_projectStreet', 'businessApplicant', 'projectAddress.street1', 'text');
   registerField('ba_projectCity', 'businessApplicant', 'projectAddress.city', 'text');
   registerField('ba_projectState', 'businessApplicant', 'projectAddress.state', 'text');
-  registerField('ba_projectZip', 'businessApplicant', 'projectAddress.zip', 'text');
+  registerField('ba_projectZip', 'businessApplicant', 'projectAddress.zipCode', 'text');
   registerField('ba_otherOwners', 'businessApplicant', 'otherOwners', 'text');
 
   for (let i = 0; i < 5; i++) {
@@ -79,10 +79,10 @@ function initFieldMap() {
         f === 'ssn' ? 'ssn' : f === 'ownershipPercentage' ? 'percentage' : 'text'
       );
     }
-    registerField(`${prefix}homeStreet`, section, `${pathPrefix}homeAddress.street`, 'text');
+    registerField(`${prefix}homeStreet`, section, `${pathPrefix}homeAddress.street1`, 'text');
     registerField(`${prefix}homeCity`, section, `${pathPrefix}homeAddress.city`, 'text');
     registerField(`${prefix}homeState`, section, `${pathPrefix}homeAddress.state`, 'text');
-    registerField(`${prefix}homeZip`, section, `${pathPrefix}homeAddress.zip`, 'text');
+    registerField(`${prefix}homeZip`, section, `${pathPrefix}homeAddress.zipCode`, 'text');
 
     registerField(`ba_own${i}_firstName`, 'individualApplicants', `${i}.firstName`, 'text');
     registerField(`ba_own${i}_lastName`, 'individualApplicants', `${i}.lastName`, 'text');
@@ -158,17 +158,77 @@ function initFieldMap() {
   registerField('po_secondaryPurposes', 'projectOverview', 'secondaryProjectPurposes', 'text');
   registerField('po_projectDescription', 'projectOverview', 'projectDescription', 'text');
 
-  registerField('si_legalName', 'sellerInfo', 'legalName', 'text');
+  // ----- Business Acquisition -----
+  registerField('si_legalName', 'sellerInfo', 'sellerName', 'text');
   registerField('si_dbaName', 'sellerInfo', 'dbaName', 'text');
   registerField('si_contactName', 'sellerInfo', 'contactName', 'text');
-  registerField('si_phone', 'sellerInfo', 'phone', 'text');
-  registerField('si_email', 'sellerInfo', 'email', 'text');
+  registerField('si_phone', 'sellerInfo', 'sellerPhone', 'text');
+  registerField('si_email', 'sellerInfo', 'sellerEmail', 'text');
   registerField('si_website', 'sellerInfo', 'website', 'text');
   registerField('si_typeOfAcquisition', 'sellerInfo', 'typeOfAcquisition', 'text');
   registerField('si_purchasing100Percent', 'sellerInfo', 'purchasing100Percent', 'text');
   registerField('si_purchaseContractStatus', 'sellerInfo', 'purchaseContractStatus', 'text');
   registerField('si_hasSellerCarryNote', 'sellerInfo', 'hasSellerCarryNote', 'text');
   registerField('si_businessDescription', 'sellerInfo', 'businessDescription', 'text');
+
+  // ----- CRE: Construction -----
+  registerField('si_creCon_street', 'sellerInfo', 'constructionAddress.street1', 'text');
+  registerField('si_creCon_city', 'sellerInfo', 'constructionAddress.city', 'text');
+  registerField('si_creCon_state', 'sellerInfo', 'constructionAddress.state', 'text');
+  registerField('si_creCon_zip', 'sellerInfo', 'constructionAddress.zipCode', 'text');
+  registerField('si_creCon_landAlreadyOwned', 'sellerInfo', 'landOwned', 'text');
+  registerField('si_creCon_currentLandValue', 'sellerInfo', 'currentLandValue', 'number');
+  registerField('si_creCon_totalConstructionCost', 'sellerInfo', 'constructionCost', 'number');
+  registerField('si_creCon_generalContractorName', 'sellerInfo', 'contractorName', 'text');
+  registerField('si_creCon_constructionTimeline', 'sellerInfo', 'constructionTimeline', 'text');
+  registerField('si_creCon_proposedSquareFootage', 'sellerInfo', 'constructionSqft', 'text');
+  registerField('si_creCon_ownerOccupancyPercent', 'sellerInfo', 'constructionOccupancy', 'text');
+  registerField('si_creCon_projectedAfterConstructionValue', 'sellerInfo', 'afterConstructionValue', 'number');
+
+  // ----- CRE: Purchase -----
+  registerField('si_crePur_street', 'sellerInfo', 'purchasePropertyAddress.street1', 'text');
+  registerField('si_crePur_city', 'sellerInfo', 'purchasePropertyAddress.city', 'text');
+  registerField('si_crePur_state', 'sellerInfo', 'purchasePropertyAddress.state', 'text');
+  registerField('si_crePur_zip', 'sellerInfo', 'purchasePropertyAddress.zipCode', 'text');
+  registerField('si_crePur_purchasePrice', 'sellerInfo', 'crePurchasePrice', 'number');
+  registerField('si_crePur_propertyType', 'sellerInfo', 'crePropertyType', 'text');
+  registerField('si_crePur_squareFootage', 'sellerInfo', 'crePurchaseSqft', 'text');
+  registerField('si_crePur_ownerOccupancyPercent', 'sellerInfo', 'crePurchaseOccupancy', 'text');
+
+  // ----- Debt Refinance (10 rows) -----
+  // PDF-field suffix -> internal debtRefinanceItems key
+  const debtFieldMap: Record<string, string> = {
+    lenderName: 'creditor',
+    currentOutstandingBalance: 'currentBalance',
+    originalLoanAmount: 'originalAmount',
+    interestRate: 'interestRate',
+    monthlyPayment: 'monthlyPayment',
+    maturityDate: 'maturityDate',
+    collateralType: 'collateral',
+    originalLoanPurpose: 'purpose',
+  };
+  for (let r = 0; r < 10; r++) {
+    for (const [pdfKey, internalKey] of Object.entries(debtFieldMap)) {
+      registerField(`si_debt${r}_${pdfKey}`, 'sellerInfo', `debtRefinanceItems.${r}.${internalKey}`, 'text');
+    }
+  }
+
+  // ----- Equipment Purchase (10 rows) -----
+  const equipFieldMap: Record<string, string> = {
+    equipmentDescription: 'description',
+    newOrUsed: 'newOrUsed',
+    vendorDealerName: 'vendor',
+    purchasePrice: 'price',
+    year: 'year',
+    make: 'make',
+    model: 'model',
+    estimatedUsefulLife: 'usefulLife',
+  };
+  for (let r = 0; r < 10; r++) {
+    for (const [pdfKey, internalKey] of Object.entries(equipFieldMap)) {
+      registerField(`si_equip${r}_${pdfKey}`, 'sellerInfo', `equipmentPurchaseItems.${r}.${internalKey}`, 'text');
+    }
+  }
 }
 
 initFieldMap();
@@ -364,6 +424,13 @@ export function applyEnvelopeFieldsToData(
       processedValue = !!value;
     }
 
+    if (type === 'number' && typeof processedValue === 'string') {
+      const cleaned = processedValue.replace(/[^0-9.\-]/g, '');
+      const n = cleaned === '' ? NaN : Number(cleaned);
+      processedValue = isNaN(n) ? undefined : n;
+      if (processedValue === undefined) continue;
+    }
+
     if (type === 'yesno_yes') {
       if (value === true || value === 'On') {
         processedValue = 'Yes';
@@ -408,6 +475,34 @@ export function applyEnvelopeFieldsToData(
 
     if (fieldName === 'po_secondaryPurposes' && typeof processedValue === 'string') {
       processedValue = processedValue.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+
+    // ----- sellerInfo dropdown → internal schema coercions -----
+    // The PDF dropdowns use user-friendly labels; SellerInfoSection expects
+    // lower-case enums ('stock'/'asset', 'yes'/'no', snake_case statuses, etc.)
+    if (typeof processedValue === 'string') {
+      if (fieldName === 'si_typeOfAcquisition') {
+        const m: Record<string, string> = { Stock: 'stock', Asset: 'asset' };
+        processedValue = m[processedValue] ?? processedValue.toLowerCase();
+      } else if (
+        fieldName === 'si_purchasing100Percent' ||
+        fieldName === 'si_hasSellerCarryNote' ||
+        fieldName === 'si_creCon_landAlreadyOwned'
+      ) {
+        const m: Record<string, string> = { Yes: 'yes', No: 'no' };
+        processedValue = m[processedValue] ?? processedValue.toLowerCase();
+      } else if (fieldName === 'si_purchaseContractStatus') {
+        const m: Record<string, string> = {
+          'No Contract Yet': 'no_contract',
+          'LOI Signed': 'loi_signed',
+          'Contract Drafted': 'contract_drafted',
+          'Fully Executed': 'fully_executed',
+        };
+        processedValue = m[processedValue] ?? processedValue;
+      } else if (/^si_equip\d+_newOrUsed$/.test(fieldName)) {
+        const m: Record<string, string> = { New: 'new', Used: 'used' };
+        processedValue = m[processedValue] ?? processedValue.toLowerCase();
+      }
     }
 
     if (
@@ -456,6 +551,21 @@ export function applyEnvelopeFieldsToData(
 
     const parts = fieldPath.split('.');
     let target = data[section];
+
+    // sellerInfo row collections — keep these as proper arrays (not index-keyed objects).
+    if (
+      section === 'sellerInfo' &&
+      parts.length === 3 &&
+      (parts[0] === 'debtRefinanceItems' || parts[0] === 'equipmentPurchaseItems')
+    ) {
+      const arrayField = parts[0];
+      const arrIdx = parseInt(parts[1]);
+      const prop = parts[2];
+      if (!Array.isArray(data.sellerInfo[arrayField])) data.sellerInfo[arrayField] = [];
+      while (data.sellerInfo[arrayField].length <= arrIdx) data.sellerInfo[arrayField].push({});
+      data.sellerInfo[arrayField][arrIdx][prop] = processedValue;
+      continue;
+    }
 
     if (section === 'individualApplicants') {
       if (!Array.isArray(data.individualApplicants)) data.individualApplicants = [{}];

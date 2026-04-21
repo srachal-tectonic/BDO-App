@@ -86,6 +86,19 @@ export default function BDOToolsPage() {
     }
   }, [applicationData, lastSavedData]);
 
+  // After an envelope PDF import rehydrates the store, treat the merged doc
+  // as the new "saved baseline" so the unsaved-changes flag doesn't flip on.
+  useEffect(() => {
+    const onImported = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      setLastSavedData(JSON.stringify(detail));
+      setHasUnsavedChanges(false);
+    };
+    window.addEventListener('loan-application-imported', onImported);
+    return () => window.removeEventListener('loan-application-imported', onImported);
+  }, []);
+
   // Auto-save loan application data every 30 seconds
   useEffect(() => {
     if (!projectId || !applicationData.projectId) return;

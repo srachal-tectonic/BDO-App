@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { authenticatedFetch, authenticatedPost } from '@/lib/authenticatedFetch';
 import { BDOLayout } from '@/components/layout/BDOLayout';
+import { useApplication } from '@/lib/applicationStore';
 import type { PdfMappingTemplate, PdfImportSession, PdfFieldMapping, ExtractedField, AppSection } from '@/types';
 
 interface MappingSuggestion {
@@ -33,6 +34,7 @@ export default function PdfToolsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const envelopeInputRef = useRef<HTMLInputElement>(null);
   const [isImportingEnvelope, setIsImportingEnvelope] = useState(false);
+  const { loadFromFirestore } = useApplication();
 
   const [activeTab, setActiveTab] = useState<'import' | 'export' | 'templates'>('import');
   const [exportFormType, setExportFormType] = useState<string>('sba-1919');
@@ -198,9 +200,17 @@ export default function PdfToolsPage() {
           variant: 'destructive',
         });
       } else {
+        // Rehydrate the application store so the data is visible on the
+        // loan-application tabs immediately — no reload needed.
+        if (payload.loanApplication) {
+          loadFromFirestore(payload.loanApplication);
+          window.dispatchEvent(
+            new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
+          );
+        }
         toast({
           title: 'Envelope PDF imported',
-          description: `Applied ${applied} field(s) to the loan application (${mapped} matched, ${extracted} extracted). Reload project tabs to see the updated data.`,
+          description: `Applied ${applied} field(s) to the loan application (${mapped} matched, ${extracted} extracted).`,
         });
       }
     } catch (err: any) {

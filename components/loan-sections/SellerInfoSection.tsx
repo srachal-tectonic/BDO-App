@@ -21,11 +21,10 @@ export default function SellerInfoSection() {
     ...secondary,
   ];
 
-  // Primary purpose drives section visibility for Business Acquisition, CRE sections
-  const primaryPurposes: string[] = Array.isArray(primary) ? primary : primary ? [primary] : [];
-  const isAcquisition = primaryPurposes.includes('Business Acquisition');
-  const isCREConstruction = primaryPurposes.includes('CRE: Construction');
-  const isCREPurchase = primaryPurposes.includes('CRE: Purchase');
+  // Any selected purpose (primary or secondary) drives section visibility
+  const isAcquisition = allPurposes.includes('Business Acquisition');
+  const isCREConstruction = allPurposes.includes('CRE: Construction');
+  const isCREPurchase = allPurposes.includes('CRE: Purchase');
   const isDebtRefinance = allPurposes.includes('Debt Refinance');
   const isEquipmentPurchase = allPurposes.includes('Equipment Purchase');
 

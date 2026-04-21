@@ -5,7 +5,6 @@ import CollapsibleSection from '@/components/loan-sections/CollapsibleSection';
 import SourcesUsesMatrix from '@/components/loan-sections/SourcesUsesMatrix';
 import FinancingSourcesSection from '@/components/loan-sections/FinancingSourcesSection';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
 
 interface FundingStructureSectionProps {
   isReadOnly?: boolean;
@@ -19,8 +18,30 @@ interface FundingStructureSectionProps {
 }
 
 export default function FundingStructureSection({ isReadOnly = false }: FundingStructureSectionProps) {
-  const { data, updateSourcesUses7a } = useApplication();
+  const { data, updateSourcesUses7a, updateDSCR } = useApplication();
   const sourcesUses = data.sourcesUses7a;
+  const dscr = data.dscr ?? { period1: '', period2: '', period3: '', period4: '', dscr1: null, dscr2: null, dscr3: null, dscr4: null };
+
+  // Stringify DSCR ratios for the <input> value; `null` → ''.
+  const dscrVal = (n: number | null | undefined): string =>
+    n == null || Number.isNaN(n as number) ? '' : String(n);
+
+  const handleDscrChange = (idx: 1 | 2 | 3 | 4, raw: string) => {
+    const trimmed = raw.trim();
+    const parsed = trimmed === '' ? null : parseFloat(trimmed);
+    const value = trimmed === '' ? null : (Number.isNaN(parsed as number) ? null : parsed);
+    updateDSCR({ [`dscr${idx}`]: value } as any);
+  };
+
+  // The period dropdown's fixed list. If the imported spread has a label that
+  // isn't in this list (e.g. "2021", "Dec 2023"), include it as a selectable
+  // option so the Select can render it instead of silently falling back to empty.
+  const BASE_PERIODS = ['2022', '2023', '2024', '2025', 'Interim'];
+  const periodOptionsFor = (current: string | undefined): string[] => {
+    const opts = [...BASE_PERIODS];
+    if (current && !opts.includes(current)) opts.unshift(current);
+    return opts;
+  };
 
   // Build dynamic S&U columns from financing sources, deduplicating keys
   const financingSources = data.financingSources || [];
@@ -35,15 +56,6 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
         });
       })()
     : undefined; // undefined = use defaults
-
-  const [dscrPeriod1, setDscrPeriod1] = useState('2022');
-  const [dscrPeriod2, setDscrPeriod2] = useState('2023');
-  const [dscrPeriod3, setDscrPeriod3] = useState('2024');
-  const [dscrPeriod4, setDscrPeriod4] = useState('Interim');
-  const [dscrValue1, setDscrValue1] = useState('');
-  const [dscrValue2, setDscrValue2] = useState('');
-  const [dscrValue3, setDscrValue3] = useState('');
-  const [dscrValue4, setDscrValue4] = useState('');
 
   const calculateTotal = () => {
     let total = 0;
@@ -97,23 +109,21 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
               <div>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2">Period 1</label>
-                <Select value={dscrPeriod1} onValueChange={setDscrPeriod1} disabled={isReadOnly}>
+                <Select value={dscr.period1 || ''} onValueChange={(v) => updateDSCR({ period1: v } as any)} disabled={isReadOnly}>
                   <SelectTrigger data-testid="select-dscr-period-1">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="Interim">Interim</SelectItem>
+                    {periodOptionsFor(dscr.period1).map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2 mt-3">DSCR</label>
                 <input
                   type="number"
-                  value={dscrValue1}
-                  onChange={(e) => setDscrValue1(e.target.value)}
+                  value={dscrVal(dscr.dscr1)}
+                  onChange={(e) => handleDscrChange(1, e.target.value)}
                   placeholder="0.00"
                   step="0.01"
                   disabled={isReadOnly}
@@ -123,23 +133,21 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2">Period 2</label>
-                <Select value={dscrPeriod2} onValueChange={setDscrPeriod2} disabled={isReadOnly}>
+                <Select value={dscr.period2 || ''} onValueChange={(v) => updateDSCR({ period2: v } as any)} disabled={isReadOnly}>
                   <SelectTrigger data-testid="select-dscr-period-2">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="Interim">Interim</SelectItem>
+                    {periodOptionsFor(dscr.period2).map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2 mt-3">DSCR</label>
                 <input
                   type="number"
-                  value={dscrValue2}
-                  onChange={(e) => setDscrValue2(e.target.value)}
+                  value={dscrVal(dscr.dscr2)}
+                  onChange={(e) => handleDscrChange(2, e.target.value)}
                   placeholder="0.00"
                   step="0.01"
                   disabled={isReadOnly}
@@ -149,23 +157,21 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2">Period 3</label>
-                <Select value={dscrPeriod3} onValueChange={setDscrPeriod3} disabled={isReadOnly}>
+                <Select value={dscr.period3 || ''} onValueChange={(v) => updateDSCR({ period3: v } as any)} disabled={isReadOnly}>
                   <SelectTrigger data-testid="select-dscr-period-3">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="Interim">Interim</SelectItem>
+                    {periodOptionsFor(dscr.period3).map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2 mt-3">DSCR</label>
                 <input
                   type="number"
-                  value={dscrValue3}
-                  onChange={(e) => setDscrValue3(e.target.value)}
+                  value={dscrVal(dscr.dscr3)}
+                  onChange={(e) => handleDscrChange(3, e.target.value)}
                   placeholder="0.00"
                   step="0.01"
                   disabled={isReadOnly}
@@ -175,23 +181,21 @@ export default function FundingStructureSection({ isReadOnly = false }: FundingS
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2">Period 4</label>
-                <Select value={dscrPeriod4} onValueChange={setDscrPeriod4} disabled={isReadOnly}>
+                <Select value={dscr.period4 || ''} onValueChange={(v) => updateDSCR({ period4: v } as any)} disabled={isReadOnly}>
                   <SelectTrigger data-testid="select-dscr-period-4">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="Interim">Interim</SelectItem>
+                    {periodOptionsFor(dscr.period4).map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <label className="block text-[13px] font-medium text-[#1a1a1a] mb-2 mt-3">DSCR</label>
                 <input
                   type="number"
-                  value={dscrValue4}
-                  onChange={(e) => setDscrValue4(e.target.value)}
+                  value={dscrVal(dscr.dscr4)}
+                  onChange={(e) => handleDscrChange(4, e.target.value)}
                   placeholder="0.00"
                   step="0.01"
                   disabled={isReadOnly}

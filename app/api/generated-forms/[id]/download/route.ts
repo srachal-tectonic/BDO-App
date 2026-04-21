@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { logAuditEvent } from '@/lib/auditLog';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+import { appendActiveSections } from '@/lib/pdf-extraction/envelope-section-generators';
 
 // Must match the FORM_TEMPLATES in services/firestore.ts
 const FORM_FILES: Record<string, { fileName: string; contentType: string }> = {
@@ -24,7 +26,7 @@ const FORM_FILES: Record<string, { fileName: string; contentType: string }> = {
 };
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -47,6 +49,34 @@ export async function GET(
       );
     }
 
+    // Business Applicant envelope is project-aware: when ?projectId=... is
+    // provided we append fillable sections matching the selected purposes,
+    // mirroring the Project Information sub-tab's visibility logic.
+    let outputBytes: Uint8Array = new Uint8Array(fileBuffer);
+    let outputFileName = form.fileName;
+
+    if (formId === 'blank-business-applicant') {
+      const projectId = request.nextUrl.searchParams.get('projectId');
+      if (projectId) {
+        try {
+          const col = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+          const doc = await col.findOne({ projectId });
+          const primary: string =
+            typeof doc?.projectOverview?.primaryProjectPurpose === 'string'
+              ? doc.projectOverview.primaryProjectPurpose
+              : '';
+          const secondary: string[] = Array.isArray(doc?.projectOverview?.secondaryProjectPurposes)
+            ? doc.projectOverview.secondaryProjectPurposes
+            : [];
+          outputBytes = await appendActiveSections(outputBytes, { primary, secondary });
+          outputFileName = outputFileName.replace(/\.pdf$/, `_${projectId}.pdf`);
+        } catch (err) {
+          console.error('[Generated Forms Download] Failed to append sections:', err);
+          // Fall back to the blank template on generation failure.
+        }
+      }
+    }
+
     // Audit: form template downloaded
     logAuditEvent({
       action: 'file_downloaded',
@@ -57,12 +87,12 @@ export async function GET(
       metadata: { fileName: form.fileName, formId },
     }).catch(() => {});
 
-    return new NextResponse(new Uint8Array(fileBuffer), {
+    return new NextResponse(Buffer.from(outputBytes), {
       status: 200,
       headers: {
         'Content-Type': form.contentType,
-        'Content-Disposition': `attachment; filename="${form.fileName}"`,
-        'Content-Length': fileBuffer.length.toString(),
+        'Content-Disposition': `attachment; filename="${outputFileName}"`,
+        'Content-Length': String(outputBytes.byteLength),
       },
     });
   } catch (error) {

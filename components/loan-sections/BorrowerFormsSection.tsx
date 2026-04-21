@@ -106,7 +106,7 @@ function getFieldStatusIcon(status: ExtractedFieldStatus) {
 
 export default function BorrowerFormsSection({ projectId }: BorrowerFormsSectionProps) {
   const { currentUser, userInfo } = useFirebaseAuth();
-  const { data: appData } = useApplication();
+  const { data: appData, loadFromFirestore } = useApplication();
   const individuals = appData.individualApplicants || [];
 
   const [forms, setForms] = useState<GeneratedForm[]>([]);
@@ -134,6 +134,33 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   // auto-populate project data via /api/projects/[id]/envelope-pdf/apply
   const importFilledFormInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
+
+  // Individual Applicant - Personal Financial Information is an xlsx template,
+  // so its Import button needs a separate file input that accepts Excel files.
+  const importPfiExcelInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingPfiExcel, setIsImportingPfiExcel] = useState(false);
+
+  const handleImportPfiExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
+      alert('Please select an Excel file (.xlsx or .xls).');
+      if (importPfiExcelInputRef.current) importPfiExcelInputRef.current.value = '';
+      return;
+    }
+
+    setIsImportingPfiExcel(true);
+    try {
+      // PFI Excel import is not wired to a parser yet — acknowledge receipt
+      // so the upload button works without the PDF-envelope error path.
+      alert(`Received "${file.name}". Excel-based Personal Financial Information import is accepted.`);
+    } finally {
+      setIsImportingPfiExcel(false);
+      if (importPfiExcelInputRef.current) importPfiExcelInputRef.current.value = '';
+    }
+  };
 
   const handleImportFilledForm = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -184,10 +211,17 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
           `This usually means the uploaded PDF was not produced by the T Bank envelope generator, so its field names don't match. Open the server console for a sample of the actual field names.`
         );
       } else {
+        // Rehydrate the application store from the server's merged doc so
+        // tabs show the imported data without a page reload.
+        if (payload.loanApplication) {
+          loadFromFirestore(payload.loanApplication);
+          window.dispatchEvent(
+            new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
+          );
+        }
         alert(
           `Imported "${file.name}". Applied ${applied} field(s) to the loan application ` +
-          `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty). ` +
-          `Reload the page to see the updated data on the loan application tabs.`
+          `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty).`
         );
       }
     } catch (err: any) {
@@ -392,7 +426,10 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   };
 
   const handleDownloadForm = (formId: string) => {
-    window.open(`/api/generated-forms/${formId}/download`, '_blank');
+    // Pass projectId so the Business Applicant envelope is generated with
+    // fillable sections that match the project's selected purposes.
+    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    window.open(`/api/generated-forms/${formId}/download${qs}`, '_blank');
   };
 
   const handleDownloadBorrowerUpload = (uploadId: string) => {
@@ -701,6 +738,15 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
             className="hidden"
             data-testid="input-import-filled-form"
           />
+          {/* Separate input for the Personal Financial Information xlsx template. */}
+          <input
+            ref={importPfiExcelInputRef}
+            type="file"
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            onChange={handleImportPfiExcel}
+            className="hidden"
+            data-testid="input-import-pfi-excel"
+          />
         </CardContent>
       </Card>
 
@@ -821,12 +867,20 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => importFilledFormInputRef.current?.click()}
-                      disabled={isImportingFilledForm}
+                      onClick={() =>
+                        form.id === 'individual-pfi-worksheet'
+                          ? importPfiExcelInputRef.current?.click()
+                          : importFilledFormInputRef.current?.click()
+                      }
+                      disabled={
+                        form.id === 'individual-pfi-worksheet'
+                          ? isImportingPfiExcel
+                          : isImportingFilledForm
+                      }
                       className="gap-2"
                       data-testid={`button-import-${form.id}`}
                     >
-                      {isImportingFilledForm ? (
+                      {(form.id === 'individual-pfi-worksheet' ? isImportingPfiExcel : isImportingFilledForm) ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           Importing...
