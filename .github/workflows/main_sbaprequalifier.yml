@@ -57,17 +57,16 @@ jobs:
             libxcomposite1 libxdamage1 libxrandr2 libxshmfence1 \
             libxkbcommon0 libxtst6 libxfixes3 libxi6 libxrender1 \
             libx11-xcb1 libxcb-dri3-0 \
-            libpango-1.0-0 libcairo2 libgtk-3-0 fonts-liberation"
+            libpango-1.0-0 libcairo2 \
+            libgtk-3-0 libgtk-3-0t64 \
+            fonts-liberation"
 
           sudo apt-get update -qq
 
-          # Filter to packages that actually have a real installation
-          # candidate — `apt-cache show` includes virtual packages too
-          # (e.g. on Ubuntu 24.04 "libasound2" is virtual, provided by
-          # both libasound2t64 and liboss4-salsa-asound2, so a plain
-          # install of "libasound2" fails as ambiguous). `apt-cache
-          # policy` reports "Candidate: <version>" for installable
-          # packages and "Candidate: (none)" for ambiguous virtuals.
+          # Filter to packages with a real installation candidate. On Ubuntu
+          # 24.04, the non-t64 names (e.g. "libasound2") are virtual and
+          # have Candidate: (none), so they're dropped; the t64 variants
+          # are real packages and are kept. On 22.04 the reverse is true.
           PKGS=""
           for candidate in $CANDIDATES; do
             ver=$(apt-cache policy "$candidate" 2>/dev/null | awk '/^  Candidate:/ { print $2 }')
@@ -75,31 +74,38 @@ jobs:
               PKGS="$PKGS $candidate"
             fi
           done
-          echo "Resolved packages on this runner: $PKGS"
+          echo "Resolved top-level packages: $PKGS"
 
-          # Download target packages + their transitive deps into a cache
-          # dir without installing them system-wide on the runner.
+          # Resolve the full transitive dep closure. `apt-get install
+          # --download-only` would skip packages already installed on the
+          # runner (which is our case — runner has these libs system-wide),
+          # producing an empty bundle. `apt-get download` in a loop always
+          # writes the .deb to cwd regardless of install state.
+          RECURSIVE=$(apt-cache depends --recurse --no-recommends --no-suggests \
+            --no-conflicts --no-breaks --no-replaces --no-enhances --no-pre-depends \
+            $PKGS 2>/dev/null | grep '^\w' | sort -u)
+
+          # Filter out base-system packages — shipping our own libc /
+          # libstdc++ / etc. would break the Node runtime at load time.
+          BLOCK='^(libc6|libc-bin|libc6:|libssl|libstdc\+\+|libgcc|zlib|base-files|dash|bash|coreutils|dpkg|perl-base|debconf|tzdata|libpcre|libbz2|libtinfo|libreadline|libselinux|liblzma|libzstd|ncurses|gcc-|python3|sensible-utils|libdb5|libsepol|libcap|libacl|libattr)'
+          FILTERED=$(echo "$RECURSIVE" | grep -Ev "$BLOCK")
+          echo "=== Final package list to download ($(echo "$FILTERED" | wc -l) entries) ==="
+          echo "$FILTERED"
+
           mkdir -p chrome-libs-debs
-          sudo apt-get install -y --download-only --no-install-recommends \
-            -o Debug::NoLocking=true \
-            -o Dir::Cache::Archives="$PWD/chrome-libs-debs" \
-            $PKGS
-          sudo chown -R "$USER:$USER" chrome-libs-debs
+          cd chrome-libs-debs
+          for pkg in $FILTERED; do
+            # apt-get download exits non-zero on virtual or unavailable
+            # packages; swallow those and continue.
+            apt-get download "$pkg" 2>/dev/null || echo "skip (no downloadable candidate): $pkg"
+          done
+          cd ..
+          echo "=== Downloaded .deb count: $(ls chrome-libs-debs/*.deb 2>/dev/null | wc -l) ==="
 
-          # Extract each .deb into chrome-libs/, skipping base-system packages
-          # that are already present in the App Service image — shipping our
-          # own copy of libc/libstdc++/libssl would cause loader conflicts
-          # with the Node runtime.
-          BLOCK='^(libc6|libc-bin|libssl|libstdc\+\+|libgcc|zlib|base-files|dash|bash|coreutils|dpkg|perl-base|debconf|tzdata|libpcre|libbz2|libtinfo|libreadline|libselinux|liblzma|libzstd)'
-
+          # Extract each .deb into chrome-libs/.
           mkdir -p chrome-libs
           for deb in chrome-libs-debs/*.deb; do
             [ -f "$deb" ] || continue
-            name=$(basename "$deb" | sed 's/_.*//')
-            if echo "$name" | grep -Eq "$BLOCK"; then
-              echo "skip (base-system): $name"
-              continue
-            fi
             dpkg -x "$deb" chrome-libs
           done
 
