@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useApplication } from '@/lib/applicationStore';
 import type { PersonalFinancialStatement } from '@/lib/applicationStore';
-import { Plus, Trash2, ChevronDown, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, HelpCircle, Upload, Loader2 } from 'lucide-react';
 import AddressInput from '@/components/loan-sections/AddressInput';
 import PasswordToggle from '@/components/loan-sections/PasswordToggle';
 import CollapsibleSection from '@/components/loan-sections/CollapsibleSection';
 import LearnMorePanel from '@/components/LearnMorePanel';
 import type { IndividualApplicant } from '@/lib/schema';
+import { useToast } from '@/hooks/use-toast';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -828,14 +829,162 @@ export default function IndividualApplicantsSection() {
     addIndividualApplicant,
     updateIndividualApplicant,
     removeIndividualApplicant,
+    loadFromFirestore,
   } = useApplication();
+  const { toast } = useToast();
 
   const individualApplicants = data.individualApplicants || [];
   const projectName = data.projectOverview?.projectName || '';
+  const projectId = data.projectId || '';
 
   const [expandedApplicants, setExpandedApplicants] = useState<string[]>([]);
   const [isLearnMoreOpen, setIsLearnMoreOpen] = useState(false);
   const hasInitialized = useRef(false);
+
+  // Per-applicant PFI Excel import. The hidden file input is shared, and we
+  // track which applicant's button was clicked via a ref so the async file
+  // picker callback knows where to route the parsed PFS.
+  const importExcelInputRef = useRef<HTMLInputElement>(null);
+  const pendingImportApplicantIdRef = useRef<string | null>(null);
+  const [importingApplicantId, setImportingApplicantId] = useState<string | null>(null);
+
+  // Per-applicant Individual Applicant PDF import (Blanks_Individual_Applicant.pdf).
+  // Uses its own hidden input + pending-applicant ref so the Excel picker and
+  // PDF picker don't clobber each other if the user opens them back-to-back.
+  const importPdfInputRef = useRef<HTMLInputElement>(null);
+  const pendingPdfImportApplicantIdRef = useRef<string | null>(null);
+  const [importingPdfApplicantId, setImportingPdfApplicantId] = useState<string | null>(null);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const applicantId = pendingImportApplicantIdRef.current;
+    if (!file || !applicantId || !projectId) {
+      if (importExcelInputRef.current) importExcelInputRef.current.value = '';
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      toast({ title: 'Invalid file', description: 'Please select an .xlsx file.', variant: 'destructive' });
+      if (importExcelInputRef.current) importExcelInputRef.current.value = '';
+      return;
+    }
+
+    const applicant = individualApplicants.find((a) => a.id === applicantId);
+    const applicantName = applicant
+      ? [applicant.firstName, applicant.lastName].filter(Boolean).join(' ') || 'the selected individual'
+      : 'the selected individual';
+
+    setImportingApplicantId(applicantId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('individualApplicantId', applicantId);
+
+      const response = await fetch(`/api/projects/${projectId}/pfi-excel/apply`, {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast({
+          title: 'Import failed',
+          description: result?.error || 'Make sure it is a filled Individual Applicant PFI Excel workbook.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (result.loanApplication) {
+        loadFromFirestore(result.loanApplication);
+      }
+      toast({
+        title: 'Import successful',
+        description: `Imported PFS data from Excel for ${applicantName} (${result.populatedFieldCount ?? 0} fields).`,
+      });
+    } catch {
+      toast({
+        title: 'Import failed',
+        description: 'Make sure it is a filled Individual Applicant PFI Excel workbook.',
+        variant: 'destructive',
+      });
+    } finally {
+      setImportingApplicantId(null);
+      pendingImportApplicantIdRef.current = null;
+      if (importExcelInputRef.current) importExcelInputRef.current.value = '';
+    }
+  };
+
+  const handleImportPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const applicantId = pendingPdfImportApplicantIdRef.current;
+    if (!file || !applicantId || !projectId) {
+      if (importPdfInputRef.current) importPdfInputRef.current.value = '';
+      return;
+    }
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast({ title: 'Invalid file', description: 'Please select a PDF file.', variant: 'destructive' });
+      if (importPdfInputRef.current) importPdfInputRef.current.value = '';
+      return;
+    }
+
+    const applicant = individualApplicants.find((a) => a.id === applicantId);
+    const applicantName = applicant
+      ? [applicant.firstName, applicant.lastName].filter(Boolean).join(' ') || 'the selected individual'
+      : 'the selected individual';
+
+    setImportingPdfApplicantId(applicantId);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1] ?? '');
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch(`/api/projects/${projectId}/envelope-pdf/apply-individual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          pdfData: base64,
+          individualApplicantId: applicantId,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast({
+          title: 'Import failed',
+          description: result?.error || 'Make sure it is a filled Individual Applicant PDF from this system.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (result.loanApplication) {
+        loadFromFirestore(result.loanApplication);
+      }
+      toast({
+        title: 'Import successful',
+        description: `Imported ${result.fieldsImported ?? 0} field(s) for ${applicantName}.`,
+      });
+    } catch {
+      toast({
+        title: 'Import failed',
+        description: 'Make sure it is a filled Individual Applicant PDF from this system.',
+        variant: 'destructive',
+      });
+    } finally {
+      setImportingPdfApplicantId(null);
+      pendingPdfImportApplicantIdRef.current = null;
+      if (importPdfInputRef.current) importPdfInputRef.current.value = '';
+    }
+  };
 
   // Auto-expand first applicant on initial load
   useEffect(() => {
@@ -870,6 +1019,24 @@ export default function IndividualApplicantsSection() {
         </h1>
       </div>
 
+      {/* Shared hidden file inputs for Import PDF / Import Excel buttons in each accordion header. */}
+      <input
+        ref={importPdfInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        onChange={handleImportPdf}
+        className="hidden"
+        data-testid="input-import-pdf-individual-applicant"
+      />
+      <input
+        ref={importExcelInputRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        onChange={handleImportExcel}
+        className="hidden"
+        data-testid="input-import-excel-individual-applicant"
+      />
+
       <div className="px-4 pb-6 space-y-4">
         {individualApplicants.map((applicant, index) => {
           const isExpanded = expandedApplicants.includes(applicant.id);
@@ -877,6 +1044,8 @@ export default function IndividualApplicantsSection() {
             applicant.firstName && applicant.lastName
               ? `${applicant.firstName} ${applicant.lastName}`
               : `Applicant ${index + 1}`;
+          const isImportingThis = importingApplicantId === applicant.id;
+          const isImportingThisPdf = importingPdfApplicantId === applicant.id;
 
           return (
             <div
@@ -896,6 +1065,34 @@ export default function IndividualApplicantsSection() {
                   <h3 className="text-base font-semibold text-[#1a1a1a]">{displayName}</h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pendingPdfImportApplicantIdRef.current = applicant.id;
+                      importPdfInputRef.current?.click();
+                    }}
+                    disabled={isImportingThisPdf || !projectId}
+                    className="px-3 py-1.5 bg-white border border-[#2563eb] text-[#2563eb] font-medium rounded-md text-xs flex items-center gap-1.5 hover:bg-[#eff6ff] disabled:opacity-50"
+                    data-testid={`button-import-pdf-${index + 1}`}
+                  >
+                    {isImportingThisPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {isImportingThisPdf ? 'Importing...' : 'Import PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pendingImportApplicantIdRef.current = applicant.id;
+                      importExcelInputRef.current?.click();
+                    }}
+                    disabled={isImportingThis || !projectId}
+                    className="px-3 py-1.5 bg-white border border-[#10b981] text-[#10b981] font-medium rounded-md text-xs flex items-center gap-1.5 hover:bg-[#ecfdf5] disabled:opacity-50"
+                    data-testid={`button-import-excel-${index + 1}`}
+                  >
+                    {isImportingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {isImportingThis ? 'Importing...' : 'Import Excel'}
+                  </button>
                   <ChevronDown className={`w-5 h-5 text-[#7da1d4] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
               </div>

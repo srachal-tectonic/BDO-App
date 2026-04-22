@@ -234,15 +234,20 @@ export default function RiskScoresSection() {
                   {isExpanded && (
                     <div className="mt-3 space-y-2">
                       {category.criteria.map((criteria) => (
-                        <div
+                        <button
                           key={criteria.score}
-                          className={`p-3 rounded-lg border ${
+                          type="button"
+                          onClick={() => !criteria.disabled && handleScoreChange(category.key, criteria.score)}
+                          disabled={criteria.disabled}
+                          aria-pressed={selectedScore === criteria.score}
+                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
                             criteria.disabled
-                              ? 'bg-[#f9fafb] border-[var(--t-color-border)] opacity-50'
+                              ? 'bg-[#f9fafb] border-[var(--t-color-border)] opacity-50 cursor-not-allowed'
                               : selectedScore === criteria.score
                               ? 'bg-[#eff6ff] border-[var(--t-color-accent)]'
-                              : 'bg-white border-[var(--t-color-border)]'
+                              : 'bg-white border-[var(--t-color-border)] hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff] cursor-pointer'
                           }`}
+                          data-testid={`risk-criteria-${category.key}-${criteria.score}`}
                         >
                           <div className="flex items-start gap-3">
                             <span
@@ -258,7 +263,7 @@ export default function RiskScoresSection() {
                             </span>
                             <p className="text-sm text-[color:var(--t-color-text-body)]">{criteria.description}</p>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}

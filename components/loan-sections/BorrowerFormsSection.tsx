@@ -139,6 +139,9 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   // so its Import button needs a separate file input that accepts Excel files.
   const importPfiExcelInputRef = useRef<HTMLInputElement>(null);
   const [isImportingPfiExcel, setIsImportingPfiExcel] = useState(false);
+  // Tracks which PFI-worksheet form row triggered the file picker so we can
+  // look up the selected individual when the file comes back.
+  const pfiImportFormIdRef = useRef<string | null>(null);
 
   const handleImportPfiExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,13 +154,56 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       return;
     }
 
+    const formId = pfiImportFormIdRef.current;
+    const individualApplicantId = formId ? selectedIndividual[formId] : '';
+    if (!individualApplicantId) {
+      alert('Select an Individual from the dropdown before importing the PFI worksheet.');
+      if (importPfiExcelInputRef.current) importPfiExcelInputRef.current.value = '';
+      return;
+    }
+
     setIsImportingPfiExcel(true);
     try {
-      // PFI Excel import is not wired to a parser yet — acknowledge receipt
-      // so the upload button works without the PDF-envelope error path.
-      alert(`Received "${file.name}". Excel-based Personal Financial Information import is accepted.`);
+      const formBody = new FormData();
+      formBody.append('file', file);
+      formBody.append('individualApplicantId', individualApplicantId);
+
+      const res = await fetch(`/api/projects/${projectId}/pfi-excel/apply`, {
+        method: 'POST',
+        body: formBody,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const payload = await res.json();
+      const populated = payload.populatedFieldCount ?? 0;
+
+      if (payload.loanApplication) {
+        loadFromFirestore(payload.loanApplication);
+        window.dispatchEvent(
+          new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
+        );
+      }
+
+      const target = individuals.find((ind) => ind.id === individualApplicantId);
+      const targetName = target
+        ? [target.firstName, target.lastName].filter(Boolean).join(' ') || 'the selected individual'
+        : 'the selected individual';
+
+      alert(
+        populated === 0
+          ? `Imported "${file.name}" but the worksheet had no populated fields for ${targetName}.`
+          : `Imported "${file.name}". Populated ${populated} Personal Financial Statement field(s) for ${targetName}.`,
+      );
+    } catch (err: any) {
+      console.error('PFI Excel import failed:', err);
+      alert(`Import failed: ${err?.message ?? 'Could not process the Excel file'}`);
     } finally {
       setIsImportingPfiExcel(false);
+      pfiImportFormIdRef.current = null;
       if (importPfiExcelInputRef.current) importPfiExcelInputRef.current.value = '';
     }
   };
@@ -867,11 +913,18 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        form.id === 'individual-pfi-worksheet'
-                          ? importPfiExcelInputRef.current?.click()
-                          : importFilledFormInputRef.current?.click()
-                      }
+                      onClick={() => {
+                        if (form.id === 'individual-pfi-worksheet') {
+                          if (!selectedIndividual[form.id]) {
+                            alert('Select an Individual from the dropdown before importing the PFI worksheet.');
+                            return;
+                          }
+                          pfiImportFormIdRef.current = form.id;
+                          importPfiExcelInputRef.current?.click();
+                        } else {
+                          importFilledFormInputRef.current?.click();
+                        }
+                      }}
                       disabled={
                         form.id === 'individual-pfi-worksheet'
                           ? isImportingPfiExcel

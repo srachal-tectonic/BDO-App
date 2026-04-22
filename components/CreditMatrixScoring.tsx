@@ -248,13 +248,20 @@ export default function CreditMatrixScoring({
                         const isSelected = currentScore === score;
 
                         return (
-                          <div
+                          <button
                             key={score}
-                            className={`p-3 rounded-lg border ${
-                              isSelected
+                            type="button"
+                            onClick={() => !disabled && onScoreChange(category.key, score)}
+                            disabled={disabled}
+                            aria-pressed={isSelected}
+                            className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                              disabled
+                                ? 'bg-[#f9fafb] border-[var(--t-color-border)] opacity-60 cursor-not-allowed'
+                                : isSelected
                                 ? 'bg-[#eff6ff] border-[var(--t-color-accent)]'
-                                : 'bg-white border-[var(--t-color-border)]'
+                                : 'bg-white border-[var(--t-color-border)] hover:border-[var(--t-color-accent)] hover:bg-[#eff6ff] cursor-pointer'
                             }`}
+                            data-testid={`criteria-${category.key}-${score}`}
                           >
                             <div className="flex items-start gap-3">
                               <span
@@ -268,7 +275,7 @@ export default function CreditMatrixScoring({
                               </span>
                               <p className="text-sm text-[color:var(--t-color-text-body)]">{criteriaText}</p>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                   </div>
