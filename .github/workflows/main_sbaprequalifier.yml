@@ -108,14 +108,36 @@ jobs:
           du -sh chrome-libs
           find chrome-libs -name '*.so*' -printf '%p\n' 2>/dev/null | head -40
 
+          # Fail loudly if the critical libs aren't there — better to break
+          # the build than ship a silently-broken deploy.
+          REQUIRED_SOS="libnspr4.so libnss3.so libasound.so.2"
+          for so in $REQUIRED_SOS; do
+            if ! find chrome-libs -name "$so*" | grep -q .; then
+              echo "::error::Required lib missing from bundle: $so"
+              exit 1
+            fi
+          done
+          echo "All required .so files present."
+
       - name: Prepare standalone package
         run: |
+          set -e
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           cp -r pdfs .next/standalone/pdfs 2>/dev/null || true
           cp -r chrome-libs .next/standalone/chrome-libs
+          echo "=== chrome-libs inside standalone ==="
+          du -sh .next/standalone/chrome-libs
+          find .next/standalone/chrome-libs -name 'libnspr4.so*' -printf '%p\n'
+
           cd .next/standalone
           zip -r ../../deploy.zip .
+
+          cd ../..
+          echo "=== deploy.zip size ==="
+          du -h deploy.zip
+          echo "=== deploy.zip chrome-libs entries (first 10) ==="
+          unzip -l deploy.zip | grep chrome-libs | head -10
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4

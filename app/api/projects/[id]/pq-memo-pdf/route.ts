@@ -149,13 +149,52 @@ export async function GET(
       try {
         const fs = await import('fs');
         const path = await import('path');
-        const chromiumPkg = path.dirname(require.resolve('@sparticuz/chromium'));
-        const binDir = path.join(chromiumPkg, '..', 'bin');
-        diag.chromiumPkgDir = chromiumPkg;
+        // Walk up from the resolved module file to find the package root.
+        // (require.resolve can hand back different shapes depending on the
+        // loader — always coerce to string first.)
+        const chromiumEntry = String(require.resolve('@sparticuz/chromium'));
+        let pkgRoot = path.dirname(chromiumEntry);
+        for (let i = 0; i < 6; i++) {
+          if (fs.existsSync(path.join(pkgRoot, 'package.json'))) break;
+          const parent = path.dirname(pkgRoot);
+          if (parent === pkgRoot) break;
+          pkgRoot = parent;
+        }
+        const binDir = path.join(pkgRoot, 'bin');
+        diag.chromiumPkgDir = pkgRoot;
         diag.chromiumBinDir = binDir;
-        diag.chromiumBinEntries = fs.existsSync(binDir) ? fs.readdirSync(binDir).slice(0, 20) : '<missing>';
+        diag.chromiumBinEntries = fs.existsSync(binDir)
+          ? fs.readdirSync(binDir).slice(0, 20)
+          : '<missing>';
       } catch (introspectErr: any) {
         diag.introspectError = introspectErr?.message;
+      }
+
+      // Also confirm the shipped-with-deploy libs actually landed.
+      try {
+        const fs = await import('fs');
+        const libsRoot = '/home/site/wwwroot/chrome-libs';
+        diag.chromeLibsRoot = libsRoot;
+        diag.chromeLibsExists = fs.existsSync(libsRoot);
+        if (diag.chromeLibsExists) {
+          const candidates = [
+            '/home/site/wwwroot/chrome-libs/usr/lib/x86_64-linux-gnu',
+            '/home/site/wwwroot/chrome-libs/lib/x86_64-linux-gnu',
+            '/home/site/wwwroot/chrome-libs/usr/lib',
+          ];
+          diag.chromeLibDirs = candidates.map((d) => ({
+            dir: d,
+            exists: fs.existsSync(d),
+            sampleSoFiles: fs.existsSync(d)
+              ? fs
+                  .readdirSync(d)
+                  .filter((f) => f.startsWith('libnspr') || f.startsWith('libnss') || f.startsWith('libasound'))
+                  .slice(0, 10)
+              : [],
+          }));
+        }
+      } catch (libCheckErr: any) {
+        diag.libCheckError = libCheckErr?.message;
       }
       console.error('[PQ Memo PDF] browser launch failed:', launchErr);
       console.error('[PQ Memo PDF] diagnostic snapshot:', diag);
