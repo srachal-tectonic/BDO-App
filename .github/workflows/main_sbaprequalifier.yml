@@ -29,11 +29,65 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Azure App Service Linux's built-in Node image doesn't ship Chromium's
+      # runtime libs (libnspr4, libnss3, libatk*, libgbm1, libasound2, X11
+      # stack, GTK, Pango, Cairo, fonts-liberation). We can't apt-install
+      # them in the worker — its filesystem is ephemeral and Startup Command
+      # installs don't persist through restarts. So we download the .debs
+      # here and bundle them into the deploy artifact. /home/site/wwwroot
+      # IS persistent, and setting LD_LIBRARY_PATH in App Service config
+      # points the dynamic linker at them at runtime.
+      - name: Bundle Chromium runtime libs
+        run: |
+          set -e
+          # Explicit list of Chromium-required libs + their Debian/Ubuntu
+          # package names. Transitive deps come along automatically via
+          # --download-only below.
+          PKGS="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
+                libcups2 libdrm2 libgbm1 libasound2 libxcomposite1 libxdamage1 \
+                libxrandr2 libxshmfence1 libxkbcommon0 libxtst6 libxfixes3 \
+                libxi6 libxrender1 libx11-xcb1 libxcb-dri3-0 libpango-1.0-0 \
+                libcairo2 libgtk-3-0 fonts-liberation"
+
+          sudo apt-get update -qq
+
+          # Download target packages + their transitive deps into a cache
+          # dir without installing them system-wide on the runner.
+          mkdir -p chrome-libs-debs
+          sudo apt-get install -y --download-only --no-install-recommends \
+            -o Debug::NoLocking=true \
+            -o Dir::Cache::Archives="$PWD/chrome-libs-debs" \
+            $PKGS
+          sudo chown -R "$USER:$USER" chrome-libs-debs
+
+          # Extract each .deb into chrome-libs/, skipping base-system packages
+          # that are already present in the App Service image — shipping our
+          # own copy of libc/libstdc++/libssl would cause loader conflicts
+          # with the Node runtime.
+          BLOCK='^(libc6|libc-bin|libssl|libstdc\+\+|libgcc|zlib|base-files|dash|bash|coreutils|dpkg|perl-base|debconf|tzdata|libpcre|libbz2|libtinfo|libreadline|libselinux|liblzma|libzstd)'
+
+          mkdir -p chrome-libs
+          for deb in chrome-libs-debs/*.deb; do
+            [ -f "$deb" ] || continue
+            name=$(basename "$deb" | sed 's/_.*//')
+            if echo "$name" | grep -Eq "$BLOCK"; then
+              echo "skip (base-system): $name"
+              continue
+            fi
+            dpkg -x "$deb" chrome-libs
+          done
+
+          rm -rf chrome-libs-debs
+          echo "=== chrome-libs bundled (size / sample .so files) ==="
+          du -sh chrome-libs
+          find chrome-libs -name '*.so*' -printf '%p\n' 2>/dev/null | head -40
+
       - name: Prepare standalone package
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           cp -r pdfs .next/standalone/pdfs 2>/dev/null || true
+          cp -r chrome-libs .next/standalone/chrome-libs
           cd .next/standalone
           zip -r ../../deploy.zip .
 
