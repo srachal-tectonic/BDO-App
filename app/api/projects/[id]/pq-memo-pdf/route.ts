@@ -133,11 +133,36 @@ export async function GET(
         });
       }
     } catch (launchErr: any) {
+      // Gather diagnostic info that's genuinely hard to retrieve post-hoc on
+      // a platform like Azure App Service. Emitted once to the server log and
+      // echoed back to the browser so we can see it in the Network tab.
+      const diag: Record<string, any> = {
+        message: launchErr?.message,
+        platform: process.platform,
+        arch: process.arch,
+        nodeVersion: process.version,
+        cwd: process.cwd(),
+        tmpdir: require('os').tmpdir(),
+        puppeteerExecutablePathEnv: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+      };
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const chromiumPkg = path.dirname(require.resolve('@sparticuz/chromium/package.json'));
+        const binDir = path.join(chromiumPkg, 'bin');
+        diag.chromiumPkgDir = chromiumPkg;
+        diag.chromiumBinDir = binDir;
+        diag.chromiumBinEntries = fs.existsSync(binDir) ? fs.readdirSync(binDir).slice(0, 20) : '<missing>';
+      } catch (introspectErr: any) {
+        diag.introspectError = introspectErr?.message;
+      }
       console.error('[PQ Memo PDF] browser launch failed:', launchErr);
+      console.error('[PQ Memo PDF] diagnostic snapshot:', diag);
       return NextResponse.json(
         {
           error: 'Failed to launch headless Chromium.',
           details: launchErr?.message,
+          diag,
         },
         { status: 500 },
       );
