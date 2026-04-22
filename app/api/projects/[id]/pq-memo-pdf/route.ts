@@ -144,12 +144,13 @@ export async function GET(
         cwd: process.cwd(),
         tmpdir: require('os').tmpdir(),
         puppeteerExecutablePathEnv: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+        ldLibraryPath: process.env.LD_LIBRARY_PATH || null,
       };
       try {
         const fs = await import('fs');
         const path = await import('path');
-        const chromiumPkg = path.dirname(require.resolve('@sparticuz/chromium/package.json'));
-        const binDir = path.join(chromiumPkg, 'bin');
+        const chromiumPkg = path.dirname(require.resolve('@sparticuz/chromium'));
+        const binDir = path.join(chromiumPkg, '..', 'bin');
         diag.chromiumPkgDir = chromiumPkg;
         diag.chromiumBinDir = binDir;
         diag.chromiumBinEntries = fs.existsSync(binDir) ? fs.readdirSync(binDir).slice(0, 20) : '<missing>';

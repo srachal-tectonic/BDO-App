@@ -61,9 +61,17 @@ jobs:
 
           sudo apt-get update -qq
 
+          # Filter to packages that actually have a real installation
+          # candidate — `apt-cache show` includes virtual packages too
+          # (e.g. on Ubuntu 24.04 "libasound2" is virtual, provided by
+          # both libasound2t64 and liboss4-salsa-asound2, so a plain
+          # install of "libasound2" fails as ambiguous). `apt-cache
+          # policy` reports "Candidate: <version>" for installable
+          # packages and "Candidate: (none)" for ambiguous virtuals.
           PKGS=""
           for candidate in $CANDIDATES; do
-            if apt-cache show "$candidate" >/dev/null 2>&1; then
+            ver=$(apt-cache policy "$candidate" 2>/dev/null | awk '/^  Candidate:/ { print $2 }')
+            if [ -n "$ver" ] && [ "$ver" != "(none)" ]; then
               PKGS="$PKGS $candidate"
             fi
           done
