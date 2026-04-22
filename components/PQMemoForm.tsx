@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2 } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import { useApplication } from '@/lib/applicationStore';
+import { Button } from '@/components/ui/button';
 
 
 interface PQMemoFormProps {
@@ -198,6 +199,38 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
     if (projectId) fetchFinancingSources();
   }, [projectId]);
 
+  const exportToPDF = async () => {
+    if (!projectId) {
+      alert('Cannot generate PDF: Project ID is missing');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/pq-memo-pdf`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
+        throw new Error(error.error || 'Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PQ_Memo_${applicationData.projectOverview.projectName || 'Draft'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 5000);
+    } catch (error: any) {
+      console.error('Error exporting PDF:', error);
+      alert(error.message || 'Failed to generate PDF. Please try again.');
+    }
+  };
+
   // Build dynamic S&U columns from financing sources in the store, deduplicating
   const financingSources = applicationData.financingSources || [];
   const suColumns = financingSources.length > 0
@@ -270,6 +303,16 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   return (
     <>
       <div className="max-w-6xl mx-auto bg-gray-50 px-5 pb-5">
+      {/* Positioned below the BDOLayout sticky header (which is top-0 z-50)
+          so the Export button clears it and stays visible while scrolling. */}
+      <Button
+        onClick={exportToPDF}
+        className="fixed top-20 right-6 bg-gradient-to-r from-gray-700 to-blue-600 hover:shadow-xl z-[60] shadow-lg text-white"
+        data-testid="button-export-pdf"
+      >
+        <Download className="mr-2 h-4 w-4" />
+        Export PDF
+      </Button>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
 
         <div className="bg-gradient-to-r from-gray-700 to-blue-600 text-white p-5">

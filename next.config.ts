@@ -52,7 +52,24 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     '@opentelemetry/api',
     '@opentelemetry/sdk-trace-base',
+    // Chromium launchers bundle native binaries and resolve them via paths
+    // relative to their own package dir. Bundling into .next/server breaks
+    // that resolution, so they must be loaded from node_modules at runtime.
+    'puppeteer',
+    'puppeteer-core',
+    '@sparticuz/chromium',
   ],
+
+  // Next's standalone tracer only follows JS imports. @sparticuz/chromium
+  // extracts its Chromium binary from a Brotli-compressed tarball under
+  // node_modules/@sparticuz/chromium/bin/ at runtime, so we must force
+  // those files into the standalone output or the deploy will ship an
+  // empty bin/ dir and executablePath() will fail at launch.
+  outputFileTracingIncludes: {
+    '/api/projects/**': [
+      './node_modules/@sparticuz/chromium/bin/**',
+    ],
+  },
 
   // Add security headers to all routes
   async headers() {
