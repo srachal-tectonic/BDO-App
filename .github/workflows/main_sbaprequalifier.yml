@@ -40,16 +40,34 @@ jobs:
       - name: Bundle Chromium runtime libs
         run: |
           set -e
-          # Explicit list of Chromium-required libs + their Debian/Ubuntu
-          # package names. Transitive deps come along automatically via
-          # --download-only below.
-          PKGS="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
-                libcups2 libdrm2 libgbm1 libasound2 libxcomposite1 libxdamage1 \
-                libxrandr2 libxshmfence1 libxkbcommon0 libxtst6 libxfixes3 \
-                libxi6 libxrender1 libx11-xcb1 libxcb-dri3-0 libpango-1.0-0 \
-                libcairo2 libgtk-3-0 fonts-liberation"
+          # Candidate list of Chromium-required libs. Ubuntu 24.04 renamed
+          # several of these with a "t64" suffix as part of the 64-bit
+          # time_t transition (libasound2 → libasound2t64, etc.); on amd64
+          # the contained .so files are ABI-identical, so the rename is
+          # cosmetic. We list both the original and t64 forms and filter
+          # to whichever is present in apt-cache — keeps the workflow
+          # working on both ubuntu-22.04 and ubuntu-24.04 runners.
+          CANDIDATES="libnspr4 libnss3 \
+            libatk1.0-0 libatk1.0-0t64 \
+            libatk-bridge2.0-0 libatk-bridge2.0-0t64 \
+            libatspi2.0-0 libatspi2.0-0t64 \
+            libcups2 libcups2t64 \
+            libdrm2 libgbm1 \
+            libasound2 libasound2t64 \
+            libxcomposite1 libxdamage1 libxrandr2 libxshmfence1 \
+            libxkbcommon0 libxtst6 libxfixes3 libxi6 libxrender1 \
+            libx11-xcb1 libxcb-dri3-0 \
+            libpango-1.0-0 libcairo2 libgtk-3-0 fonts-liberation"
 
           sudo apt-get update -qq
+
+          PKGS=""
+          for candidate in $CANDIDATES; do
+            if apt-cache show "$candidate" >/dev/null 2>&1; then
+              PKGS="$PKGS $candidate"
+            fi
+          done
+          echo "Resolved packages on this runner: $PKGS"
 
           # Download target packages + their transitive deps into a cache
           # dir without installing them system-wide on the runner.
