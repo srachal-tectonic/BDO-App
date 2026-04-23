@@ -1,6 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServer, type Server } from 'http';
+import type { AddressInfo } from 'net';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { generatePQMemoHTML } from '@/lib/pq-memo-template';
+import {
+  ROBOTO_400_WOFF2_BASE64,
+  ROBOTO_400_WOFF_BASE64,
+  ROBOTO_700_WOFF2_BASE64,
+  ROBOTO_700_WOFF_BASE64,
+} from '@/lib/pq-memo-font';
+
+// Font bytes decoded once per process. ~88 KB total. Served to Chromium
+// over a loopback HTTP server (see startFontServer) — sparticuz's Chromium
+// silently errors on data:-URI @font-face src, so we fall back to http://.
+const FONT_BUFFERS: Record<string, Buffer> = {
+  'roboto-400.woff2': Buffer.from(ROBOTO_400_WOFF2_BASE64, 'base64'),
+  'roboto-400.woff':  Buffer.from(ROBOTO_400_WOFF_BASE64,  'base64'),
+  'roboto-700.woff2': Buffer.from(ROBOTO_700_WOFF2_BASE64, 'base64'),
+  'roboto-700.woff':  Buffer.from(ROBOTO_700_WOFF_BASE64,  'base64'),
+};
+
+// Spin up a throwaway HTTP server on 127.0.0.1:<random port> that serves
+// the generated HTML at / and font bytes at /fonts/<name>. Returns the
+// URL for page.goto plus the server handle so the caller can close it.
+async function startFontServer(html: string): Promise<{ url: string; server: Server }> {
+  const server = createServer((req, res) => {
+    if (req.url === '/' || req.url === '') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+      return;
+    }
+    const m = (req.url || '').match(/^\/fonts\/([a-z0-9.-]+)$/i);
+    if (m && FONT_BUFFERS[m[1]]) {
+      const ct = m[1].endsWith('.woff2') ? 'font/woff2' : 'font/woff';
+      res.writeHead(200, { 'Content-Type': ct, 'Cache-Control': 'no-store' });
+      res.end(FONT_BUFFERS[m[1]]);
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const port = (server.address() as AddressInfo).port;
+  return { url: `http://127.0.0.1:${port}/`, server };
+}
 
 // Puppeteer ships with its own Chromium (~150MB). Running on Azure App Service
 // Linux requires the Chromium runtime deps (libnss3, libatk-bridge2.0-0,
@@ -23,6 +69,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   let browser: any = null;
+  let fontServer: Server | null = null;
   let engine: 'sparticuz' | 'puppeteer-full' | 'unknown' = 'unknown';
   try {
     const { id: projectId } = await params;
@@ -220,11 +267,15 @@ export async function GET(
     page.on('console', (msg: any) => pageLogs.push(`[console.${msg.type()}] ${msg.text()}`));
     page.on('pageerror', (err: any) => pageLogs.push(`[pageerror] ${err?.message || err}`));
 
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    // networkidle0 doesn't wait for @font-face decoding. With a data-URI
-    // font + font-display: block, sparticuz's slimmed Chromium can fire
-    // the PDF snapshot while text is still in the font-display block
-    // window — giving a PDF with boxes but no glyphs.
+    // Serve the HTML + fonts to Chromium over loopback HTTP so @font-face
+    // src can fetch via http:// (sparticuz Chromium silently errors on
+    // data:-scheme font loads). page.goto resolves once networkidle0,
+    // which waits for the WOFF2 responses we emit below.
+    const { url: pageUrl, server } = await startFontServer(html);
+    fontServer = server;
+    await page.goto(pageUrl, { waitUntil: 'networkidle0' });
+    // Defense-in-depth: networkidle0 doesn't cover the internal font decode
+    // step, only network quiescence.
     await page.evaluateHandle('document.fonts.ready');
 
     // Snapshot what sparticuz Chromium actually did with the @font-face.
@@ -287,6 +338,9 @@ export async function GET(
   } finally {
     if (browser) {
       await browser.close().catch((err: any) => console.error('Error closing browser:', err));
+    }
+    if (fontServer) {
+      fontServer.close();
     }
   }
 }

@@ -12,13 +12,10 @@
  *     template gracefully degrades when they're missing.
  */
 
-import {
-  ROBOTO_400_WOFF2_BASE64,
-  ROBOTO_400_WOFF_BASE64,
-  ROBOTO_700_WOFF2_BASE64,
-  ROBOTO_700_WOFF_BASE64,
-} from './pq-memo-font';
-
+// Fonts are served to Chromium over a loopback HTTP server spun up by the
+// PDF route, not inlined as data: URIs. Sparticuz's Chromium build refuses
+// to decode data:-scheme fonts (document.fonts reports status "error" with
+// no console log); http:// from the same page origin works normally.
 export interface PQMemoInput {
   projectName: string;
   loanApplication: Record<string, any>;
@@ -224,16 +221,16 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           font-style: normal;
           font-weight: 400;
           font-display: block;
-          src: url(data:font/woff2;base64,${ROBOTO_400_WOFF2_BASE64}) format('woff2'),
-               url(data:font/woff;base64,${ROBOTO_400_WOFF_BASE64}) format('woff');
+          src: url('/fonts/roboto-400.woff2') format('woff2'),
+               url('/fonts/roboto-400.woff')  format('woff');
         }
         @font-face {
           font-family: 'Roboto';
           font-style: normal;
           font-weight: 700;
           font-display: block;
-          src: url(data:font/woff2;base64,${ROBOTO_700_WOFF2_BASE64}) format('woff2'),
-               url(data:font/woff;base64,${ROBOTO_700_WOFF_BASE64}) format('woff');
+          src: url('/fonts/roboto-700.woff2') format('woff2'),
+               url('/fonts/roboto-700.woff')  format('woff');
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 20px; line-height: 1.6; color: #2c3e50; }
