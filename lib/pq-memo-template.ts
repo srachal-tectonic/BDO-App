@@ -301,11 +301,15 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const financialPeriods = input.financialPeriods || [];
   const spreadFileName = input.spreadFileName;
 
+  // Render a card for every financing source record, even if blank.
+  // The app auto-seeds defaults (SBA 7(a) Standard, SBA 504, CDC Debenture,
+  // Seller Note, 3rd Party, Equity) with zeroed amounts, and BDOs want to
+  // see those placeholder cards in the memo so reviewers know a source
+  // was considered and left blank — not just missing.
   const loanCards = financingSources
-    .filter((s: any) => s?.financingType)
     .map(
       (source: any) => `<div class="loan-card">
-        <h3>${esc(source.financingType)}</h3>
+        <h3>${esc(source.financingType || 'Unnamed Source')}</h3>
         <div class="loan-details">
           <div class="loan-detail"><span>Amount:</span><strong>${formatCurrency(Number(source.amount))}</strong></div>
           <div class="loan-detail"><span>Rate:</span><strong>${source.totalRate ? `${Number(source.totalRate).toFixed(2)}%` : 'N/A'}</strong></div>
