@@ -23,6 +23,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   let browser: any = null;
+  let engine: 'sparticuz' | 'puppeteer-full' | 'unknown' = 'unknown';
   try {
     const { id: projectId } = await params;
 
@@ -96,6 +97,7 @@ export async function GET(
           ],
           defaultViewport: chromium.defaultViewport,
         });
+        engine = 'sparticuz';
       } else {
         // Fallback to full puppeteer with its bundled Chrome.
         let puppeteerFull: any;
@@ -131,6 +133,7 @@ export async function GET(
             '--disable-gpu',
           ],
         });
+        engine = 'puppeteer-full';
       }
     } catch (launchErr: any) {
       // Gather diagnostic info that's genuinely hard to retrieve post-hoc on
@@ -210,6 +213,11 @@ export async function GET(
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
+    // networkidle0 doesn't wait for @font-face decoding. With a data-URI
+    // font + font-display: block, sparticuz's slimmed Chromium can fire
+    // the PDF snapshot while text is still in the font-display block
+    // window — giving a PDF with boxes but no glyphs.
+    await page.evaluateHandle('document.fonts.ready');
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       margin: { top: '0.4in', right: '0.4in', bottom: '0.4in', left: '0.4in' },
@@ -233,6 +241,7 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store',
+        'X-PDF-Engine': engine,
       },
     });
   } catch (error: any) {
