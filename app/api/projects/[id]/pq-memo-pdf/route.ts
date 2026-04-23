@@ -114,6 +114,22 @@ export async function GET(
     //      (Windows/macOS, regular Linux desktop) where its bundled Chrome
     //      works out of the box.
     //   3. PUPPETEER_EXECUTABLE_PATH override    — explicit escape hatch.
+    // Chromium links libfontconfig and calls FcInit() on startup, which
+    // reads fonts.conf from $FONTCONFIG_PATH (defaulting to /etc/fonts).
+    // Azure App Service has no /etc/fonts/, so without this env var
+    // fontconfig fails silently and Blink marks every @font-face as
+    // status: "error". Our chrome-libs bundle ships the Debian
+    // fontconfig-config package at etc/fonts — point fontconfig at it.
+    if (!process.env.FONTCONFIG_PATH) {
+      const bundled = '/home/site/wwwroot/chrome-libs/etc/fonts';
+      try {
+        const fs = await import('fs');
+        if (fs.existsSync(`${bundled}/fonts.conf`)) {
+          process.env.FONTCONFIG_PATH = bundled;
+        }
+      } catch { /* non-Azure env; leave unset */ }
+    }
+
     try {
       let chromium: any = null;
       try {
@@ -297,6 +313,7 @@ export async function GET(
         innerTextLen: (body.innerText || '').length,
       };
     });
+    (fontDiag as any).fontconfigPath = process.env.FONTCONFIG_PATH || null;
     console.log('[PQ Memo PDF] Font diag:', JSON.stringify(fontDiag));
     if (pageLogs.length) console.log('[PQ Memo PDF] Page logs:', pageLogs);
 

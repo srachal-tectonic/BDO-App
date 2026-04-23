@@ -59,7 +59,9 @@ jobs:
             libx11-xcb1 libxcb-dri3-0 \
             libpango-1.0-0 libcairo2 \
             libgtk-3-0 libgtk-3-0t64 \
-            fonts-liberation"
+            libfontconfig1 libfontconfig1t64 \
+            libfreetype6 libfreetype6t64 \
+            fonts-liberation fontconfig-config"
 
           sudo apt-get update -qq
 
@@ -130,12 +132,23 @@ jobs:
             find chrome-libs/usr/share -mindepth 1 -maxdepth 1 -type f -delete
           fi
 
+          # Under /etc, keep only /etc/fonts — Chromium links libfontconfig,
+          # which calls FcInit() at startup and reads /etc/fonts/fonts.conf.
+          # If that path doesn't resolve, fontconfig fails to init, Blink's
+          # font subsystem breaks, and ALL @font-face entries end up with
+          # status: "error" (including http://-loaded ones), silently. This
+          # is why the PDF comes back with boxes but no glyphs on Azure.
+          # The runtime must also set FONTCONFIG_PATH to point at this dir.
+          if [ -d chrome-libs/etc ]; then
+            find chrome-libs/etc -mindepth 1 -maxdepth 1 \
+              ! -name fonts -exec rm -rf {} +
+          fi
+
           # Drop other non-library trees entirely.
           find chrome-libs -type d \( \
               -path 'chrome-libs/usr/include' -o \
               -path 'chrome-libs/usr/bin' -o \
               -path 'chrome-libs/usr/sbin' -o \
-              -path 'chrome-libs/etc' -o \
               -path 'chrome-libs/var' \
             \) -prune -exec rm -rf {} +
 
@@ -143,6 +156,7 @@ jobs:
           find chrome-libs -type f ! -name '*.so*' \
             ! -path 'chrome-libs/usr/share/fonts/*' \
             ! -path 'chrome-libs/usr/share/fontconfig/*' \
+            ! -path 'chrome-libs/etc/fonts/*' \
             -delete
           find chrome-libs -type d -empty -delete
 
@@ -153,7 +167,7 @@ jobs:
 
           # Fail loudly if the critical libs aren't there — better to break
           # the build than ship a silently-broken deploy.
-          REQUIRED_SOS="libnspr4.so libnss3.so libasound.so.2"
+          REQUIRED_SOS="libnspr4.so libnss3.so libasound.so.2 libfontconfig.so libfreetype.so"
           for so in $REQUIRED_SOS; do
             if ! find chrome-libs -name "$so*" | grep -q .; then
               echo "::error::Required lib missing from bundle: $so"
@@ -161,6 +175,17 @@ jobs:
             fi
           done
           echo "All required .so files present."
+
+          # Fontconfig config must land for Chromium's font subsystem to
+          # initialize on Azure — without this, every @font-face entry
+          # comes back with status: "error" and the PDF renders blank text.
+          if [ ! -f chrome-libs/etc/fonts/fonts.conf ]; then
+            echo "::error::Required config missing from bundle: etc/fonts/fonts.conf"
+            exit 1
+          fi
+          echo "fontconfig config present:"
+          ls -la chrome-libs/etc/fonts/fonts.conf
+          find chrome-libs/etc/fonts/conf.d -maxdepth 1 -type f 2>/dev/null | wc -l | xargs -I{} echo "  conf.d entries: {}"
 
       - name: Prepare standalone package
         run: |
