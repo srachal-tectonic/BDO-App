@@ -12,7 +12,12 @@
  *     template gracefully degrades when they're missing.
  */
 
-import { ROBOTO_LATIN_WOFF2_BASE64 } from './pq-memo-font';
+import {
+  ROBOTO_400_WOFF2_BASE64,
+  ROBOTO_400_WOFF_BASE64,
+  ROBOTO_700_WOFF2_BASE64,
+  ROBOTO_700_WOFF_BASE64,
+} from './pq-memo-font';
 
 export interface PQMemoInput {
   projectName: string;
@@ -217,9 +222,18 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         @font-face {
           font-family: 'Roboto';
           font-style: normal;
-          font-weight: 100 900;
+          font-weight: 400;
           font-display: block;
-          src: url(data:font/woff2;base64,${ROBOTO_LATIN_WOFF2_BASE64}) format('woff2');
+          src: url(data:font/woff2;base64,${ROBOTO_400_WOFF2_BASE64}) format('woff2'),
+               url(data:font/woff;base64,${ROBOTO_400_WOFF_BASE64}) format('woff');
+        }
+        @font-face {
+          font-family: 'Roboto';
+          font-style: normal;
+          font-weight: 700;
+          font-display: block;
+          src: url(data:font/woff2;base64,${ROBOTO_700_WOFF2_BASE64}) format('woff2'),
+               url(data:font/woff;base64,${ROBOTO_700_WOFF_BASE64}) format('woff');
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 20px; line-height: 1.6; color: #2c3e50; }

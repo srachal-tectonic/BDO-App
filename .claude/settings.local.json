@@ -68,7 +68,15 @@
       "Bash(sed -n '213,218p' lib/pq-memo-template.ts)",
       "Bash(sed -n '488,498p' lib/pq-memo-template.ts)",
       "Bash(npx -y tsc --noEmit --jsx preserve --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --strict false lib/pq-memo-template.ts lib/pq-memo-font.ts)",
-      "Bash(npx -y tsc --noEmit -p tsconfig.json)"
+      "Bash(npx -y tsc --noEmit -p tsconfig.json)",
+      "Bash(curl -sS -A 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' https://api.github.com/repos/google/fonts/contents/apache/roboto)",
+      "Bash(curl -sS -A 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' 'https://api.github.com/search/code?q=Roboto-Regular.ttf+repo:google/fonts')",
+      "Bash(curl -sS -A 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' -o /dev/null -w '%{http_code}\\\\n' https://raw.githubusercontent.com/google/fonts/main/apache/robotoflex/Roboto-Flex%5Bopsz,slnt,wdth,GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,wght%5D.ttf)",
+      "Bash(curl -sS -A 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' -o /dev/null -w '%{http_code}' https://raw.githubusercontent.com/google/fonts/main/__TRACKED_VAR__)",
+      "Bash(curl -sSL -A 'Mozilla/4.0 \\(compatible; MSIE 6.0; Windows NT 5.1\\)' 'https://fonts.gstatic.com/l/font?kit=KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbVmUiA4&skey=a0a0114a1dcab3ac&v=v51' -o /tmp/roboto-400-legacy.dat)",
+      "Read(//tmp/**)",
+      "Bash(xxd)",
+      "Bash(curl -sSL -A Mozilla/5.0 https://registry.npmjs.org/@fontsource/roboto/latest)"
     ],
     "deny": [],
     "ask": []
