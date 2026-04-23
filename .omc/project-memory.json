@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776693403831,
+  "lastScanned": 1776957170351,
   "projectRoot": "/mnt/c/Users/srachal/Desktop/BDO App April",
   "techStack": {
     "languages": [
@@ -81,7 +81,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1776693403656,
+      "lastAccessed": 1776957170276,
       "keyFiles": [
         "favicon.ico",
         "globals.css",
@@ -93,7 +93,7 @@
       "path": "components",
       "purpose": "UI components",
       "fileCount": 12,
-      "lastAccessed": 1776693403701,
+      "lastAccessed": 1776957170284,
       "keyFiles": [
         "AuditTimeline.tsx",
         "ConfirmDialog.tsx",
@@ -106,7 +106,7 @@
       "path": "contexts",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1776693403710,
+      "lastAccessed": 1776957170291,
       "keyFiles": [
         "Auth0Context.tsx",
         "FirebaseAuthContext.tsx",
@@ -117,7 +117,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1776693403721,
+      "lastAccessed": 1776957170298,
       "keyFiles": [
         "AUDIT-LOGGING-PLAN.md"
       ]
@@ -126,7 +126,7 @@
       "path": "hooks",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776693403729,
+      "lastAccessed": 1776957170302,
       "keyFiles": [
         "use-mobile.tsx",
         "use-toast.ts"
@@ -135,8 +135,8 @@
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 24,
-      "lastAccessed": 1776693403736,
+      "fileCount": 26,
+      "lastAccessed": 1776957170306,
       "keyFiles": [
         "apiAuth.ts",
         "apiSecurityHeaders.ts",
@@ -149,7 +149,7 @@
       "path": "openspec",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776693403743,
+      "lastAccessed": 1776957170309,
       "keyFiles": [
         "AGENTS.md",
         "project.md"
@@ -158,12 +158,13 @@
     "pdfs": {
       "path": "pdfs",
       "purpose": null,
-      "fileCount": 4,
-      "lastAccessed": 1776693403754,
+      "fileCount": 5,
+      "lastAccessed": 1776957170311,
       "keyFiles": [
         "Blanks_Business_Questionnaire.pdf",
         "Blanks_Individual_Applicant.pdf",
         "Individual_Applicant_Personal_Financial_Information 6.xlsx",
+        "Stoneworks_Marble__Business_Applicant_Project_Information (1).pdf",
         "blank_Business_Applicant_Project_Information.pdf"
       ]
     },
@@ -171,7 +172,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1776693403765,
+      "lastAccessed": 1776957170314,
       "keyFiles": [
         "404.html",
         "file.svg",
@@ -184,7 +185,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1776693403775,
+      "lastAccessed": 1776957170317,
       "keyFiles": [
         "diagnose-pdf-extraction.mjs",
         "extract-pdf-fields.ts",
@@ -197,7 +198,7 @@
       "path": "services",
       "purpose": "Business logic services",
       "fileCount": 4,
-      "lastAccessed": 1776693403788,
+      "lastAccessed": 1776957170321,
       "keyFiles": [
         "brokerTokens.ts",
         "firestore.ts",
@@ -208,10 +209,11 @@
     "sheets": {
       "path": "sheets",
       "purpose": null,
-      "fileCount": 2,
-      "lastAccessed": 1776693403798,
+      "fileCount": 3,
+      "lastAccessed": 1776957170324,
       "keyFiles": [
         "IMPORT TEST_New BDO Pre-Qual_04.2026.xlsx",
+        "Individual_Applicant_Personal_Financial_Information.xlsx",
         "New BDO Pre-Qual_04.2026 - V50414.xlsx"
       ]
     },
@@ -219,7 +221,7 @@
       "path": "types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1776693403802,
+      "lastAccessed": 1776957170327,
       "keyFiles": [
         "index.ts"
       ]
@@ -228,7 +230,7 @@
       "path": "app/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1776693403811,
+      "lastAccessed": 1776957170331,
       "keyFiles": []
     }
   },
@@ -456,6 +458,12 @@
       "type": "file"
     },
     {
+      "path": "next.config.ts",
+      "accessCount": 5,
+      "lastAccessed": 1776957232387,
+      "type": "file"
+    },
+    {
       "path": "app/layout.tsx",
       "accessCount": 4,
       "lastAccessed": 1775661696205,
@@ -471,12 +479,6 @@
       "path": "contexts/ThemeContext.tsx",
       "accessCount": 4,
       "lastAccessed": 1776272146137,
-      "type": "file"
-    },
-    {
-      "path": "next.config.ts",
-      "accessCount": 4,
-      "lastAccessed": 1776448295132,
       "type": "file"
     },
     {

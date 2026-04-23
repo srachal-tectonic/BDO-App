@@ -110,8 +110,45 @@ jobs:
           done
 
           rm -rf chrome-libs-debs
-          echo "=== chrome-libs bundled (size / sample .so files) ==="
+
+          echo "=== chrome-libs pre-strip (size / file count) ==="
           du -sh chrome-libs
+          find chrome-libs -type f | wc -l
+
+          # dpkg -x extracts the entire package tree: /usr/share/doc,
+          # /usr/share/locale (every language), /usr/share/man, icon
+          # themes, changelogs, etc. Chromium only needs the shared
+          # libraries (plus Liberation fonts for PDF text rendering);
+          # everything else inflates the file count and makes the
+          # Azure rsync slow enough for SCM to recycle the container
+          # mid-deploy.
+
+          # Under /usr/share, keep only fonts/ and fontconfig/.
+          if [ -d chrome-libs/usr/share ]; then
+            find chrome-libs/usr/share -mindepth 1 -maxdepth 1 -type d \
+              ! -name fonts ! -name fontconfig -exec rm -rf {} +
+            find chrome-libs/usr/share -mindepth 1 -maxdepth 1 -type f -delete
+          fi
+
+          # Drop other non-library trees entirely.
+          find chrome-libs -type d \( \
+              -path 'chrome-libs/usr/include' -o \
+              -path 'chrome-libs/usr/bin' -o \
+              -path 'chrome-libs/usr/sbin' -o \
+              -path 'chrome-libs/etc' -o \
+              -path 'chrome-libs/var' \
+            \) -prune -exec rm -rf {} +
+
+          # Delete any remaining non-.so files outside the fonts trees.
+          find chrome-libs -type f ! -name '*.so*' \
+            ! -path 'chrome-libs/usr/share/fonts/*' \
+            ! -path 'chrome-libs/usr/share/fontconfig/*' \
+            -delete
+          find chrome-libs -type d -empty -delete
+
+          echo "=== chrome-libs post-strip (size / file count) ==="
+          du -sh chrome-libs
+          find chrome-libs -type f | wc -l
           find chrome-libs -name '*.so*' -printf '%p\n' 2>/dev/null | head -40
 
           # Fail loudly if the critical libs aren't there — better to break
