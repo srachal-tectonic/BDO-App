@@ -114,21 +114,44 @@ export async function GET(
     //      (Windows/macOS, regular Linux desktop) where its bundled Chrome
     //      works out of the box.
     //   3. PUPPETEER_EXECUTABLE_PATH override    — explicit escape hatch.
-    // Chromium links libfontconfig and calls FcInit() on startup, which
-    // reads fonts.conf from $FONTCONFIG_PATH (defaulting to /etc/fonts).
-    // Azure App Service has no /etc/fonts/, so without this env var
-    // fontconfig fails silently and Blink marks every @font-face as
-    // status: "error". Our chrome-libs bundle ships the Debian
-    // fontconfig-config package at etc/fonts — point fontconfig at it.
-    if (!process.env.FONTCONFIG_PATH) {
-      const bundled = '/home/site/wwwroot/chrome-libs/etc/fonts';
-      try {
-        const fs = await import('fs');
-        if (fs.existsSync(`${bundled}/fonts.conf`)) {
-          process.env.FONTCONFIG_PATH = bundled;
-        }
-      } catch { /* non-Azure env; leave unset */ }
-    }
+    // Chromium links libfontconfig and calls FcInit() on startup. On
+    // Debian/Ubuntu, /etc/fonts/fonts.conf chains through conf.d/* via
+    // <include> directives — and those conf.d entries are SYMLINKS to
+    // absolute paths like /usr/share/fontconfig/conf.avail/*.conf. On
+    // Azure those targets don't exist (our files are under
+    // /home/site/wwwroot/chrome-libs/...), every include fails, FcInit
+    // returns FcFalse, Blink's font subsystem refuses to activate
+    // typefaces, and every @font-face comes back with status: "error".
+    //
+    // Bypass that whole layer: write a minimal fonts.conf with NO
+    // includes, pointing at bundled fonts + a writable cache dir, and
+    // tell fontconfig to use it via FONTCONFIG_FILE.
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const os = await import('os');
+      const bundledFontDir = '/home/site/wwwroot/chrome-libs/usr/share/fonts';
+      if (fs.existsSync(bundledFontDir)) {
+        const cacheDir = path.join(os.tmpdir(), 'fontconfig-cache');
+        fs.mkdirSync(cacheDir, { recursive: true });
+        const confPath = path.join(os.tmpdir(), 'pq-fonts.conf');
+        const conf = `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <dir>${bundledFontDir}</dir>
+  <cachedir>${cacheDir}</cachedir>
+  <alias><family>sans-serif</family><prefer><family>Liberation Sans</family></prefer></alias>
+  <alias><family>serif</family><prefer><family>Liberation Serif</family></prefer></alias>
+  <alias><family>monospace</family><prefer><family>Liberation Mono</family></prefer></alias>
+</fontconfig>`;
+        fs.writeFileSync(confPath, conf);
+        process.env.FONTCONFIG_FILE = confPath;
+        // If we previously set FONTCONFIG_PATH, clear it — fontconfig
+        // can treat FONTCONFIG_FILE as relative to FONTCONFIG_PATH on
+        // some versions, which would break the absolute path above.
+        delete process.env.FONTCONFIG_PATH;
+      }
+    } catch { /* non-Azure env; leave fontconfig alone */ }
 
     try {
       let chromium: any = null;
@@ -314,6 +337,7 @@ export async function GET(
       };
     });
     (fontDiag as any).fontconfigPath = process.env.FONTCONFIG_PATH || null;
+    (fontDiag as any).fontconfigFile = process.env.FONTCONFIG_FILE || null;
     console.log('[PQ Memo PDF] Font diag:', JSON.stringify(fontDiag));
     if (pageLogs.length) console.log('[PQ Memo PDF] Page logs:', pageLogs);
 
