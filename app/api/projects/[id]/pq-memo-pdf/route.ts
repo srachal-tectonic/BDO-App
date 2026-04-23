@@ -212,12 +212,43 @@ export async function GET(
     }
 
     const page = await browser.newPage();
+    // Capture console + pageerror so we can see font parsing warnings that
+    // sparticuz's Chromium emits when it refuses to register a data-URI
+    // font. These surface nowhere else — not in the PDF, not in the route
+    // response — without an explicit listener.
+    const pageLogs: string[] = [];
+    page.on('console', (msg: any) => pageLogs.push(`[console.${msg.type()}] ${msg.text()}`));
+    page.on('pageerror', (err: any) => pageLogs.push(`[pageerror] ${err?.message || err}`));
+
     await page.setContent(html, { waitUntil: 'networkidle0' });
     // networkidle0 doesn't wait for @font-face decoding. With a data-URI
     // font + font-display: block, sparticuz's slimmed Chromium can fire
     // the PDF snapshot while text is still in the font-display block
     // window — giving a PDF with boxes but no glyphs.
     await page.evaluateHandle('document.fonts.ready');
+
+    // Snapshot what sparticuz Chromium actually did with the @font-face.
+    // Emitted as X-PDF-Diag header + server log so we can see it without
+    // deploying a separate debug endpoint.
+    const fontDiag = await page.evaluate(() => {
+      const list: Array<{family:string;weight:string;style:string;status:string}> = [];
+      (document as any).fonts.forEach((f: any) => {
+        list.push({ family: f.family, weight: String(f.weight), style: f.style, status: f.status });
+      });
+      const body = document.body;
+      const cs = getComputedStyle(body);
+      return {
+        setStatus: (document as any).fonts.status,
+        setSize: (document as any).fonts.size,
+        list,
+        computedFamily: cs.fontFamily,
+        computedColor: cs.color,
+        innerTextLen: (body.innerText || '').length,
+      };
+    });
+    console.log('[PQ Memo PDF] Font diag:', JSON.stringify(fontDiag));
+    if (pageLogs.length) console.log('[PQ Memo PDF] Page logs:', pageLogs);
+
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       margin: { top: '0.4in', right: '0.4in', bottom: '0.4in', left: '0.4in' },
@@ -242,6 +273,9 @@ export async function GET(
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store',
         'X-PDF-Engine': engine,
+        // HTTP headers have an 8KB-ish cap; clip pageLogs so we never blow it.
+        'X-PDF-Diag': JSON.stringify(fontDiag).slice(0, 4000),
+        'X-PDF-Page-Logs': pageLogs.join(' | ').slice(0, 2000),
       },
     });
   } catch (error: any) {
