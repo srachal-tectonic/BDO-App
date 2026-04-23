@@ -66,7 +66,8 @@
       "Bash(sed -n '880,895p' components/loan-sections/BorrowerFormsSection.tsx)",
       "Bash(awk 'NR>=880 && NR<=890' components/loan-sections/BorrowerFormsSection.tsx)",
       "Bash(sed -n '213,218p' lib/pq-memo-template.ts)",
-      "Bash(sed -n '488,498p' lib/pq-memo-template.ts)"
+      "Bash(sed -n '488,498p' lib/pq-memo-template.ts)",
+      "Bash(npx -y tsc --noEmit --jsx preserve --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --strict false lib/pq-memo-template.ts lib/pq-memo-font.ts)"
     ],
     "deny": [],
     "ask": []
