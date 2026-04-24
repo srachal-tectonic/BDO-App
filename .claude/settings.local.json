@@ -76,7 +76,9 @@
       "Bash(curl -sSL -A 'Mozilla/4.0 \\(compatible; MSIE 6.0; Windows NT 5.1\\)' 'https://fonts.gstatic.com/l/font?kit=KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbVmUiA4&skey=a0a0114a1dcab3ac&v=v51' -o /tmp/roboto-400-legacy.dat)",
       "Read(//tmp/**)",
       "Bash(xxd)",
-      "Bash(curl -sSL -A Mozilla/5.0 https://registry.npmjs.org/@fontsource/roboto/latest)"
+      "Bash(curl -sSL -A Mozilla/5.0 https://registry.npmjs.org/@fontsource/roboto/latest)",
+      "Bash(wait)",
+      "Bash(cat /tmp/claude-1000/-mnt-c-Users-srachal-Desktop-BDO-App-April/a043c198-829d-4fad-935b-556ffae4ff4c/tasks/b2wdflypw.output)"
     ],
     "deny": [],
     "ask": []

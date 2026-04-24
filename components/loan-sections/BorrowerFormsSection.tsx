@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { FileText, Send, Check, Clock, Download, AlertCircle, Copy, ExternalLink, Loader2, RefreshCw, Upload, File, ChevronDown, ChevronRight, CheckCircle, XCircle, Edit2, Play, Eye, Trash2, User } from 'lucide-react';
+import { FileText, FileSpreadsheet, Send, Check, Clock, Download, AlertCircle, Copy, ExternalLink, Loader2, RefreshCw, Upload, File, ChevronDown, ChevronRight, CheckCircle, XCircle, Edit2, Play, Eye, Trash2, User, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -120,6 +120,9 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
   // Per-form selected individual (keyed by form ID)
   const [selectedIndividual, setSelectedIndividual] = useState<Record<string, string>>({});
+
+  // Multi-select for bulk download
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Extraction review state
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
@@ -702,6 +705,33 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   const totalForms = forms.length;
   const downloadedCount = forms.filter(f => f.downloadedAt).length;
 
+  const allSelected = forms.length > 0 && selectedIds.size === forms.length;
+
+  const toggleSelect = (formId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(formId)) {
+        next.delete(formId);
+      } else {
+        next.add(formId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (prev.size === forms.length) return new Set();
+      return new Set(forms.map((f) => f.id));
+    });
+  };
+
+  const downloadSelected = () => {
+    selectedIds.forEach((formId) => {
+      handleDownloadForm(formId);
+    });
+  };
+
   const mappedFields = extraction?.fields.filter((f) => f.mappedSection && f.mappedPath) || [];
   const approvedFields = mappedFields.filter((f) => f.status === 'approved' || f.status === 'edited');
   const canApply = approvedFields.length > 0 && extraction?.status !== 'applied';
@@ -817,64 +847,103 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       ) : (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div>
                 <CardTitle className="text-lg text-[color:var(--t-color-text-primary)] font-bold">Generated Forms</CardTitle>
                 <CardDescription className="text-[color:var(--t-color-text-muted)]">
-                  {downloadedCount} of {totalForms} forms downloaded by borrower
+                  {completedForms} of {totalForms} forms completed by borrower
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[color:var(--t-color-text-secondary)]" />
-                <span className="text-sm text-[color:var(--t-color-text-secondary)]">
-                  {forms.length > 0 && forms[0].generatedAt && (
-                    <>Generated {new Date(forms[0].generatedAt).toLocaleDateString()}</>
-                  )}
-                </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                {selectedIds.size > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadSelected}
+                    className="gap-2"
+                    data-testid="button-download-selected"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Selected ({selectedIds.size})
+                  </Button>
+                )}
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#7da1d4]" />
+                  <span className="text-sm text-[#7da1d4]">
+                    {forms.length > 0 && forms[0].generatedAt && (
+                      <>Generated {new Date(forms[0].generatedAt).toLocaleDateString()}</>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-3">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-2 text-sm text-[#2563eb] hover:text-[#133c7f] transition-colors cursor-pointer"
+                data-testid="button-select-all"
+              >
+                {allSelected ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
             <div className="space-y-3">
-              {forms.map((form) => (
+              {forms.map((form) => {
+                const isExcel = form.id === 'individual-pfi-worksheet';
+                const isSelected = selectedIds.has(form.id);
+                return (
                 <div
                   key={form.id}
-                  className="flex items-center gap-4 p-4 bg-[var(--t-color-page-bg)] rounded-lg border border-[var(--t-color-border)]"
+                  className={`flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-50 border-[#2563eb]'
+                      : 'bg-[#fafbfd] border-[#c5d4e8]'
+                  }`}
+                  onClick={() => toggleSelect(form.id)}
                   data-testid={`form-item-${form.id}`}
                 >
+                  <button
+                    type="button"
+                    className="flex-shrink-0 text-[#2563eb]"
+                    onClick={(e) => { e.stopPropagation(); toggleSelect(form.id); }}
+                    data-testid={`checkbox-form-${form.id}`}
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="w-5 h-5" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                  </button>
+
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    form.status === 'imported' ? 'bg-green-100' :
-                    form.status === 'uploaded' ? 'bg-purple-100' :
-                    form.status === 'downloaded' ? 'bg-blue-100' :
-                    form.status === 'error' ? 'bg-red-100' :
-                    'bg-gray-100'
+                    isExcel ? 'bg-green-100' : 'bg-gray-100'
                   }`}>
-                    {form.status === 'imported' ? (
-                      <Check className="w-5 h-5 text-green-600" />
-                    ) : form.status === 'uploaded' ? (
-                      <Upload className="w-5 h-5 text-purple-600" />
-                    ) : form.status === 'downloaded' ? (
-                      <Download className="w-5 h-5 text-blue-600" />
-                    ) : form.status === 'error' ? (
-                      <AlertCircle className="w-5 h-5 text-red-600" />
+                    {isExcel ? (
+                      <FileSpreadsheet className="w-5 h-5 text-green-600" />
                     ) : (
                       <FileText className="w-5 h-5 text-gray-600" />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-[color:var(--t-color-text-body)] truncate">
+                    <h4 className="font-medium text-[#1a1a1a] truncate">
                       {form.formName}
                     </h4>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {getStatusBadge(form.status)}
                       {form.downloadedAt && (
-                        <span className="text-xs text-[color:var(--t-color-text-secondary)]">
+                        <span className="text-xs text-[#7da1d4]">
                           Borrower downloaded {new Date(form.downloadedAt).toLocaleDateString()}
                         </span>
                       )}
                       {form.uploadedAt && (
-                        <span className="text-xs text-[color:var(--t-color-text-secondary)]">
+                        <span className="text-xs text-[#7da1d4]">
                           Uploaded {new Date(form.uploadedAt).toLocaleDateString()}
                         </span>
                       )}
@@ -883,27 +952,28 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
 
                   <div className="flex items-center gap-2">
                     {INDIVIDUAL_FORM_IDS.has(form.id) && individuals.length > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-[color:var(--t-color-text-secondary)] flex-shrink-0" />
-                        <select
-                          value={selectedIndividual[form.id] || ''}
-                          onChange={(e) => setSelectedIndividual(prev => ({ ...prev, [form.id]: e.target.value }))}
-                          className="text-sm border border-[var(--t-color-border)] rounded-md px-2 py-1.5 bg-[var(--t-color-card-bg)] text-[color:var(--t-color-text-body)] focus:border-[var(--t-color-accent)] focus:outline-none focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] min-w-[160px]"
-                          data-testid={`select-individual-${form.id}`}
-                        >
-                          <option value="">Select Individual</option>
-                          {individuals.map((ind) => (
-                            <option key={ind.id} value={ind.id}>
-                              {[ind.firstName, ind.lastName].filter(Boolean).join(' ') || 'Unnamed'}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <select
+                        value={selectedIndividual[form.id] || ''}
+                        onChange={(e) => setSelectedIndividual(prev => ({ ...prev, [form.id]: e.target.value }))}
+                        className="text-sm border border-[#c5d4e8] rounded-md px-2 py-1 bg-white text-[#1a1a1a]"
+                        data-testid={`select-individual-${form.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="">Select Individual</option>
+                        {individuals.map((ind) => (
+                          <option key={ind.id} value={ind.id}>
+                            {[ind.firstName, ind.lastName].filter(Boolean).join(' ') || 'Unnamed'}
+                          </option>
+                        ))}
+                      </select>
                     )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDownloadForm(form.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadForm(form.id);
+                      }}
                       className="gap-2"
                       data-testid={`button-download-${form.id}`}
                     >
@@ -913,7 +983,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (form.id === 'individual-pfi-worksheet') {
                           if (!selectedIndividual[form.id]) {
                             alert('Select an Individual from the dropdown before importing the PFI worksheet.');
@@ -947,7 +1018,8 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

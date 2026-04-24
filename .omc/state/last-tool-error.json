@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"set -e\\nTMP=$(mktemp -d)\\ncd \\\"$TMP\\\"\\n# Simulate what dpkg -x produces for the relevant packages.\\nmkdir -p chrome-libs/usr/lib/x86_64-linux-gnu\\nmkdir -p chrome-libs/usr/share/doc/libnsp...",
-  "error": "Exit code 1\ntouch: cannot touch 'chrome-libs/etc/fonts/conf.d/00-fonts.conf': No such file or directory\n=== BEFORE ===\n16\n=== AFTER ===\n7\n--- remaining files ---\nchrome-libs/usr/lib/x86_64-linux-gnu/libasound.so.2\nchrome-libs/usr/lib/x86_64-linux-gnu/libgtk-3.so.0.2400.33\nchrome-libs/usr/lib/x86_64-linux-gnu/libnspr4.so\nchrome-libs/usr/lib/x86_64-linux-gnu/libnss3.so\nchrome-libs/usr/share/fontconfig/conf.avail/30-liberation.conf\nchrome-libs/usr/share/fonts/truetype/liberation/LiberationMono-Regu...",
-  "timestamp": "2026-04-23T15:16:50.358Z",
-  "retry_count": 1
-}

@@ -303,16 +303,18 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   return (
     <>
       <div className="max-w-6xl mx-auto bg-gray-50 px-5 pb-5">
-      {/* Positioned below the BDOLayout sticky header (which is top-0 z-50)
-          so the Export button clears it and stays visible while scrolling. */}
-      <Button
-        onClick={exportToPDF}
-        className="fixed top-20 right-6 bg-gradient-to-r from-gray-700 to-blue-600 hover:shadow-xl z-[60] shadow-lg text-white"
-        data-testid="button-export-pdf"
-      >
-        <Download className="mr-2 h-4 w-4" />
-        Export PDF
-      </Button>
+      {/* Sits above the card, left-aligned with it. Block flow means it
+          never overlaps the gradient header or pushes its contents. */}
+      <div className="pt-3 pb-2">
+        <Button
+          onClick={exportToPDF}
+          className="bg-gradient-to-r from-gray-700 to-blue-600 hover:shadow-xl shadow-lg text-white"
+          data-testid="button-export-pdf"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export PDF
+        </Button>
+      </div>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
 
         <div className="bg-gradient-to-r from-gray-700 to-blue-600 text-white p-5">
