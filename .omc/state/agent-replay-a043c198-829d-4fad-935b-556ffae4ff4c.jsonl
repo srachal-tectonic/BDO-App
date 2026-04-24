@@ -7,3 +7,8 @@
 {"t":0,"agent":"a4f3d42","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
 {"t":0,"agent":"a4f3d42","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":234688}
 {"t":0,"agent":"a080c9d","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a2fba21","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a8149c1","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"ad19449","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"af28928","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"acd5371","agent_type":"unknown","event":"agent_stop","success":true}

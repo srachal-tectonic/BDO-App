@@ -208,9 +208,9 @@ const defaultIndividualApplicant: IndividualApplicant = {
   planToBeOnSite: '',
 };
 
-// Shared input class
+// Shared input class — matches Business Applicant field height/padding.
 const inputCls =
-  'w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] outline-none';
+  'w-full px-3 py-1.5 border border-[var(--t-color-border)] rounded-lg text-[length:var(--t-font-size-base)] transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] outline-none';
 
 // Compact label class used by the new Section-style blocks
 const labelCls = 'block text-[11px] font-medium text-[color:var(--t-color-text-muted)] mb-0.5';
@@ -328,7 +328,7 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
         SBA Personal Financial Statement
       </h4>
 
-      {/* Name & As-Of Date */}
+      {/* Name & As-Of Date — temporarily hidden
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         <div>
           <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Name (as shown on statement)</label>
@@ -350,6 +350,7 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
           />
         </div>
       </div>
+      */}
 
       {/* ---------- Section 1: Assets & Liabilities ---------- */}
       <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 mb-6">
@@ -1285,25 +1286,23 @@ export default function IndividualApplicantsSection() {
 
                     {/* Indirect Ownership Description (conditional) */}
                     {applicant.ownershipType === 'indirect' && (
-                      <div className="mb-4 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg">
-                        <p className="text-sm text-[color:var(--t-color-text-secondary)] mb-2">
-                          <strong>Indirect ownership</strong> means you own a share of the applicant business through another entity (e.g., a holding company, LLC, or trust).
-                          SBA requires disclosure of all natural persons who own 20% or more, including those who own through other entities.
-                          Please describe the ownership chain below.
-                        </p>
-                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Indirect Ownership Description</label>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
+                          Indirect Ownership Description{' '}
+                          <span className="text-[color:var(--t-color-accent)] font-normal">(if applicable)</span>
+                        </label>
                         <textarea
                           value={applicant.indirectOwnershipDescription || ''}
                           onChange={(e) => updateApplicant(applicant.id, 'indirectOwnershipDescription', e.target.value)}
                           placeholder="e.g., I own 75% of Smith Holdings LLC, which owns 40% of the applicant business..."
-                          rows={3}
+                          rows={1}
                           className={`${inputCls} resize-none`}
                           data-testid={`textarea-applicant-${applicant.id}-indirect-ownership`}
                         />
                       </div>
                     )}
 
-                    {/* Title */}
+                    {/* Title — temporarily hidden
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Title</label>
@@ -1317,9 +1316,10 @@ export default function IndividualApplicantsSection() {
                         />
                       </div>
                     </div>
+                    */}
 
-                    {/* Business Role / Travel Time */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    {/* Business Role / Experience / Years of Experience */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
                           Role in Business Operations
@@ -1337,28 +1337,6 @@ export default function IndividualApplicantsSection() {
                           <option value="passive">Passive</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
-                          Travel Time to Business
-                          <HelpCircle className="w-4 h-4 text-[color:var(--t-color-accent)]" />
-                        </label>
-                        <select
-                          value={applicant.travelTime || ''}
-                          onChange={(e) => updateApplicant(applicant.id, 'travelTime', e.target.value)}
-                          className={inputCls}
-                          data-testid={`select-applicant-${applicant.id}-travel-time`}
-                        >
-                          <option value="">Select Travel Time</option>
-                          <option value="less than 30 minutes">Less than 30 minutes</option>
-                          <option value="30 to 60 minutes">30 to 60 minutes</option>
-                          <option value="60 to 120 minutes">60 to 120 minutes</option>
-                          <option value="more than 120 minutes">More than 120 minutes</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Experience / Years */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
                           Relevant Experience
@@ -1399,32 +1377,53 @@ export default function IndividualApplicantsSection() {
                     {/* Role Description */}
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">
-                        Describe your role in the business and how your experience qualifies you for it.
+                        Describe individual&apos;s role in the business and how their experience qualifies them for it.
                       </label>
                       <textarea
                         value={applicant.businessRoleDescription || ''}
                         onChange={(e) => updateApplicant(applicant.id, 'businessRoleDescription', e.target.value)}
-                        placeholder="Describe your responsibilities and relevant qualifications..."
+                        placeholder="Describe their responsibilities and relevant qualifications..."
                         rows={4}
                         className={`${inputCls} resize-none`}
                         data-testid={`textarea-applicant-${applicant.id}-role-description`}
                       />
                     </div>
 
-                    {/* Plan to be On-Site */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
-                        Plan to be On-Site
-                        <HelpCircle className="w-4 h-4 text-[color:var(--t-color-accent)]" />
-                      </label>
-                      <textarea
-                        value={applicant.planToBeOnSite || ''}
-                        onChange={(e) => updateApplicant(applicant.id, 'planToBeOnSite', e.target.value)}
-                        placeholder="Please explain how you plan to manage the distance"
-                        rows={3}
-                        className={`${inputCls} resize-none`}
-                        data-testid={`textarea-applicant-${applicant.id}-onsite`}
-                      />
+                    {/* Travel Time / Plan to be On-Site */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 items-start">
+                      <div>
+                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
+                          Travel Time to Business
+                          <HelpCircle className="w-4 h-4 text-[color:var(--t-color-accent)]" />
+                        </label>
+                        <select
+                          value={applicant.travelTime || ''}
+                          onChange={(e) => updateApplicant(applicant.id, 'travelTime', e.target.value)}
+                          className={inputCls}
+                          data-testid={`select-applicant-${applicant.id}-travel-time`}
+                        >
+                          <option value="">Select Travel Time</option>
+                          <option value="less than 30 minutes">Less than 30 minutes</option>
+                          <option value="30 to 60 minutes">30 to 60 minutes</option>
+                          <option value="60 to 120 minutes">60 to 120 minutes</option>
+                          <option value="more than 120 minutes">More than 120 minutes</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
+                          Plan to be On-Site{' '}
+                          <span className="text-[color:var(--t-color-accent)] font-normal">(if travel &gt; 120 min)</span>
+                          <HelpCircle className="w-4 h-4 text-[color:var(--t-color-accent)]" />
+                        </label>
+                        <textarea
+                          value={applicant.planToBeOnSite || ''}
+                          onChange={(e) => updateApplicant(applicant.id, 'planToBeOnSite', e.target.value)}
+                          placeholder="Please explain how they plan to manage the distance"
+                          rows={1}
+                          className={`${inputCls} resize-none`}
+                          data-testid={`textarea-applicant-${applicant.id}-onsite`}
+                        />
+                      </div>
                     </div>
                   </div>
 
