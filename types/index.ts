@@ -4,7 +4,7 @@ export interface UserInfo {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role?: 'BDO' | 'PQ Committee' | 'Admin' | 'Borrower';
+  role?: 'BDO' | 'Manager' | 'PQ Committee' | 'Admin' | 'Borrower';
 }
 
 // Spreads Workbook Types

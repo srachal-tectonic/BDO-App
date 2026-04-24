@@ -1111,7 +1111,7 @@ export default function IndividualApplicantsSection() {
                       Personal Information
                     </h4>
 
-                    {/* First / Middle / Last / Suffix */}
+                    {/* First / Last / SSN / DOB */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">First Name</label>
@@ -1125,17 +1125,6 @@ export default function IndividualApplicantsSection() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Middle Name</label>
-                        <input
-                          type="text"
-                          value={applicant.middleName || ''}
-                          onChange={(e) => updateApplicant(applicant.id, 'middleName', e.target.value)}
-                          placeholder="Middle Name"
-                          className={inputCls}
-                          data-testid={`input-applicant-${applicant.id}-middlename`}
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Last Name</label>
                         <input
                           type="text"
@@ -1146,21 +1135,6 @@ export default function IndividualApplicantsSection() {
                           data-testid={`input-applicant-${applicant.id}-lastname`}
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Suffix</label>
-                        <input
-                          type="text"
-                          value={applicant.suffix || ''}
-                          onChange={(e) => updateApplicant(applicant.id, 'suffix', e.target.value)}
-                          placeholder="Jr., Sr., III, etc."
-                          className={inputCls}
-                          data-testid={`input-applicant-${applicant.id}-suffix`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* SSN / DOB / Phone / Email */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Social Security Number</label>
                         <PasswordToggle
@@ -1181,6 +1155,10 @@ export default function IndividualApplicantsSection() {
                           data-testid={`input-applicant-${applicant.id}-dob`}
                         />
                       </div>
+                    </div>
+
+                    {/* Phone / Email / Estimated Credit Score */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Phone</label>
                         <input
@@ -1203,18 +1181,6 @@ export default function IndividualApplicantsSection() {
                           data-testid={`input-applicant-${applicant.id}-email`}
                         />
                       </div>
-                    </div>
-
-                    {/* Home Address / Credit Score */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                      <div className="md:col-span-3">
-                        <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Home Address</label>
-                        <AddressInput
-                          value={applicant.homeAddress || applicant.address}
-                          onChange={(addr) => updateApplicant(applicant.id, 'homeAddress', addr)}
-                          idPrefix={`applicant-${applicant.id}-home`}
-                        />
-                      </div>
                       <div>
                         <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2 flex items-center gap-2">
                           Estimated Credit Score
@@ -1234,6 +1200,16 @@ export default function IndividualApplicantsSection() {
                           <option value="below-600">Below 600</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Home Address */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-[color:var(--t-color-text-body)] mb-2">Home Address</label>
+                      <AddressInput
+                        value={applicant.homeAddress || applicant.address}
+                        onChange={(addr) => updateApplicant(applicant.id, 'homeAddress', addr)}
+                        idPrefix={`applicant-${applicant.id}-home`}
+                      />
                     </div>
                   </div>
 

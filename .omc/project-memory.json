@@ -237,20 +237,20 @@
   "hotPaths": [
     {
       "path": "components/loan-sections/IndividualApplicantsSection.tsx",
-      "accessCount": 101,
-      "lastAccessed": 1776271529499,
+      "accessCount": 107,
+      "lastAccessed": 1777054677841,
+      "type": "file"
+    },
+    {
+      "path": "app/bdo/admin/page.tsx",
+      "accessCount": 86,
+      "lastAccessed": 1777055191221,
       "type": "file"
     },
     {
       "path": "app/bdo/projects/[id]/page.tsx",
       "accessCount": 82,
       "lastAccessed": 1776447356293,
-      "type": "file"
-    },
-    {
-      "path": "app/bdo/admin/page.tsx",
-      "accessCount": 81,
-      "lastAccessed": 1776437260088,
       "type": "file"
     },
     {
@@ -284,6 +284,12 @@
       "type": "file"
     },
     {
+      "path": "components/layout/BDOLayout.tsx",
+      "accessCount": 18,
+      "lastAccessed": 1777055122171,
+      "type": "file"
+    },
+    {
       "path": "components/CreditMatrixScoring.tsx",
       "accessCount": 17,
       "lastAccessed": 1775665189759,
@@ -296,12 +302,6 @@
       "type": "file"
     },
     {
-      "path": "components/layout/BDOLayout.tsx",
-      "accessCount": 17,
-      "lastAccessed": 1776448326116,
-      "type": "file"
-    },
-    {
       "path": "components/loan-sections/FundingStructureSection.tsx",
       "accessCount": 17,
       "lastAccessed": 1776695842345,
@@ -311,6 +311,12 @@
       "path": "components/loan-sections/BusinessApplicantSection.tsx",
       "accessCount": 16,
       "lastAccessed": 1776435695911,
+      "type": "file"
+    },
+    {
+      "path": "contexts/FirebaseAuthContext.tsx",
+      "accessCount": 14,
+      "lastAccessed": 1777055303928,
       "type": "file"
     },
     {
@@ -380,6 +386,12 @@
       "type": "file"
     },
     {
+      "path": "components/layout/BDOSidebar.tsx",
+      "accessCount": 10,
+      "lastAccessed": 1777055107587,
+      "type": "file"
+    },
+    {
       "path": "app/bdo/projects/[id]/individual/[applicantId]/page.tsx",
       "accessCount": 9,
       "lastAccessed": 1775665117819,
@@ -395,18 +407,6 @@
       "path": "components/loan-sections/ApplicantSelectionModal.tsx",
       "accessCount": 9,
       "lastAccessed": 1775667187700,
-      "type": "file"
-    },
-    {
-      "path": "contexts/FirebaseAuthContext.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1776436392692,
-      "type": "file"
-    },
-    {
-      "path": "components/layout/BDOSidebar.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1776448342341,
       "type": "file"
     },
     {

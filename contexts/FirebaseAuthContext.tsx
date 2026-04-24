@@ -53,6 +53,61 @@ function isDevMode() {
   return process.env.NEXT_PUBLIC_APP_ENV === 'development' || process.env.NODE_ENV === 'development';
 }
 
+// Microsoft Entra ID passes app roles via these claim URIs…
+const AAD_ROLE_CLAIM_URIS = [
+  'roles',
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
+];
+
+// …and security-group memberships (object IDs) via these:
+const AAD_GROUP_CLAIM_URIS = [
+  'groups',
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/groups',
+];
+
+type AppRole = NonNullable<UserInfo['role']>;
+
+// Higher precedence wins when a user is in multiple groups.
+const ROLE_PRECEDENCE: AppRole[] = ['Admin', 'Manager', 'BDO'];
+
+// Optional mapping from Azure AD security-group object IDs to app roles.
+// Configure these in Azure App Service app settings if your tenant grants
+// access via security groups rather than Entra ID app roles.
+function buildGroupRoleMap(): Record<string, AppRole> {
+  const map: Record<string, AppRole> = {};
+  const admin = process.env.NEXT_PUBLIC_AZURE_GROUP_ID_ADMIN;
+  const manager = process.env.NEXT_PUBLIC_AZURE_GROUP_ID_MANAGER;
+  const bdo = process.env.NEXT_PUBLIC_AZURE_GROUP_ID_BDO;
+  if (admin) map[admin] = 'Admin';
+  if (manager) map[manager] = 'Manager';
+  if (bdo) map[bdo] = 'BDO';
+  return map;
+}
+
+function resolveRoleFromClaims(claims: Array<{ typ: string; val: string }>): AppRole {
+  const groupMap = buildGroupRoleMap();
+  const found = new Set<AppRole>();
+
+  for (const c of claims) {
+    if (AAD_ROLE_CLAIM_URIS.includes(c.typ)) {
+      // Entra app-role values come through as the role name we configured.
+      if (ROLE_PRECEDENCE.includes(c.val as AppRole)) {
+        found.add(c.val as AppRole);
+      }
+    } else if (AAD_GROUP_CLAIM_URIS.includes(c.typ)) {
+      const mapped = groupMap[c.val];
+      if (mapped) found.add(mapped);
+    }
+  }
+
+  for (const r of ROLE_PRECEDENCE) {
+    if (found.has(r)) return r;
+  }
+  // Least-privilege default: a signed-in Entra user with no matching role
+  // should still be able to use the BDO views, but not Admin Settings.
+  return 'BDO';
+}
+
 // Parse the Azure Easy Auth /.auth/me response into our user shape
 function parseEasyAuthUser(profile: Record<string, unknown>): { authUser: AuthUser; userInfo: UserInfo } | null {
   // Easy Auth returns an array of identity providers
@@ -91,7 +146,7 @@ function parseEasyAuthUser(profile: Record<string, unknown>): { authUser: AuthUs
     email: email as string | null,
     displayName: displayName as string | null,
     photoURL: null,
-    role: 'Admin', // Default role — adjust based on your user management needs
+    role: resolveRoleFromClaims(claims),
   };
 
   return { authUser, userInfo };
