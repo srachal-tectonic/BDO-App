@@ -170,6 +170,26 @@ const RIGHT_COLUMN_MAP: Record<string, keyof PersonalFinancialStatement> = {
 
 function parsePfsSheet(ws: XLSX.WorkSheet, pfs: PersonalFinancialStatement) {
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  // Template convention: the Other Income description lives on row 13 of the
+  // PFS sheet. Read that first so shifted/merged labels elsewhere on the
+  // sheet can't override the canonical entry cell. Label-based detection
+  // below still runs as a fallback in case the template is re-laid-out.
+  // r: 12 is 0-indexed and corresponds to row 13 in Excel.
+  for (const c of [1 /* B */, 2 /* C */, 3 /* D */, 4 /* E */, 5 /* F */]) {
+    const text = cellText(ws, XLSX.utils.encode_cell({ r: 12, c }));
+    if (!text) continue;
+    const norm = normaliseLabel(text);
+    if (norm.includes('description of other income')) continue;
+    if (norm === 'other income (describe below)' || norm === 'other income') continue;
+    pfs.otherIncomeDescription = text;
+    break;
+  }
+
+  // Rows whose B-column label reads "Other income (describe below)" — used as
+  // a last-resort fallback when no explicit description label is present.
+  const otherIncomeLabelRows: number[] = [];
+
   for (let r = range.s.r; r <= range.e.r; r++) {
     const leftLabel = normaliseLabel(
       ws[XLSX.utils.encode_cell({ r, c: 1 /* B */ })]?.v,
@@ -183,12 +203,15 @@ function parsePfsSheet(ws: XLSX.WorkSheet, pfs: PersonalFinancialStatement) {
       pfs.asOfDate = excelDateToIso(valueCell?.v);
     }
 
-    if (leftLabel === 'description of other income:') {
-      // Description can be in column C on the same row or the row directly
-      // below (templates sometimes wrap the caret onto the next line).
-      const here = cellText(ws, XLSX.utils.encode_cell({ r, c: 2 }));
-      const below = cellText(ws, XLSX.utils.encode_cell({ r: r + 1, c: 2 }));
-      pfs.otherIncomeDescription = here || below;
+    if (leftLabel.startsWith('description of other income')) {
+      // Description can land in any of C–F on the same row or the row
+      // directly below (templates vary on which cell is the "entry" cell,
+      // and sometimes the label wraps onto a second line).
+      pfs.otherIncomeDescription = pfs.otherIncomeDescription || findDescription(ws, r);
+    }
+
+    if (leftLabel === 'other income (describe below)' || leftLabel === 'other income') {
+      otherIncomeLabelRows.push(r);
     }
 
     const leftKey = LEFT_COLUMN_MAP[leftLabel];
@@ -206,6 +229,41 @@ function parsePfsSheet(ws: XLSX.WorkSheet, pfs: PersonalFinancialStatement) {
       (pfs as any)[rightKey] = txt || (pfs as any)[rightKey];
     }
   }
+
+  // Fallback: if we still don't have a description but the sheet has an
+  // "Other income (describe below)" row, scan the 1–3 rows under it for the
+  // description text that users typically type directly beneath the label.
+  if (!pfs.otherIncomeDescription) {
+    for (const labelRow of otherIncomeLabelRows) {
+      for (let offset = 1; offset <= 3; offset++) {
+        const candidate = findDescription(ws, labelRow + offset);
+        if (candidate) {
+          pfs.otherIncomeDescription = candidate;
+          break;
+        }
+      }
+      if (pfs.otherIncomeDescription) break;
+    }
+  }
+}
+
+// Reads non-empty text from any of columns B–F on `row` and the next row,
+// skipping cells that look like a label (contain "description of other
+// income" or end with a colon). Used to locate the Other Income description
+// text regardless of which template cell holds it.
+function findDescription(ws: XLSX.WorkSheet, row: number): string {
+  const columns = [1 /* B */, 2 /* C */, 3 /* D */, 4 /* E */, 5 /* F */];
+  for (const r of [row, row + 1]) {
+    for (const c of columns) {
+      const text = cellText(ws, XLSX.utils.encode_cell({ r, c }));
+      if (!text) continue;
+      const norm = normaliseLabel(text);
+      if (norm.includes('description of other income')) continue;
+      if (norm === 'other income (describe below)' || norm === 'other income') continue;
+      return text;
+    }
+  }
+  return '';
 }
 
 function parseNotesPayable(ws: XLSX.WorkSheet, pfs: PersonalFinancialStatement) {
