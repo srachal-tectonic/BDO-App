@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-17T20:41:34.859Z",
+  "updatedAt": "2026-04-24T16:15:06.924Z",
   "missions": [
     {
       "id": "session:a1709356-4253-465e-87e1-bcc6d5005f35:none",
@@ -370,6 +370,62 @@
           "agent": "Explore:a7919b6",
           "detail": "completed",
           "sourceKey": "session-stop:ad85b0bdf91e3c998"
+        }
+      ]
+    },
+    {
+      "id": "session:a043c198-829d-4fad-935b-556ffae4ff4c:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-04-24T16:04:02.568Z",
+      "updatedAt": "2026-04-24T16:15:06.924Z",
+      "status": "done",
+      "workerCount": 1,
+      "taskCounts": {
+        "total": 1,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 0,
+        "completed": 1,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "Explore:a5614d8",
+          "role": "Explore",
+          "ownership": "a5614d8792b2971e3",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-04-24T16:15:06.924Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:a5614d8792b2971e3:2026-04-24T16:04:02.568Z",
+          "at": "2026-04-24T16:04:02.568Z",
+          "kind": "update",
+          "agent": "Explore:a5614d8",
+          "detail": "started Explore:a5614d8",
+          "sourceKey": "session-start:a5614d8792b2971e3"
+        },
+        {
+          "id": "session-stop:a5614d8792b2971e3:2026-04-24T16:08:43.013Z",
+          "at": "2026-04-24T16:08:43.013Z",
+          "kind": "completion",
+          "agent": "Explore:a5614d8",
+          "detail": "completed",
+          "sourceKey": "session-stop:a5614d8792b2971e3"
+        },
+        {
+          "id": "session-stop:aa8c7a6e8faa8613b:2026-04-24T16:15:06.924Z",
+          "at": "2026-04-24T16:15:06.924Z",
+          "kind": "completion",
+          "agent": "Explore:a5614d8",
+          "detail": "completed",
+          "sourceKey": "session-stop:aa8c7a6e8faa8613b"
         }
       ]
     }

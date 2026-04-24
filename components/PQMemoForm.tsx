@@ -389,13 +389,20 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
 
               // Use actual sources from the spread, or show placeholder cards
               const PLACEHOLDER_CARDS = ['P&E', 'USDA', 'Conventional', 'SBA 7(a) Express', 'SBA CAPLine', 'Equity', 'Seller Notes', '3rd Party'];
-              const hasSpreadData = spreadFinancingSources.length > 0;
+              // Prefer live store data (what the Spreads tab edits) so inline
+              // edits like Amount refresh here without a reload. Fall back to
+              // the API-fetched spread data for projects that only have an
+              // uploaded workbook and no inline edits yet.
+              const activeFinancingSources = financingSources.length > 0
+                ? financingSources
+                : spreadFinancingSources;
+              const hasSpreadData = activeFinancingSources.length > 0;
 
               // Build cards: use spread data if available, otherwise show placeholders
               const sourceCards = hasSpreadData
-                ? spreadFinancingSources.map((src: any, i: number) => ({
+                ? activeFinancingSources.map((src: any, i: number) => ({
                     key: `src-${i}`,
-                    label: src.financingSource || src.label || `Source ${i + 1}`,
+                    label: src.financingSource || src.financingType || src.label || `Source ${i + 1}`,
                     src,
                   }))
                 : PLACEHOLDER_CARDS.map((label, i) => ({

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"find /mnt/c/Users/srachal/Desktop/\\\"BDO App April\\\"/app/api/projects -type f -name \\\"*.ts\\\" | xargs ls -la\"}",
+  "error": "Exit code 123\nls: cannot access '/mnt/c/Users/srachal/Desktop/BDO': No such file or directory\nls: cannot access 'April/app/api/projects/route.ts': No such file or directory\nls: cannot access '/mnt/c/Users/srachal/Desktop/BDO': No such file or directory\nls: cannot access 'April/app/api/projects/[id]/route.ts': No such file or directory\nls: cannot access '/mnt/c/Users/srachal/Desktop/BDO': No such file or directory\nls: cannot access 'April/app/api/projects/[id]/portal-token/route.ts': No such file...",
+  "timestamp": "2026-04-24T16:08:13.835Z",
+  "retry_count": 1
+}
