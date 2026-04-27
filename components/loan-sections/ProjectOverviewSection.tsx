@@ -3,7 +3,18 @@
 import { useState } from 'react';
 import { useApplication } from '@/lib/applicationStore';
 import { Sparkles } from 'lucide-react';
-import { authenticatedPost } from '@/lib/authenticatedFetch';
+import { authenticatedPost, authenticatedGet } from '@/lib/authenticatedFetch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { updateProject } from '@/services/firestore';
+import type { ProjectStatus } from '@/types';
 
 interface ProjectOverviewSectionProps {
   isReadOnly?: boolean;
@@ -35,6 +46,68 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
     explanation: string;
   }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // LoanStar lookup state
+  const [isLoanLookupOpen, setIsLoanLookupOpen] = useState(false);
+  const [isLoanLookupLoading, setIsLoanLookupLoading] = useState(false);
+  const [loanLookupError, setLoanLookupError] = useState<string | null>(null);
+  const [appliedNewStatus, setAppliedNewStatus] = useState<ProjectStatus | null>(null);
+  const [unmappedStage, setUnmappedStage] = useState<string | null>(null);
+  const [lastLookedUpLoanId, setLastLookedUpLoanId] = useState<number | null>(null);
+
+  // Map Mendix loanStage / loanStatus to the app's ProjectStatus values.
+  // Confirmed rules (from user):
+  //   - loanStage="Inactive"                          → "Withdraw | Decline"
+  //   - loanStage="Underwriting"                      → "UW"
+  //   - loanStage="Closing" or "Servicing"            → "Closing"
+  //   - loanStage="Lead"                              → "Leads"
+  //   - loanStage="BDO"                               → "PQ Prep"
+  //   - anything else                                 → no change
+  const computeNewStatus = (data: Record<string, unknown> | null): ProjectStatus | null => {
+    if (!data) return null;
+    const stage = String(data.loanStage ?? '').toLowerCase().trim();
+
+    if (stage === 'inactive') return 'Withdraw | Decline';
+    if (stage === 'underwriting') return 'UW';
+    if (stage === 'closing' || stage === 'servicing') return 'Closing';
+    if (stage === 'lead') return 'Leads';
+    if (stage === 'bdo') return 'PQ Prep';
+    return null;
+  };
+
+  const handleLoanLookup = async (loanId: number) => {
+    setIsLoanLookupOpen(true);
+    setIsLoanLookupLoading(true);
+    setLoanLookupError(null);
+    setAppliedNewStatus(null);
+    setUnmappedStage(null);
+
+    try {
+      const response = await authenticatedGet(`/api/loan-lookup?loanid=${encodeURIComponent(String(loanId))}`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.message || `Lookup failed (${response.status})`);
+      }
+
+      const newStatus = computeNewStatus(body);
+      if (!newStatus) {
+        setUnmappedStage(String(body?.loanStage ?? '—'));
+        return;
+      }
+
+      const projectId = data.projectId;
+      if (!projectId) {
+        throw new Error('Cannot update status — project has not been saved yet.');
+      }
+
+      await updateProject(projectId, { stage: newStatus });
+      setAppliedNewStatus(newStatus);
+    } catch (err: any) {
+      setLoanLookupError(err?.message || 'Failed to fetch loan details');
+    } finally {
+      setIsLoanLookupLoading(false);
+    }
+  };
 
   const handleSuggestNAICS = async () => {
     if (!projectOverview.industry || projectOverview.industry.trim() === '') {
@@ -314,6 +387,23 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
                     const v = e.target.value;
                     updateProjectOverview({ loanStarLoanId: v === '' ? undefined : Number(v) });
                   }}
+                  onBlur={() => {
+                    const id = projectOverview.loanStarLoanId;
+                    if (typeof id === 'number' && !Number.isNaN(id) && id !== lastLookedUpLoanId) {
+                      setLastLookedUpLoanId(id);
+                      handleLoanLookup(id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const id = projectOverview.loanStarLoanId;
+                      if (typeof id === 'number' && !Number.isNaN(id)) {
+                        setLastLookedUpLoanId(id);
+                        handleLoanLookup(id);
+                      }
+                    }
+                  }}
                   placeholder="e.g., 123456"
                   className={inputClass}
                   disabled={isReadOnly}
@@ -554,6 +644,55 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
           </div>
         )}
       </div>
+
+      <Dialog open={isLoanLookupOpen} onOpenChange={setIsLoanLookupOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>LoanStar Lookup</DialogTitle>
+            <DialogDescription>
+              {lastLookedUpLoanId !== null
+                ? `Loan ID ${lastLookedUpLoanId}`
+                : 'Loan lookup result'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoanLookupLoading && (
+            <div className="py-6 text-center text-[color:var(--t-color-text-muted)]">
+              <span className="inline-block animate-spin mr-2">&#x27F3;</span>
+              Fetching from LoanStar...
+            </div>
+          )}
+
+          {!isLoanLookupLoading && loanLookupError && (
+            <div className="py-4 px-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-800">
+              {loanLookupError}
+            </div>
+          )}
+
+          {!isLoanLookupLoading && !loanLookupError && appliedNewStatus && (
+            <div className="py-4 flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold text-[color:var(--t-color-text-body)]">
+                Project&apos;s Status Updated to:
+              </span>
+              <span className="inline-block min-w-[9.5rem] text-center px-2 py-1 rounded-md text-sm font-medium border bg-[#4362a5] text-white border-[#365294]">
+                {appliedNewStatus}
+              </span>
+            </div>
+          )}
+
+          {!isLoanLookupLoading && !loanLookupError && !appliedNewStatus && unmappedStage && (
+            <div className="py-4 text-sm text-[color:var(--t-color-text-muted)] italic">
+              Status will not change (loanStage: &quot;{unmappedStage}&quot;)
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLoanLookupOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

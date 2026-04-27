@@ -79,7 +79,8 @@
       "Bash(curl -sSL -A Mozilla/5.0 https://registry.npmjs.org/@fontsource/roboto/latest)",
       "Bash(wait)",
       "Bash(cat /tmp/claude-1000/-mnt-c-Users-srachal-Desktop-BDO-App-April/a043c198-829d-4fad-935b-556ffae4ff4c/tasks/b2wdflypw.output)",
-      "Bash(2>/dev/null)"
+      "Bash(2>/dev/null)",
+      "Bash(npx -y tsx -e ' *)"
     ],
     "deny": [],
     "ask": []

@@ -101,6 +101,13 @@ function cellVal(ws: XLSX.WorkSheet, r: number, c: number): any {
   return cell?.v !== undefined && cell?.v !== null ? cell.v : undefined;
 }
 
+/** True when a cell value reads as N/A (case-insensitive, optional slash). */
+function isNA(v: unknown): boolean {
+  if (v === null || v === undefined) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === 'n/a' || s === 'na';
+}
+
 /**
  * Parse a Financial Spread workbook buffer and extract:
  * - Financing Structure (rows 0-10)
@@ -139,11 +146,12 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
   if (financingHeaderRow >= 0) {
     // Source label row is financingHeaderRow+1, data starts at financingHeaderRow+2
     const srcLabelRow = financingHeaderRow + 1;
-    // Detect how many source columns exist (cols C onward = index 2+)
+    // Detect how many source columns exist (cols C onward = index 2+).
+    // Skip columns whose label is "N/A" — those columns aren't part of the structure.
     const srcCols: number[] = [];
     for (let c = 2; c <= Math.min(range.e.c, 9); c++) {
       const v = cellVal(ws, srcLabelRow, c);
-      if (v && String(v).trim()) srcCols.push(c);
+      if (v && String(v).trim() && !isNA(v)) srcCols.push(c);
     }
 
     const FINANCING_ROWS = [
@@ -174,10 +182,14 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
     }
 
     for (const c of srcCols) {
+      // Also skip columns whose Financing Source (the "type" row, e.g., "7A Standard") is N/A.
+      const sourceVal = cellVal(ws, rowMap['Financing Source'], c);
+      if (isNA(sourceVal)) continue;
+
       const label = String(cellVal(ws, srcLabelRow, c) ?? '').trim();
       financingSources.push({
         label,
-        financingSource: String(cellVal(ws, rowMap['Financing Source'], c) ?? ''),
+        financingSource: String(sourceVal ?? ''),
         guaranteePercent: String(cellVal(ws, rowMap['Guarantee %'], c) ?? ''),
         amount: cellVal(ws, rowMap['Amount'], c) ?? null,
         rateType: String(cellVal(ws, rowMap['Rate Type'], c) ?? ''),
@@ -204,12 +216,13 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
   const sourcesUsesHeaders: string[] = [];
   if (sourcesHeaderRow >= 0) {
     // Column headers row is sourcesHeaderRow+1 (e.g. "7a", "504", "Debenture", ...)
+    // Skip columns whose header is "N/A" — those columns aren't part of the structure
+    // even if numeric values appear in the cells below.
     const colHeaderRow = sourcesHeaderRow + 1;
     const suCols: number[] = [];
-    // Read column headers (cols C onward), last column is "Total"
     for (let c = 2; c <= Math.min(range.e.c, 9); c++) {
       const v = cellVal(ws, colHeaderRow, c);
-      if (v && String(v).trim()) {
+      if (v && String(v).trim() && !isNA(v)) {
         suCols.push(c);
         sourcesUsesHeaders.push(String(v).trim());
       }
