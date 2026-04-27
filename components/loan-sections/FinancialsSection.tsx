@@ -263,9 +263,26 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
         setSpreads(data);
 
         // Re-populate the Zustand store from the active (or most recent) spread
+        // ONLY if the loan application doesn't already have user-modified data.
+        // Default financing-source rows have id "fs-default-…"; user-edited or
+        // imported rows have other id prefixes. Without this guard, every page
+        // refresh clobbers manual edits with the original imported values.
         const active = data.find((s: any) => s.isActive) || (data.length > 0 ? data[0] : null);
         if (active) {
-          populateStoreRef.current(active);
+          const sources = appData.financingSources || [];
+          const hasNonDefaultSources = sources.some(
+            (s: StoreFinancingSource) => !s.id.startsWith('fs-default-'),
+          );
+          const su7a = appData.sourcesUses7a || {};
+          const hasSourcesUsesData = Object.values(su7a).some(
+            (row: any) =>
+              row &&
+              typeof row === 'object' &&
+              Object.values(row).some((v: any) => typeof v === 'number' && v !== 0),
+          );
+          if (!hasNonDefaultSources && !hasSourcesUsesData) {
+            populateStoreRef.current(active);
+          }
         }
       }
     } catch (err) {
@@ -273,7 +290,7 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, appData.financingSources, appData.sourcesUses7a]);
 
   useEffect(() => { loadSpreads(); }, [loadSpreads]);
 

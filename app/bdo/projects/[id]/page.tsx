@@ -206,9 +206,25 @@ export default function BDOToolsPage() {
         }
 
         // If a primary spread is set, load the synced data into the tables
+        // ONLY when the loan application doesn't already have user-edited
+        // sourcesUses values. Without this guard, the synced spread values
+        // overwrite manual edits on every page refresh. Marking a spread as
+        // primary still triggers an explicit reload via the "Mark as Primary"
+        // button (handleMarkAsPrimary).
         if (data.primarySpreadId) {
-          console.log('Loading primary spread data for:', data.primarySpreadId);
-          await loadPrimarySpreadData(projectId, data.primarySpreadId);
+          const su = (loanAppData?.sourcesUses7a || {}) as Record<string, any>;
+          const hasUserSourcesUses = Object.values(su).some(
+            (row) =>
+              row &&
+              typeof row === 'object' &&
+              Object.values(row).some((v) => typeof v === 'number' && v !== 0),
+          );
+          if (!hasUserSourcesUses) {
+            console.log('Loading primary spread data for:', data.primarySpreadId);
+            await loadPrimarySpreadData(projectId, data.primarySpreadId);
+          } else {
+            console.log('Skipping primary spread auto-load — user has edited sourcesUses.');
+          }
         }
       }
     } catch (error) {
