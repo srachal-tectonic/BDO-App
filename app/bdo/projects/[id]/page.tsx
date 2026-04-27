@@ -99,17 +99,28 @@ export default function BDOToolsPage() {
     return () => window.removeEventListener('loan-application-imported', onImported);
   }, []);
 
-  // Auto-save loan application data every 30 seconds
+  // Debounced auto-save: persist ~2s after the last edit, so manual changes
+  // (e.g., to financingSources / sourcesUses tables) survive a quick refresh.
+  // Each new edit resets the timer; a 30s safety-net interval still runs in
+  // case the debounce gets cleared without firing.
+  useEffect(() => {
+    if (!projectId || !applicationData.projectId || !hasUnsavedChanges) return;
+
+    const debounceId = setTimeout(() => {
+      handleSave(false); // Silent save
+    }, 2000);
+
+    return () => clearTimeout(debounceId);
+  }, [projectId, applicationData, hasUnsavedChanges]);
+
   useEffect(() => {
     if (!projectId || !applicationData.projectId) return;
 
-    const autoSaveInterval = setInterval(async () => {
-      if (hasUnsavedChanges) {
-        await handleSave(false); // Silent save
-      }
-    }, 30000); // 30 seconds
+    const safetyInterval = setInterval(() => {
+      if (hasUnsavedChanges) handleSave(false);
+    }, 30000);
 
-    return () => clearInterval(autoSaveInterval);
+    return () => clearInterval(safetyInterval);
   }, [projectId, applicationData, hasUnsavedChanges]);
 
   /**
