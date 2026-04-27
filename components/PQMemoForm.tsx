@@ -398,7 +398,10 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 : spreadFinancingSources;
               const hasSpreadData = activeFinancingSources.length > 0;
 
-              // Build cards: use spread data if available, otherwise show placeholders
+              // Build cards: use spread data if available, otherwise show placeholders.
+              // When spread data is present, render exactly one card per imported
+              // source (N/A columns have already been filtered upstream by the
+              // parser). Only pad to 8 cards in the no-spread placeholder case.
               const sourceCards = hasSpreadData
                 ? activeFinancingSources.map((src: any, i: number) => ({
                     key: `src-${i}`,
@@ -408,18 +411,8 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 : PLACEHOLDER_CARDS.map((label, i) => ({
                     key: `placeholder-${i}`,
                     label,
-                    src: null,
+                    src: null as any,
                   }));
-
-              // Pad to 8 cards if fewer sources than 8
-              while (sourceCards.length < 8) {
-                const idx = sourceCards.length;
-                sourceCards.push({
-                  key: `empty-${idx}`,
-                  label: PLACEHOLDER_CARDS[idx] || `Source ${idx + 1}`,
-                  src: null,
-                });
-              }
 
               return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
