@@ -25,7 +25,7 @@ import { useApplication } from '@/lib/applicationStore';
 import { getDummyApplicationData } from '@/lib/dummyData';
 import { hasSyncedData, mapSyncedDataToStore } from '@/lib/syncedDataMapper';
 import { getLoanApplication, getProject, getProjectSourcesUses, migrateLegacySpreadsWorkbook, saveLoanApplication } from '@/services/firestore';
-import { Project, SpreadsWorkbook } from '@/types';
+import { Project, ProjectStatus, SpreadsWorkbook } from '@/types';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -279,10 +279,14 @@ export default function BDOToolsPage() {
     setPrimarySpreadId(workbookId);
   };
 
+  const handleProjectStageChanged = (newStage: ProjectStatus) => {
+    setProject((prev) => (prev ? { ...prev, stage: newStage } : prev));
+  };
+
   const renderSectionContent = () => {
     switch (currentSection) {
       case 1:
-        return <ProjectOverviewSection />;
+        return <ProjectOverviewSection onProjectStageChanged={handleProjectStageChanged} />;
       case 2:
         return <FundingStructureSection isReadOnly={false} />;
       case 3:
@@ -393,7 +397,7 @@ export default function BDOToolsPage() {
         </div>
 
         <TabsContent value="project-overview" className="mt-0">
-          <ProjectOverviewSection />
+          <ProjectOverviewSection onProjectStageChanged={handleProjectStageChanged} />
           <div className="flex gap-3 px-6 pt-4 pb-6 border-t border-[var(--t-color-border)]">
             <button
               onClick={async () => {

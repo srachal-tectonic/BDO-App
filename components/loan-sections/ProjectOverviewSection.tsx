@@ -18,9 +18,16 @@ import type { ProjectStatus } from '@/types';
 
 interface ProjectOverviewSectionProps {
   isReadOnly?: boolean;
+  /**
+   * Notify the parent when the project's stage has been updated server-side
+   * (currently only triggered by a successful LoanStar Loan ID lookup).
+   * The parent should mirror the change into whatever local state drives the
+   * status badge in the page header so it reflects without a reload.
+   */
+  onProjectStageChanged?: (newStage: ProjectStatus) => void;
 }
 
-export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOverviewSectionProps) {
+export default function ProjectOverviewSection({ isReadOnly = false, onProjectStageChanged }: ProjectOverviewSectionProps) {
   const { data, updateProjectOverview, updateSellerInfo } = useApplication();
   const { projectOverview: rawProjectOverview, sellerInfo } = data;
 
@@ -102,6 +109,9 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
 
       await updateProject(projectId, { stage: newStatus });
       setAppliedNewStatus(newStatus);
+      // Tell the parent (project detail page) so the status badge in the
+      // header refreshes without a page reload.
+      onProjectStageChanged?.(newStatus);
     } catch (err: any) {
       setLoanLookupError(err?.message || 'Failed to fetch loan details');
     } finally {
