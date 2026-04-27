@@ -1,28 +1,31 @@
 /**
  * Authenticated Fetch Utility
- * Provides helper functions for making authenticated API calls from the client
  *
- * TODO: Replace with Microsoft Entra ID / MSAL token acquisition
+ * Two auth paths:
+ *   - Local development: Bearer "dev-bypass-token" stored in localStorage by the
+ *     dev-mode sign-in flow.
+ *   - Production: Azure Easy Auth (Entra ID) handles auth at the App Service
+ *     edge. The browser already holds Easy Auth's session cookies, which travel
+ *     with same-origin /api/* requests automatically — no token attached.
  */
 
+function isDevMode(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_APP_ENV === 'development' ||
+    process.env.NODE_ENV === 'development'
+  );
+}
+
 /**
- * Gets the current user's auth token
- * TODO: Implement with MSAL - use acquireTokenSilent() to get access token
- *
- * @returns The ID token string or null if not authenticated
+ * Gets the current user's auth token.
+ * Returns the dev bypass token in development; returns null in production
+ * (production relies on Easy Auth cookies, not bearer tokens).
  */
 export async function getAuthToken(): Promise<string | null> {
-  // Dev bypass: return token from localStorage when in development
   if (typeof window !== 'undefined') {
     const devToken = localStorage.getItem('dev-auth-token');
     if (devToken) return devToken;
   }
-
-  // TODO: Implement with Microsoft Entra ID / MSAL
-  // Example: const account = msalInstance.getActiveAccount();
-  // const response = await msalInstance.acquireTokenSilent({ scopes: [...], account });
-  // return response.accessToken;
-  console.warn('[Auth] getAuthToken not implemented. Migrate to Microsoft Entra ID.');
   return null;
 }
 
@@ -62,8 +65,11 @@ export async function authenticatedFetch(
 ): Promise<Response> {
   const token = await getAuthToken();
 
-  if (!token) {
-    console.error('[Auth] authenticatedFetch called but no token available');
+  // In development, a missing token means the user hasn't completed the
+  // dev-mode sign-in (no localStorage entry). Treat that as a real auth error.
+  // In production, no token is expected — Easy Auth cookies authenticate.
+  if (!token && isDevMode()) {
+    console.error('[Auth] authenticatedFetch called in dev with no token');
     throw new Error('User not authenticated. Please sign in to continue.');
   }
 
@@ -83,16 +89,18 @@ export async function authenticatedFetch(
     }
   }
 
-  // Add Authorization header
-  const headers: Record<string, string> = {
-    ...existingHeaders,
-    'Authorization': `Bearer ${token}`,
-  };
+  const headers: Record<string, string> = { ...existingHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const { headers: _, ...restOptions } = options;
 
   return fetch(url, {
     ...restOptions,
+    // Same-origin cookies (Easy Auth session) travel by default for /api/*,
+    // but be explicit so behavior is obvious.
+    credentials: restOptions.credentials ?? 'same-origin',
     headers,
   });
 }

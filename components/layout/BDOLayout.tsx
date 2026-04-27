@@ -81,13 +81,13 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
     <div className="flex h-screen w-full flex-col">
       {/* Header */}
       <header className="bg-[var(--t-color-primary)] sticky top-0 z-50">
-        <div className="max-w-[1280px] mx-auto px-6 py-3 flex justify-between items-center">
+        <div className="max-w-[1280px] mx-auto px-6 py-3 laptop:py-1.5 flex justify-between items-center">
           <div className="flex items-center gap-6">
             <Link href="/bdo/projects" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Image
                 src={tbankLogo}
                 alt="T Bank Logo"
-                className="h-10 w-auto brightness-0 invert"
+                className="h-10 laptop:h-7 w-auto brightness-0 invert"
                 height={40}
                 priority
               />
@@ -96,7 +96,7 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
           <nav className="flex items-center gap-3">
             <Link
               href="/bdo/projects"
-              className={`px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+              className={`px-4 py-2 laptop:py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
                 isProjectsSection
                   ? 'text-white/90 hover:text-white bg-white/15'
                   : 'text-white/60 hover:text-white'
@@ -107,7 +107,7 @@ export function BDOLayout({ children, title, stage }: BDOLayoutProps) {
             {userInfo?.role === 'Admin' && (
               <Link
                 href="/bdo/admin"
-                className={`px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                className={`px-4 py-2 laptop:py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
                   pathname === '/bdo/admin'
                     ? 'text-white/90 hover:text-white bg-white/15'
                     : 'text-white/60 hover:text-white'
