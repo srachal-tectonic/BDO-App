@@ -93,9 +93,9 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
     setTimeout(() => setShowSuggestions(false), 1500);
   };
 
-  const selectClass = "w-full px-3 py-1.5 pr-10 border border-[var(--t-color-border)] rounded-lg text-[length:var(--t-font-size-base)] text-[color:var(--t-color-text-body)] transition-all bg-[var(--t-color-card-bg)] shadow-none outline-none focus:border-[var(--t-color-primary)] focus:shadow-[0_0_0_3px_rgba(19,60,127,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_12px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed";
-  const inputClass = "w-full px-3 py-1.5 border border-[var(--t-color-border)] rounded-lg text-[length:var(--t-font-size-base)] text-[color:var(--t-color-text-body)] transition-all bg-[var(--t-color-card-bg)] shadow-none outline-none focus:border-[var(--t-color-primary)] focus:shadow-[0_0_0_3px_rgba(19,60,127,0.1)] placeholder:text-[color:var(--t-color-text-muted)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed";
-  const sectionHeaderClass = "bg-[var(--t-color-primary-palest)] px-4 py-1.5";
+  const selectClass = "w-full px-3 py-1.5 laptop:py-1 pr-10 border border-[var(--t-color-border)] rounded-lg text-[length:var(--t-font-size-base)] text-[color:var(--t-color-text-body)] transition-all bg-[var(--t-color-card-bg)] shadow-none outline-none focus:border-[var(--t-color-primary)] focus:shadow-[0_0_0_3px_rgba(19,60,127,0.1)] cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg%20width=%2712%27%20height=%278%27%20viewBox=%270%200%2012%208%27%20fill=%27none%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cpath%20d=%27M1%201.5L6%206.5L11%201.5%27%20stroke=%27%236b7280%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_12px_center] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed";
+  const inputClass = "w-full px-3 py-1.5 laptop:py-1 border border-[var(--t-color-border)] rounded-lg text-[length:var(--t-font-size-base)] text-[color:var(--t-color-text-body)] transition-all bg-[var(--t-color-card-bg)] shadow-none outline-none focus:border-[var(--t-color-primary)] focus:shadow-[0_0_0_3px_rgba(19,60,127,0.1)] placeholder:text-[color:var(--t-color-text-muted)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed";
+  const sectionHeaderClass = "bg-[var(--t-color-primary-palest)] px-4 py-1.5 laptop:py-1";
   const sectionTitleClass = "text-[length:var(--t-font-size-base)] font-semibold text-[color:var(--t-color-primary)]";
   const labelClass = "block text-[length:var(--t-font-size-base)] font-medium text-[color:var(--t-color-text-body)] mb-0.5";
 
@@ -133,13 +133,13 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
 
   return (
     <div>
-      <div className="px-4 py-4 space-y-3">
+      <div className="px-4 py-4 laptop:py-2 space-y-3 laptop:space-y-2">
         {/* Project Team */}
         <div className="bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] rounded-md overflow-hidden">
           <div className={sectionHeaderClass}>
             <h2 className={sectionTitleClass} data-testid="text-section-project-team">Project Team</h2>
           </div>
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 laptop:py-1">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
               <div>
                 <label htmlFor="bdo1" className={labelClass}>BDO (1)</label>
@@ -276,8 +276,8 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
           <div className={sectionHeaderClass}>
             <h2 className={sectionTitleClass} data-testid="text-section-project-details">Project Details</h2>
           </div>
-          <div className="px-4 py-2">
-            <div className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_2fr_1fr] gap-2 mb-2">
+          <div className="px-4 py-2 laptop:py-1">
+            <div className="grid grid-cols-1 sm:grid-cols-[2.5fr_1.5fr_1.25fr_1.25fr] gap-2 mb-2">
               <div>
                 <label htmlFor="project-name" className={labelClass}>Project Name</label>
                 <input
@@ -298,10 +298,26 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
                   id="industry"
                   value={projectOverview.industry}
                   onChange={(e) => updateProjectOverview({ industry: e.target.value })}
-                  placeholder="e.g., Restaurant, Manufacturing, Retail"
+                  placeholder="e.g., Restaurant, Manufacturing"
                   className={inputClass}
                   disabled={isReadOnly}
                   data-testid="input-industry"
+                />
+              </div>
+              <div>
+                <label htmlFor="loanstar-loan-id" className={labelClass}>LoanStar Loan ID</label>
+                <input
+                  type="number"
+                  id="loanstar-loan-id"
+                  value={projectOverview.loanStarLoanId ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateProjectOverview({ loanStarLoanId: v === '' ? undefined : Number(v) });
+                  }}
+                  placeholder="e.g., 123456"
+                  className={inputClass}
+                  disabled={isReadOnly}
+                  data-testid="input-loanstar-loan-id"
                 />
               </div>
               <div>
@@ -368,7 +384,7 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
           <div className={sectionHeaderClass}>
             <h2 className={sectionTitleClass} data-testid="text-section-project-purpose">Project Purpose</h2>
           </div>
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 laptop:py-1">
             <div className="space-y-2">
               <div>
                 <label htmlFor="primary-purpose" className="block text-[length:var(--t-font-size-base)] font-medium text-[color:var(--t-color-text-body)] mb-1">Primary Purpose</label>
@@ -449,7 +465,7 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
           <div className={sectionHeaderClass}>
             <h2 className={sectionTitleClass} data-testid="text-section-project-description">Project Description</h2>
           </div>
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 laptop:py-1">
             <textarea
               value={projectOverview.projectDescription || ''}
               onChange={(e) => updateProjectOverview({ projectDescription: e.target.value })}
@@ -468,7 +484,7 @@ export default function ProjectOverviewSection({ isReadOnly = false }: ProjectOv
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} data-testid="text-section-acquisition-details">Business Acquisition Details</h2>
             </div>
-            <div className="px-4 py-2 space-y-2">
+            <div className="px-4 py-2 laptop:py-1 space-y-2 laptop:space-y-1">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                 <div className="md:col-span-2">
                   <label className={labelClass}>Legal Name of Business Being Acquired</label>

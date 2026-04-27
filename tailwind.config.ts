@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        // Targets laptop-class viewports (≤ 1920×1080 native) without affecting
+        // larger external monitors (e.g. 4K @ 150% scaling = 2560 CSS px).
+        laptop: { raw: '(max-width: 2000px)' },
+      },
       borderRadius: {
         xl: 'calc(var(--radius) + 4px)',
         lg: 'var(--radius)',

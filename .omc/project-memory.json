@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776957170351,
+  "lastScanned": 1777299673950,
   "projectRoot": "/mnt/c/Users/srachal/Desktop/BDO App April",
   "techStack": {
     "languages": [
@@ -81,7 +81,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1776957170276,
+      "lastAccessed": 1777299673860,
       "keyFiles": [
         "favicon.ico",
         "globals.css",
@@ -93,7 +93,7 @@
       "path": "components",
       "purpose": "UI components",
       "fileCount": 12,
-      "lastAccessed": 1776957170284,
+      "lastAccessed": 1777299673886,
       "keyFiles": [
         "AuditTimeline.tsx",
         "ConfirmDialog.tsx",
@@ -106,7 +106,7 @@
       "path": "contexts",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1776957170291,
+      "lastAccessed": 1777299673895,
       "keyFiles": [
         "Auth0Context.tsx",
         "FirebaseAuthContext.tsx",
@@ -117,7 +117,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1776957170298,
+      "lastAccessed": 1777299673901,
       "keyFiles": [
         "AUDIT-LOGGING-PLAN.md"
       ]
@@ -126,7 +126,7 @@
       "path": "hooks",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776957170302,
+      "lastAccessed": 1777299673906,
       "keyFiles": [
         "use-mobile.tsx",
         "use-toast.ts"
@@ -135,8 +135,8 @@
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 26,
-      "lastAccessed": 1776957170306,
+      "fileCount": 27,
+      "lastAccessed": 1777299673909,
       "keyFiles": [
         "apiAuth.ts",
         "apiSecurityHeaders.ts",
@@ -149,7 +149,7 @@
       "path": "openspec",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1776957170309,
+      "lastAccessed": 1777299673912,
       "keyFiles": [
         "AGENTS.md",
         "project.md"
@@ -158,21 +158,21 @@
     "pdfs": {
       "path": "pdfs",
       "purpose": null,
-      "fileCount": 5,
-      "lastAccessed": 1776957170311,
+      "fileCount": 6,
+      "lastAccessed": 1777299673915,
       "keyFiles": [
         "Blanks_Business_Questionnaire.pdf",
         "Blanks_Individual_Applicant.pdf",
         "Individual_Applicant_Personal_Financial_Information 6.xlsx",
-        "Stoneworks_Marble__Business_Applicant_Project_Information (1).pdf",
-        "blank_Business_Applicant_Project_Information.pdf"
+        "PQ_Memo_zTest 2_2026-04-23.pdf",
+        "Stoneworks_Marble__Business_Applicant_Project_Information (1).pdf"
       ]
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1776957170314,
+      "lastAccessed": 1777299673917,
       "keyFiles": [
         "404.html",
         "file.svg",
@@ -185,7 +185,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1776957170317,
+      "lastAccessed": 1777299673920,
       "keyFiles": [
         "diagnose-pdf-extraction.mjs",
         "extract-pdf-fields.ts",
@@ -198,7 +198,7 @@
       "path": "services",
       "purpose": "Business logic services",
       "fileCount": 4,
-      "lastAccessed": 1776957170321,
+      "lastAccessed": 1777299673923,
       "keyFiles": [
         "brokerTokens.ts",
         "firestore.ts",
@@ -210,7 +210,7 @@
       "path": "sheets",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1776957170324,
+      "lastAccessed": 1777299673926,
       "keyFiles": [
         "IMPORT TEST_New BDO Pre-Qual_04.2026.xlsx",
         "Individual_Applicant_Personal_Financial_Information.xlsx",
@@ -221,7 +221,7 @@
       "path": "types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1776957170327,
+      "lastAccessed": 1777299673929,
       "keyFiles": [
         "index.ts"
       ]
@@ -230,7 +230,7 @@
       "path": "app/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1776957170331,
+      "lastAccessed": 1777299673934,
       "keyFiles": []
     }
   },
@@ -243,8 +243,8 @@
     },
     {
       "path": "app/bdo/admin/page.tsx",
-      "accessCount": 86,
-      "lastAccessed": 1777055191221,
+      "accessCount": 88,
+      "lastAccessed": 1777299758032,
       "type": "file"
     },
     {
@@ -278,6 +278,18 @@
       "type": "file"
     },
     {
+      "path": "components/CreditMatrixScoring.tsx",
+      "accessCount": 23,
+      "lastAccessed": 1777302886153,
+      "type": "file"
+    },
+    {
+      "path": "components/loan-sections/RiskScoresSection.tsx",
+      "accessCount": 21,
+      "lastAccessed": 1777302683780,
+      "type": "file"
+    },
+    {
       "path": "app/globals.css",
       "accessCount": 20,
       "lastAccessed": 1776267652399,
@@ -287,18 +299,6 @@
       "path": "components/layout/BDOLayout.tsx",
       "accessCount": 18,
       "lastAccessed": 1777055122171,
-      "type": "file"
-    },
-    {
-      "path": "components/CreditMatrixScoring.tsx",
-      "accessCount": 17,
-      "lastAccessed": 1775665189759,
-      "type": "file"
-    },
-    {
-      "path": "components/loan-sections/RiskScoresSection.tsx",
-      "accessCount": 17,
-      "lastAccessed": 1776435719180,
       "type": "file"
     },
     {
@@ -315,8 +315,8 @@
     },
     {
       "path": "contexts/FirebaseAuthContext.tsx",
-      "accessCount": 14,
-      "lastAccessed": 1777055303928,
+      "accessCount": 15,
+      "lastAccessed": 1777299765178,
       "type": "file"
     },
     {

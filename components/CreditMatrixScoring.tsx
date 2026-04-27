@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Info } from 'lucide-react';
 
 interface CreditScoringMatrix {
   repayment: number;
@@ -278,6 +278,107 @@ export default function CreditMatrixScoring({
                           </button>
                         );
                       })}
+                  </div>
+                )}
+
+                {/* Per-category help text: shown when score > 1, regardless of expansion */}
+                {category.key === 'repayment' && currentScore > 1 && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please provide explanation of any trends or addbacks.
+                    </p>
+                  </div>
+                )}
+                {category.key === 'management' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please explain your score. If the Borrower has no direct industry experience, please explain their transferrable skills and the transition plan with the Seller.
+                    </p>
+                  </div>
+                )}
+                {category.key === 'credit' && currentScore <= 2 && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please explain any derogatory accounts or bankruptcies.
+                    </p>
+                  </div>
+                )}
+                {category.key === 'equity' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please provide details on the source of equity.
+                    </p>
+                  </div>
+                )}
+                {category.key === 'equity' && currentScore <= 1 && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}-low-injection`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please explain why the planned equity injection is less than 10%?
+                    </p>
+                  </div>
+                )}
+                {category.key === 'collateral' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please explain if there&apos;s additional collateral available that is not included into this transaction.
+                    </p>
+                  </div>
+                )}
+                {category.key === 'collateral' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}-primary-residence`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Is collateral taken on the primary residence?
+                    </p>
+                  </div>
+                )}
+                {category.key === 'liquidity' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      How much working capital is planned to be left in the business?
+                    </p>
+                  </div>
+                )}
+                {category.key === 'liquidity' && (
+                  <div
+                    className="flex items-start gap-2 rounded-md bg-[#f0f5ff] border border-[#d4e2f4] px-3 py-2 mb-3"
+                    data-testid={`help-text-${category.key}-post-close`}
+                  >
+                    <Info className="w-4 h-4 text-[#5b8ec9] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#4a6fa5] leading-relaxed">
+                      Please explain expected personal post-close liquidity of the Borrower.
+                    </p>
                   </div>
                 )}
 

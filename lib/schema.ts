@@ -427,6 +427,7 @@ export interface ProjectOverview {
   referralFirm?: string;
   referralFee?: number;
   industry: string;
+  loanStarLoanId?: number;
   naicsCode: string;
   primaryProjectPurpose: string[] | string;
   secondaryProjectPurposes?: string[];
