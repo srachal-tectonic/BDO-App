@@ -50,6 +50,9 @@ export interface Project {
   spreadsWorkbooks?: SpreadsWorkbook[];
   // Primary spread workbook ID for populating Sources & Uses tables
   primarySpreadId?: string;
+  // Per-project list of Business Questionnaire rule IDs the user has removed from the read-only view.
+  // Cleared when the user clicks "Regenerate Questions".
+  hiddenQuestionnaireRuleIds?: string[];
   // Soft delete
   deletedAt?: Date | null;
   deletedBy?: string | null;

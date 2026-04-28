@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ClipboardList, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ClipboardList, FileDown, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useApplication } from '@/lib/applicationStore';
 import { collection, query, getDocs, db } from '@/lib/db';
-import { getAdminSettings } from '@/services/firestore';
-import type { QuestionnaireRule, QuestionnaireResponse } from '@/lib/questionnairePdf';
+import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
+import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
+import type { Project } from '@/types';
 
 function normalizePurpose(value: unknown): string {
   return String(value ?? '').trim().toLowerCase();
@@ -109,41 +111,117 @@ export default function BusinessQuestionnaireSection() {
 
   const [rules, setRules] = useState<QuestionnaireRule[]>([]);
   const [responses, setResponses] = useState<QuestionnaireResponse[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const loadAll = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      setIsLoading(true);
+      const [adminData, projectData] = await Promise.all([
+        getAdminSettings<{ questionnaireRules?: QuestionnaireRule[] }>(),
+        projectId ? getProject(projectId) : Promise.resolve(null),
+      ]);
+      const loadedRules: QuestionnaireRule[] = adminData?.questionnaireRules || [];
+      console.log('[BusinessQuestionnaire] loaded rules:', loadedRules.length);
+
+      let projectResponses: QuestionnaireResponse[] = [];
+      if (projectId) {
+        try {
+          const responsesSnapshot = await getDocs(query(collection(db, 'questionnaireResponses')));
+          projectResponses = responsesSnapshot.docs
+            .map((d: any) => ({ id: d.id, ...d.data() } as QuestionnaireResponse))
+            .filter((r: any) => r.projectId === projectId);
+        } catch (err) {
+          console.warn('[BusinessQuestionnaire] responses load failed (shim):', err);
+        }
+      }
+
+      if (signal?.cancelled) return;
+      setRules(loadedRules);
+      setResponses(projectResponses);
+      setProject(projectData);
+      setHiddenIds(Array.isArray(projectData?.hiddenQuestionnaireRuleIds) ? projectData!.hiddenQuestionnaireRuleIds! : []);
+    } catch (err) {
+      console.error('Error loading business questionnaire:', err);
+    } finally {
+      if (!signal?.cancelled) setIsLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const adminData = await getAdminSettings<{ questionnaireRules?: QuestionnaireRule[] }>();
-        const loadedRules: QuestionnaireRule[] = adminData?.questionnaireRules || [];
-        console.log('[BusinessQuestionnaire] loaded rules:', loadedRules.length);
+    const signal = { cancelled: false };
+    loadAll(signal);
+    return () => { signal.cancelled = true; };
+  }, [loadAll]);
 
-        let projectResponses: QuestionnaireResponse[] = [];
-        if (projectId) {
-          try {
-            const responsesSnapshot = await getDocs(query(collection(db, 'questionnaireResponses')));
-            projectResponses = responsesSnapshot.docs
-              .map((d: any) => ({ id: d.id, ...d.data() } as QuestionnaireResponse))
-              .filter((r: any) => r.projectId === projectId);
-          } catch (err) {
-            console.warn('[BusinessQuestionnaire] responses load failed (shim):', err);
-          }
-        }
-
-        if (!cancelled) {
-          setRules(loadedRules);
-          setResponses(projectResponses);
-        }
-      } catch (err) {
-        console.error('Error loading business questionnaire:', err);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+    setIsRegenerating(true);
+    try {
+      if (hiddenIds.length > 0) {
+        await updateProject(projectId, { hiddenQuestionnaireRuleIds: [] } as Partial<Project>);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [projectId]);
+      await loadAll();
+    } catch (err) {
+      console.error('Error regenerating questions:', err);
+      alert('Failed to regenerate questions. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!projectId) return;
+    setIsExporting(true);
+    try {
+      const projectName = project?.projectName || (po as any)?.projectName || 'Business Questionnaire';
+      const exportRules = rules
+        .filter((rule) => filterRuleByProject(rule as any, po))
+        .filter((rule) => !hiddenIds.includes(rule.id));
+      const rawPurpose = po?.primaryProjectPurpose;
+      const primaryPurposeStr = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+      const pdfBytes = await generateQuestionnairePdf(
+        projectName,
+        exportRules,
+        responses,
+        primaryPurposeStr,
+      );
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_Business_Questionnaire.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting questionnaire PDF:', err);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteQuestion = async (ruleId: string) => {
+    if (!projectId) return;
+    if (!confirm('Remove this question from the questionnaire?\n\nYou can restore all questions by clicking "Regenerate Questions".')) return;
+    setPendingDeleteId(ruleId);
+    try {
+      const next = Array.from(new Set([...hiddenIds, ruleId]));
+      await updateProject(projectId, { hiddenQuestionnaireRuleIds: next } as Partial<Project>);
+      setHiddenIds(next);
+    } catch (err) {
+      console.error('Error deleting question:', err);
+      alert('Failed to remove question. Please try again.');
+    } finally {
+      setPendingDeleteId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -157,7 +235,9 @@ export default function BusinessQuestionnaireSection() {
     );
   }
 
-  const applicableRules = rules.filter((rule) => filterRuleByProject(rule as any, po));
+  const applicableRules = rules
+    .filter((rule) => filterRuleByProject(rule as any, po))
+    .filter((rule) => !hiddenIds.includes(rule.id));
 
   const categoryOrder: Array<QuestionnaireRule['mainCategory']> = ['Business Overview', 'Project Purpose', 'Industry'];
   const groupedRules = categoryOrder.reduce((acc, category) => {
@@ -187,18 +267,66 @@ export default function BusinessQuestionnaireSection() {
     responseMap.set(r.ruleId, r.content || '');
   }
 
+  const headerControls = (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleRegenerate}
+        disabled={isRegenerating || !projectId}
+        data-testid="button-regenerate-questions"
+      >
+        {isRegenerating ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Regenerating...
+          </>
+        ) : (
+          <>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Regenerate Questions
+          </>
+        )}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExportPdf}
+        disabled={isExporting || applicableRules.length === 0 || !projectId}
+        data-testid="button-export-questionnaire-pdf"
+      >
+        {isExporting ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Exporting...
+          </>
+        ) : (
+          <>
+            <FileDown className="w-4 h-4 mr-2" />
+            Export to PDF
+          </>
+        )}
+      </Button>
+    </div>
+  );
+
   if (applicableRules.length === 0) {
     return (
       <div className="p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <ClipboardList className="w-5 h-5 text-[#2563eb]" />
-          <h1 className="text-xl font-bold text-[#1a1a1a]">Business Questionnaire</h1>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-[#2563eb]" />
+            <h1 className="text-xl font-bold text-[#1a1a1a]">Business Questionnaire</h1>
+          </div>
+          {headerControls}
         </div>
         <div className="bg-white border border-[#c5d4e8] rounded-lg p-12 text-center">
           <p className="text-[#7da1d4] text-[13px]" data-testid="text-no-questionnaire-items">
             {rules.length === 0
               ? 'No questionnaire rules have been configured yet. Import them in Admin Settings → Questionnaire Rules.'
-              : `No questionnaire items match this project's criteria (${rules.length} rules loaded, 0 applicable).`}
+              : hiddenIds.length > 0
+                ? 'All applicable questions have been removed. Click "Regenerate Questions" to restore them.'
+                : `No questionnaire items match this project's criteria (${rules.length} rules loaded, 0 applicable).`}
           </p>
         </div>
       </div>
@@ -207,9 +335,12 @@ export default function BusinessQuestionnaireSection() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <ClipboardList className="w-5 h-5 text-[#2563eb]" />
-        <h1 className="text-xl font-bold text-[#1a1a1a]" data-testid="text-readonly-questionnaire-title">Business Questionnaire</h1>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-[#2563eb]" />
+          <h1 className="text-xl font-bold text-[#1a1a1a]" data-testid="text-readonly-questionnaire-title">Business Questionnaire</h1>
+        </div>
+        {headerControls}
       </div>
 
       <p className="text-[13px] text-[#7da1d4] mb-6">
@@ -230,13 +361,31 @@ export default function BusinessQuestionnaireSection() {
             questionNumber++;
             const rawAnswer = responseMap.get(rule.id) || '';
             const answer = stripHtml(rawAnswer);
+            const isDeleting = pendingDeleteId === rule.id;
             return (
               <div key={rule.id} className="relative group">
                 <div className="absolute -left-6 top-6 text-[13px] font-medium text-[#7da1d4]">
                   {questionNumber}.
                 </div>
                 <div className="bg-white border border-[#c5d4e8] rounded-lg p-3 mb-2" data-testid={`readonly-question-${rule.id}`}>
-                  <h3 className="text-[13px] font-medium text-[#1a1a1a] mb-2">{rule.questionText}</h3>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="text-[13px] font-medium text-[#1a1a1a] flex-1">{rule.questionText}</h3>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteQuestion(rule.id)}
+                      disabled={isDeleting}
+                      className="text-[#7da1d4] hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 p-1 -m-1"
+                      title="Remove this question"
+                      aria-label="Remove this question"
+                      data-testid={`button-delete-question-${rule.id}`}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                   <div
                     className={`text-[13px] ${answer ? 'text-[#1a1a1a]' : 'text-[#999] italic'}`}
                     style={{ whiteSpace: 'pre-wrap', minHeight: 20 }}
