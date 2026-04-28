@@ -182,10 +182,28 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
     if (!projectId) return;
     setIsExporting(true);
     try {
-      const projectName = project?.projectName || (po as any)?.projectName || 'Business Questionnaire';
+      // Re-fetch the project so the export uses the persisted hidden-question list,
+      // not whatever React state happens to hold. This guards against any stale-state
+      // edge case where a pending delete hasn't been reflected in component state yet.
+      const freshProject = await getProject(projectId);
+      const freshHiddenIds: string[] = Array.isArray(freshProject?.hiddenQuestionnaireRuleIds)
+        ? freshProject!.hiddenQuestionnaireRuleIds!
+        : [];
+      const hiddenIdSet = new Set(freshHiddenIds);
+
+      const projectName = freshProject?.projectName || project?.projectName || (po as any)?.projectName || 'Business Questionnaire';
       const exportRules = rules
         .filter((rule) => filterRuleByProject(rule as any, po))
-        .filter((rule) => !hiddenIds.includes(rule.id));
+        .filter((rule) => !hiddenIdSet.has(rule.id));
+
+      console.log('[BusinessQuestionnaire] Exporting PDF — total rules:', rules.length, 'applicable:', exportRules.length, 'hidden:', freshHiddenIds.length);
+
+      // Sync local state if the persisted list differs from what's in memory
+      // (so the UI matches the PDF after export).
+      if (freshHiddenIds.length !== hiddenIds.length || freshHiddenIds.some((id) => !hiddenIds.includes(id))) {
+        setHiddenIds(freshHiddenIds);
+      }
+
       const rawPurpose = po?.primaryProjectPurpose;
       const primaryPurposeStr = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
       const pdfBytes = await generateQuestionnairePdf(
