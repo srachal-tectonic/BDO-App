@@ -104,7 +104,11 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export default function BusinessQuestionnaireSection() {
+interface BusinessQuestionnaireSectionProps {
+  editable?: boolean;
+}
+
+export default function BusinessQuestionnaireSection({ editable = false }: BusinessQuestionnaireSectionProps = {}) {
   const { data: appData } = useApplication();
   const projectId = appData.projectId;
   const po = appData.projectOverview;
@@ -209,7 +213,7 @@ export default function BusinessQuestionnaireSection() {
 
   const handleDeleteQuestion = async (ruleId: string) => {
     if (!projectId) return;
-    if (!confirm('Remove this question from the questionnaire?\n\nYou can restore all questions by clicking "Regenerate Questions".')) return;
+    if (!confirm('Remove this question from the questionnaire?\n\nIt will also be hidden in the read-only Business Questionnaire under Loan Application. Click "Regenerate Questions" to restore all questions.')) return;
     setPendingDeleteId(ruleId);
     try {
       const next = Array.from(new Set([...hiddenIds, ruleId]));
@@ -267,7 +271,7 @@ export default function BusinessQuestionnaireSection() {
     responseMap.set(r.ruleId, r.content || '');
   }
 
-  const headerControls = (
+  const headerControls = editable ? (
     <div className="flex items-center gap-2 flex-shrink-0">
       <Button
         variant="outline"
@@ -308,7 +312,7 @@ export default function BusinessQuestionnaireSection() {
         )}
       </Button>
     </div>
-  );
+  ) : null;
 
   if (applicableRules.length === 0) {
     return (
@@ -325,7 +329,9 @@ export default function BusinessQuestionnaireSection() {
             {rules.length === 0
               ? 'No questionnaire rules have been configured yet. Import them in Admin Settings → Questionnaire Rules.'
               : hiddenIds.length > 0
-                ? 'All applicable questions have been removed. Click "Regenerate Questions" to restore them.'
+                ? editable
+                  ? 'All applicable questions have been removed. Click "Regenerate Questions" to restore them.'
+                  : 'All applicable questions have been removed. Open the Edit Questionnaire tab to restore them.'
                 : `No questionnaire items match this project's criteria (${rules.length} rules loaded, 0 applicable).`}
           </p>
         </div>
@@ -344,7 +350,9 @@ export default function BusinessQuestionnaireSection() {
       </div>
 
       <p className="text-[13px] text-[#7da1d4] mb-6">
-        The following questions and answers are based on your project's details. This is a read-only view.
+        {editable
+          ? 'Review the questions below. Use the trashcan to remove a question for this project, or "Regenerate Questions" to restore all questions.'
+          : "The following questions and answers are based on your project's details. This is a read-only view."}
       </p>
 
       <div className="space-y-8">
@@ -370,21 +378,23 @@ export default function BusinessQuestionnaireSection() {
                 <div className="bg-white border border-[#c5d4e8] rounded-lg p-3 mb-2" data-testid={`readonly-question-${rule.id}`}>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="text-[13px] font-medium text-[#1a1a1a] flex-1">{rule.questionText}</h3>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteQuestion(rule.id)}
-                      disabled={isDeleting}
-                      className="text-[#7da1d4] hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 p-1 -m-1"
-                      title="Remove this question"
-                      aria-label="Remove this question"
-                      data-testid={`button-delete-question-${rule.id}`}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
+                    {editable && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteQuestion(rule.id)}
+                        disabled={isDeleting}
+                        className="text-[#7da1d4] hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 p-1 -m-1"
+                        title="Remove this question"
+                        aria-label="Remove this question"
+                        data-testid={`button-delete-question-${rule.id}`}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                   <div
                     className={`text-[13px] ${answer ? 'text-[#1a1a1a]' : 'text-[#999] italic'}`}
