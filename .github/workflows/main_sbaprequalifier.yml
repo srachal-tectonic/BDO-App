@@ -27,6 +27,11 @@ jobs:
         run: npm ci
 
       - name: Build
+        # NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
+        # Setting them only as App Service runtime config is too late — the
+        # bundle ships with whatever value `next build` saw.
+        env:
+          NEXT_PUBLIC_GOOGLE_PLACES_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY }}
         run: npm run build
 
       # Azure App Service Linux's built-in Node image doesn't ship Chromium's

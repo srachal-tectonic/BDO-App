@@ -187,6 +187,8 @@ interface AdminSettings {
   riskScoreMatrixDescriptions?: RiskScoreMatrixOverrides;
   fileUploadInstructions?: FileUploadInstructions;
   feeConfigurations?: FeeConfiguration[];
+  // Persisted directory used to populate Project Overview's BDO (1) / BDO (2) dropdowns.
+  bdoDirectory?: AppUser[];
 }
 
 interface AppUser {
@@ -791,9 +793,14 @@ Example format:
     }
 
     setIsDeletingUser(uid);
-    setAppUsers((prev) => prev.filter((u) => u.uid !== uid));
+    setAppUsers((prev) => {
+      const next = prev.filter((u) => u.uid !== uid);
+      setSettings((s) => ({ ...s, bdoDirectory: next }));
+      return next;
+    });
+    setHasUnsavedChanges(true);
     setIsDeletingUser(null);
-    alert('User deleted successfully!');
+    alert('User deleted. Click "Save Changes" to persist the directory.');
   };
 
   const handleAddUser = () => {
@@ -820,7 +827,12 @@ Example format:
       createdAt: new Date(),
     };
 
-    setAppUsers((prev) => [newUser, ...prev]);
+    setAppUsers((prev) => {
+      const next = [newUser, ...prev];
+      setSettings((s) => ({ ...s, bdoDirectory: next }));
+      return next;
+    });
+    setHasUnsavedChanges(true);
 
     // Reset form and close modal
     setNewUserForm({
@@ -833,7 +845,7 @@ Example format:
     setAddUserModalOpen(false);
     setIsAddingUser(false);
 
-    alert('User added successfully!');
+    alert('User added. Click "Save Changes" to persist the directory.');
   };
 
   const saveSettings = async () => {
@@ -866,6 +878,11 @@ Example format:
           setSettings((prev) => ({ ...prev, ...rest }));
           if (loadedTheme) {
             setThemeSettings({ ...defaultTheme, ...loadedTheme });
+          }
+          // Hydrate the BDO Directory from the persisted settings doc so it
+          // survives across sessions and is shareable with Project Overview.
+          if (Array.isArray(loaded.bdoDirectory) && loaded.bdoDirectory.length > 0) {
+            setAppUsers(loaded.bdoDirectory);
           }
         }
       } catch (err) {

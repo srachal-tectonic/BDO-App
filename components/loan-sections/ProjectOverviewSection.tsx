@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApplication } from '@/lib/applicationStore';
 import { Sparkles } from 'lucide-react';
 import { authenticatedPost, authenticatedGet } from '@/lib/authenticatedFetch';
@@ -13,8 +13,26 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { updateProject } from '@/services/firestore';
+import { getAdminSettings, updateProject } from '@/services/firestore';
 import type { ProjectStatus } from '@/types';
+
+interface BDODirectoryEntry {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  role: string;
+}
+
+// Project Overview stores the BDO selection as a plain string (it gets printed
+// directly into PQ Memos and proposal letters), so we use the displayName as
+// both the option label and value. Falls back to email/uid if no name is set.
+function getBdoOptionValue(b: BDODirectoryEntry): string {
+  return b.displayName || b.email || b.uid;
+}
+
+function getBdoOptionLabel(b: BDODirectoryEntry): string {
+  return b.displayName || b.email || 'Unnamed user';
+}
 
 interface ProjectOverviewSectionProps {
   isReadOnly?: boolean;
@@ -45,6 +63,27 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
     secondaryProjectPurposes: [],
     projectDescription: '',
   };
+
+  const [bdoDirectory, setBdoDirectory] = useState<BDODirectoryEntry[]>([]);
+
+  // Pull the BDO Directory from Admin Settings on mount so the BDO (1) /
+  // BDO (2) dropdowns always reflect what an admin has configured. Failures
+  // are non-fatal — the dropdown just falls back to whatever is currently
+  // selected on the project (preserved via the fallback <option> below).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const settings = await getAdminSettings<{ bdoDirectory?: BDODirectoryEntry[] }>();
+        if (!cancelled && Array.isArray(settings?.bdoDirectory)) {
+          setBdoDirectory(settings!.bdoDirectory!);
+        }
+      } catch (err) {
+        console.error('[ProjectOverview] Failed to load BDO directory:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const [isGeneratingNAICS, setIsGeneratingNAICS] = useState(false);
   const [naicsSuggestions, setNaicsSuggestions] = useState<Array<{
@@ -235,11 +274,15 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                   data-testid="select-bdo1"
                 >
                   <option value="">Select BDO</option>
-                  <option value="john-smith">John Smith</option>
-                  <option value="sarah-johnson">Sarah Johnson</option>
-                  <option value="michael-davis">Michael Davis</option>
-                  <option value="emily-brown">Emily Brown</option>
-                  <option value="robert-wilson">Robert Wilson</option>
+                  {bdoDirectory.map((b) => (
+                    <option key={b.uid} value={getBdoOptionValue(b)}>
+                      {getBdoOptionLabel(b)}
+                    </option>
+                  ))}
+                  {projectOverview.bdo1 &&
+                    !bdoDirectory.some((b) => getBdoOptionValue(b) === projectOverview.bdo1) && (
+                      <option value={projectOverview.bdo1}>{projectOverview.bdo1}</option>
+                    )}
                 </select>
               </div>
               <div>
@@ -253,11 +296,15 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                   data-testid="select-bdo2"
                 >
                   <option value="">Select BDO</option>
-                  <option value="john-smith">John Smith</option>
-                  <option value="sarah-johnson">Sarah Johnson</option>
-                  <option value="michael-davis">Michael Davis</option>
-                  <option value="emily-brown">Emily Brown</option>
-                  <option value="robert-wilson">Robert Wilson</option>
+                  {bdoDirectory.map((b) => (
+                    <option key={b.uid} value={getBdoOptionValue(b)}>
+                      {getBdoOptionLabel(b)}
+                    </option>
+                  ))}
+                  {projectOverview.bdo2 &&
+                    !bdoDirectory.some((b) => getBdoOptionValue(b) === projectOverview.bdo2) && (
+                      <option value={projectOverview.bdo2}>{projectOverview.bdo2}</option>
+                    )}
                 </select>
               </div>
               <div>

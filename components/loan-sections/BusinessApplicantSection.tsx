@@ -151,6 +151,7 @@ export default function BusinessApplicantSection({ onLearnMore, projectId, isBDO
                   onChange={(value) => updateBusinessApplicant({ ein: value })}
                   placeholder="XX-XXXXXXX"
                   testId="input-business-ein"
+                  className="px-3 py-1.5 text-[length:var(--t-font-size-base)] focus:border-[var(--t-color-primary)] focus:shadow-[0_0_0_3px_rgba(19,60,127,0.1)]"
                 />
               </div>
               <div>
