@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { getGeneratedForms, generateFormsForProject, deleteGeneratedForm, type GeneratedForm } from '@/services/firestore';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { useApplication } from '@/lib/applicationStore';
+import { authenticatedFormPost } from '@/lib/authenticatedFetch';
 import { ExtractionStatus, ExtractedFieldStatus, ExtractedFieldValue, ExtractionRecord } from '@/types';
 
 /** Form IDs that are per-individual (not per-business). */
@@ -19,6 +20,8 @@ const INDIVIDUAL_FORM_IDS = new Set([
 
 interface BorrowerFormsSectionProps {
   projectId: string;
+  sharepointFolderId?: string;
+  sharepointFolderUrl?: string;
 }
 
 interface PortalTokenInfo {
@@ -104,7 +107,7 @@ function getFieldStatusIcon(status: ExtractedFieldStatus) {
   }
 }
 
-export default function BorrowerFormsSection({ projectId }: BorrowerFormsSectionProps) {
+export default function BorrowerFormsSection({ projectId, sharepointFolderId, sharepointFolderUrl }: BorrowerFormsSectionProps) {
   const { currentUser, userInfo } = useFirebaseAuth();
   const { data: appData, loadFromFirestore } = useApplication();
   const individuals = appData.individualApplicants || [];
@@ -137,6 +140,33 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   // auto-populate project data via /api/projects/[id]/envelope-pdf/apply
   const importFilledFormInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
+
+  // Archive an imported document to the project's SharePoint "Borrower Forms"
+  // subfolder. Returns true on success, false if SharePoint is unavailable or
+  // the upload failed; the caller decides whether to surface that to the user.
+  const archiveToSharePoint = async (file: File): Promise<boolean> => {
+    if (!projectId || !sharepointFolderId) {
+      console.warn('[BorrowerForms] SharePoint archive skipped — missing projectId or folderId');
+      return false;
+    }
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('projectId', projectId);
+      fd.append('folderId', sharepointFolderId);
+      fd.append('subfolder', 'Borrower Forms');
+      const res = await authenticatedFormPost('/api/sharepoint/upload', fd);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[BorrowerForms] SharePoint archive failed:', res.status, err);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('[BorrowerForms] SharePoint archive threw:', err);
+      return false;
+    }
+  };
 
   // Individual Applicant - Personal Financial Information is an xlsx template,
   // so its Import button needs a separate file input that accepts Excel files.
@@ -196,10 +226,18 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         ? [target.firstName, target.lastName].filter(Boolean).join(' ') || 'the selected individual'
         : 'the selected individual';
 
+      const archived = await archiveToSharePoint(file);
+      const archiveNote = archived
+        ? ' Saved to SharePoint → Borrower Forms.'
+        : sharepointFolderId
+          ? ' (Note: SharePoint archive failed — see console.)'
+          : '';
+
       alert(
-        populated === 0
+        (populated === 0
           ? `Imported "${file.name}" but the worksheet had no populated fields for ${targetName}.`
-          : `Imported "${file.name}". Populated ${populated} Personal Financial Statement field(s) for ${targetName}.`,
+          : `Imported "${file.name}". Populated ${populated} Personal Financial Statement field(s) for ${targetName}.`)
+          + archiveNote,
       );
     } catch (err: any) {
       console.error('PFI Excel import failed:', err);
@@ -250,6 +288,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       const mapped = payload.mappedFieldCount ?? 0;
       const applied = payload.appliedFieldCount ?? 0;
 
+      const archived = await archiveToSharePoint(file);
+      const archiveNote = archived
+        ? '\n\nSaved to SharePoint → Borrower Forms.'
+        : sharepointFolderId
+          ? '\n\n(Note: SharePoint archive failed — see console.)'
+          : '';
+
       if (applied === 0) {
         alert(
           `Imported "${file.name}" but 0 fields were applied.\n\n` +
@@ -258,6 +303,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
           `• ${mapped} matched the expected envelope field naming (ba_*, ia*_*, po_*, si_*, sba_*, oob*_*)\n` +
           `• ${applied} were actually written to the project\n\n` +
           `This usually means the uploaded PDF was not produced by the T Bank envelope generator, so its field names don't match. Open the server console for a sample of the actual field names.`
+          + archiveNote
         );
       } else {
         // Rehydrate the application store from the server's merged doc so
@@ -271,6 +317,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         alert(
           `Imported "${file.name}". Applied ${applied} field(s) to the loan application ` +
           `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty).`
+          + archiveNote
         );
       }
     } catch (err: any) {
@@ -743,6 +790,24 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         <p className="text-[color:var(--t-color-text-muted)] mt-1">
           Generate fillable PDF forms for borrowers to complete and upload.
         </p>
+      </div>
+
+      {/* TEMP: project SharePoint URL — remove this block once verified. */}
+      <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs">
+        <span className="font-semibold text-amber-800">SharePoint folder:</span>{' '}
+        {sharepointFolderUrl ? (
+          <a
+            href={sharepointFolderUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-900 underline break-all"
+            data-testid="link-project-sharepoint-url"
+          >
+            {sharepointFolderUrl}
+          </a>
+        ) : (
+          <span className="text-amber-900">(not set on this project)</span>
+        )}
       </div>
 
       <Card>

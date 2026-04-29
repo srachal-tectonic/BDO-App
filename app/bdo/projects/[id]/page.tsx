@@ -566,7 +566,11 @@ export default function BDOToolsPage() {
               </div>
               <TabsContent value="borrower-forms-sub" className="mt-0">
                 <div className="px-6 py-6">
-                  <BorrowerFormsSection projectId={projectId} />
+                  <BorrowerFormsSection
+                    projectId={projectId}
+                    sharepointFolderId={project?.sharepointFolderId}
+                    sharepointFolderUrl={project?.sharepointFolderUrl}
+                  />
                 </div>
               </TabsContent>
               <TabsContent value="edit-questionnaire-sub" className="mt-0">
