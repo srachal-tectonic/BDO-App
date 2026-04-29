@@ -22,6 +22,7 @@ interface BorrowerFormsSectionProps {
   projectId: string;
   sharepointFolderId?: string;
   sharepointFolderUrl?: string;
+  onProjectUpdated?: () => void;
 }
 
 interface PortalTokenInfo {
@@ -107,7 +108,7 @@ function getFieldStatusIcon(status: ExtractedFieldStatus) {
   }
 }
 
-export default function BorrowerFormsSection({ projectId, sharepointFolderId, sharepointFolderUrl }: BorrowerFormsSectionProps) {
+export default function BorrowerFormsSection({ projectId, sharepointFolderId, sharepointFolderUrl, onProjectUpdated }: BorrowerFormsSectionProps) {
   const { currentUser, userInfo } = useFirebaseAuth();
   const { data: appData, loadFromFirestore } = useApplication();
   const individuals = appData.individualApplicants || [];
@@ -142,29 +143,36 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
 
   // Archive an imported document to the project's SharePoint "Borrower Forms"
-  // subfolder. Returns true on success, false if SharePoint is unavailable or
-  // the upload failed; the caller decides whether to surface that to the user.
-  const archiveToSharePoint = async (file: File): Promise<boolean> => {
-    if (!projectId || !sharepointFolderId) {
-      console.warn('[BorrowerForms] SharePoint archive skipped — missing projectId or folderId');
-      return false;
+  // subfolder. If the project has no SharePoint folder yet, the server will
+  // auto-provision one and persist its IDs onto the project.
+  // Returns { ok, folderCreated } where folderCreated is true when a brand-new
+  // project folder was created during this upload.
+  const archiveToSharePoint = async (
+    file: File,
+  ): Promise<{ ok: boolean; folderCreated: boolean }> => {
+    if (!projectId) {
+      console.warn('[BorrowerForms] SharePoint archive skipped — missing projectId');
+      return { ok: false, folderCreated: false };
     }
     try {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('projectId', projectId);
-      fd.append('folderId', sharepointFolderId);
+      if (sharepointFolderId) fd.append('folderId', sharepointFolderId);
       fd.append('subfolder', 'Borrower Forms');
       const res = await authenticatedFormPost('/api/sharepoint/upload', fd);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error('[BorrowerForms] SharePoint archive failed:', res.status, err);
-        return false;
+        return { ok: false, folderCreated: false };
       }
-      return true;
+      const payload = await res.json().catch(() => ({}));
+      const folderCreated = !!payload?.folderCreated;
+      if (folderCreated) onProjectUpdated?.();
+      return { ok: true, folderCreated };
     } catch (err) {
       console.error('[BorrowerForms] SharePoint archive threw:', err);
-      return false;
+      return { ok: false, folderCreated: false };
     }
   };
 
@@ -227,11 +235,11 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
         : 'the selected individual';
 
       const archived = await archiveToSharePoint(file);
-      const archiveNote = archived
-        ? ' Saved to SharePoint → Borrower Forms.'
-        : sharepointFolderId
-          ? ' (Note: SharePoint archive failed — see console.)'
-          : '';
+      const archiveNote = archived.ok
+        ? archived.folderCreated
+          ? ' Created a new SharePoint folder for this project and saved the file under Borrower Forms.'
+          : ' Saved to SharePoint → Borrower Forms.'
+        : ' (Note: SharePoint archive failed — see console.)';
 
       alert(
         (populated === 0
@@ -289,11 +297,11 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       const applied = payload.appliedFieldCount ?? 0;
 
       const archived = await archiveToSharePoint(file);
-      const archiveNote = archived
-        ? '\n\nSaved to SharePoint → Borrower Forms.'
-        : sharepointFolderId
-          ? '\n\n(Note: SharePoint archive failed — see console.)'
-          : '';
+      const archiveNote = archived.ok
+        ? archived.folderCreated
+          ? '\n\nCreated a new SharePoint folder for this project and saved the file under Borrower Forms.'
+          : '\n\nSaved to SharePoint → Borrower Forms.'
+        : '\n\n(Note: SharePoint archive failed — see console.)';
 
       if (applied === 0) {
         alert(

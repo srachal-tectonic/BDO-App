@@ -570,6 +570,7 @@ export default function BDOToolsPage() {
                     projectId={projectId}
                     sharepointFolderId={project?.sharepointFolderId}
                     sharepointFolderUrl={project?.sharepointFolderUrl}
+                    onProjectUpdated={loadProject}
                   />
                 </div>
               </TabsContent>
