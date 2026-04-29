@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFPage, rgb, StandardFonts } from 'pdf-lib';
 
 export interface QuestionnaireRule {
   id: string;
@@ -10,6 +10,7 @@ export interface QuestionnaireRule {
   aiBlockTemplateId?: string;
   mainCategory: 'Business Overview' | 'Project Purpose' | 'Industry';
   purposeKey?: string;
+  purposeKeys?: string[];
   naicsCodes?: string[];
   questionOrder?: number;
 }
@@ -55,12 +56,73 @@ export function evaluateRule(
   return true;
 }
 
+function normalizePurpose(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function purposeMatches(key: string, purposes: string[]): boolean {
+  const k = normalizePurpose(key);
+  if (!k) return false;
+  return purposes.some((p) => normalizePurpose(p) === k);
+}
+
+/**
+ * Project-aware filter mirroring the Edit Questionnaire tab. Returns true if a
+ * rule should be included in this project's questionnaire — i.e. the rule is
+ * enabled, is a question (not an AI block), is not in the per-project hidden
+ * list, and matches the project's purposes / NAICS code.
+ */
+export function filterRuleByProject(
+  rule: QuestionnaireRule,
+  projectOverview: any,
+  hiddenIds: string[] = [],
+): boolean {
+  if (!rule.enabled) return false;
+  if (rule.blockType !== 'question') return false;
+  if (!rule.questionText) return false;
+  if (hiddenIds.includes(rule.id)) return false;
+
+  const cat = rule.mainCategory;
+  if (cat === 'Business Overview') return true;
+
+  if (cat === 'Project Purpose') {
+    const keys = rule.purposeKeys && rule.purposeKeys.length > 0
+      ? rule.purposeKeys
+      : (rule.purposeKey ? [rule.purposeKey] : []);
+    if (keys.length === 0) return true;
+
+    const primaryRaw = projectOverview?.primaryProjectPurpose;
+    const primary: string[] = Array.isArray(primaryRaw)
+      ? primaryRaw
+      : (primaryRaw ? [primaryRaw] : []);
+    const secondary: string[] = Array.isArray(projectOverview?.secondaryProjectPurposes)
+      ? projectOverview.secondaryProjectPurposes
+      : [];
+    const all = [...primary, ...secondary].filter(Boolean);
+    if (all.length === 0) return true;
+    return keys.some((k) => purposeMatches(k, all));
+  }
+
+  if (cat === 'Industry') {
+    if (!rule.naicsCodes || rule.naicsCodes.length === 0) return true;
+    const naics = String(projectOverview?.naicsCode ?? '').trim();
+    if (!naics) return false;
+    return rule.naicsCodes.some((code) => {
+      const c = (code || '').trim();
+      if (!c) return false;
+      return naics.startsWith(c) || c.startsWith(naics);
+    });
+  }
+
+  return false;
+}
+
 export function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
 }
 
 function wrapText(text: string, font: any, fontSize: number, maxWidth: number): string[] {
-  const words = text.split(' ');
+  const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let currentLine = '';
 
@@ -83,75 +145,149 @@ function wrapText(text: string, font: any, fontSize: number, maxWidth: number): 
   return lines;
 }
 
+export interface QuestionnairePdfOptions {
+  /**
+   * Bytes for the bank logo placed in the page header. PNG or JPEG. When
+   * omitted, the header bar still renders without a logo.
+   */
+  logoBytes?: Uint8Array | ArrayBuffer | null;
+}
+
 export async function generateQuestionnairePdf(
   projectName: string,
   rules: QuestionnaireRule[],
   responses: QuestionnaireResponse[],
-  primaryProjectPurpose?: string
+  primaryProjectPurpose?: string,
+  options?: QuestionnairePdfOptions,
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const form = pdfDoc.getForm();
 
-  // Embed fonts
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Page dimensions
+  let logoImage: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null;
+  if (options?.logoBytes) {
+    try {
+      logoImage = await pdfDoc.embedPng(options.logoBytes as any);
+    } catch {
+      try {
+        logoImage = await pdfDoc.embedJpg(options.logoBytes as any);
+      } catch {
+        logoImage = null;
+      }
+    }
+  }
+
+  // Page geometry — matches the Blanks_Business_Questionnaire.pdf template.
   const pageWidth = 612;
   const pageHeight = 792;
-  const margin = 50;
+  const margin = 34;
   const contentWidth = pageWidth - 2 * margin;
+  const headerHeight = 51;
+  const footerY = 34;
 
   // Colors
-  const blueColor = rgb(0.145, 0.388, 0.922); // #2563eb
-  const grayColor = rgb(0.42, 0.45, 0.49); // #6b7280
-  const blackColor = rgb(0, 0, 0);
-
-  let page = pdfDoc.addPage([pageWidth, pageHeight]);
-  let yPosition = pageHeight - margin;
-
-  // Helper to add a new page when needed
-  const ensureSpace = (neededHeight: number) => {
-    if (yPosition - neededHeight < margin + 50) {
-      page = pdfDoc.addPage([pageWidth, pageHeight]);
-      yPosition = pageHeight - margin;
-    }
-  };
-
-  // Draw header
-  page.drawText('Business Questionnaire', {
-    x: margin,
-    y: yPosition,
-    size: 24,
-    font: helveticaBold,
-    color: blackColor,
-  });
-  yPosition -= 28;
-
-  page.drawText(projectName, {
-    x: margin,
-    y: yPosition,
-    size: 14,
-    font: helvetica,
-    color: grayColor,
-  });
-  yPosition -= 18;
+  const headerBg = rgb(0.07, 0.24, 0.5);
+  const titleColor = rgb(1, 1, 1);
+  const categoryColor = rgb(0.075, 0.235, 0.498);
+  const subtitleColor = rgb(0.42, 0.45, 0.49);
+  const questionColor = rgb(0.2, 0.2, 0.2);
+  const fieldBorder = rgb(0.8, 0.8, 0.8);
+  const footerColor = rgb(0.6, 0.6, 0.6);
 
   const exportDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   });
-  page.drawText(`Exported: ${exportDate}`, {
-    x: margin,
-    y: yPosition,
-    size: 10,
-    font: helvetica,
-    color: grayColor,
-  });
-  yPosition -= 40;
 
-  // Group rules by category
+  const drawChrome = (page: PDFPage) => {
+    // Header bar
+    page.drawRectangle({
+      x: 0,
+      y: pageHeight - headerHeight,
+      width: pageWidth,
+      height: headerHeight,
+      color: headerBg,
+    });
+
+    // Logo on the left
+    if (logoImage) {
+      const logoH = 31;
+      const aspect = logoImage.width / logoImage.height;
+      const logoW = logoH * aspect;
+      page.drawImage(logoImage, {
+        x: margin,
+        y: pageHeight - headerHeight + (headerHeight - logoH) / 2,
+        width: logoW,
+        height: logoH,
+      });
+    }
+
+    // Title on the right (right-aligned)
+    const titleText = 'Business Questionnaire';
+    const titleSize = 16;
+    const titleWidth = helveticaBold.widthOfTextAtSize(titleText, titleSize);
+    page.drawText(titleText, {
+      x: pageWidth - margin - titleWidth,
+      y: pageHeight - headerHeight + (headerHeight - titleSize) / 2 + 3,
+      size: titleSize,
+      font: helveticaBold,
+      color: titleColor,
+    });
+
+    // Footer
+    const footerText = 'T Bank - SBA Lending Division | Business Questionnaire';
+    page.drawText(footerText, {
+      x: margin,
+      y: footerY,
+      size: 7,
+      font: helvetica,
+      color: footerColor,
+    });
+  };
+
+  const contentTopY = pageHeight - headerHeight - 10;
+  const contentBottomY = footerY + 14;
+
+  let page = pdfDoc.addPage([pageWidth, pageHeight]);
+  drawChrome(page);
+  let yPosition = contentTopY;
+
+  // Subtitle row: project name (left) + export date (right)
+  if (projectName) {
+    const projectLabel = stripHtml(projectName).trim();
+    if (projectLabel) {
+      page.drawText(projectLabel, {
+        x: margin,
+        y: yPosition - 11,
+        size: 11,
+        font: helveticaBold,
+        color: subtitleColor,
+      });
+    }
+    const dateLabel = `Exported ${exportDate}`;
+    const dateWidth = helvetica.widthOfTextAtSize(dateLabel, 9);
+    page.drawText(dateLabel, {
+      x: pageWidth - margin - dateWidth,
+      y: yPosition - 10,
+      size: 9,
+      font: helvetica,
+      color: subtitleColor,
+    });
+    yPosition -= 22;
+  }
+
+  const ensureSpace = (neededHeight: number) => {
+    if (yPosition - neededHeight < contentBottomY) {
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+      drawChrome(page);
+      yPosition = contentTopY;
+    }
+  };
+
+  // Group rules by category, preserving questionOrder within each.
   const categoryOrder: Array<'Business Overview' | 'Project Purpose' | 'Industry'> = [
     'Business Overview',
     'Project Purpose',
@@ -159,100 +295,95 @@ export async function generateQuestionnairePdf(
   ];
 
   const rulesByCategory = new Map<string, QuestionnaireRule[]>();
-  for (const category of categoryOrder) {
-    rulesByCategory.set(category, []);
-  }
-
+  for (const c of categoryOrder) rulesByCategory.set(c, []);
   for (const rule of rules) {
-    if (rule.enabled && rule.blockType === 'question' && rule.questionText) {
-      const categoryRules = rulesByCategory.get(rule.mainCategory) || [];
-      categoryRules.push(rule);
-      rulesByCategory.set(rule.mainCategory, categoryRules);
-    }
+    if (!rule.enabled) continue;
+    if (rule.blockType !== 'question') continue;
+    if (!rule.questionText) continue;
+    const arr = rulesByCategory.get(rule.mainCategory);
+    if (arr) arr.push(rule);
   }
 
   let questionNumber = 1;
+  const fieldHeight = 54;
+  const lineHeight = 11;
+  const questionFontSize = 9;
 
-  // Draw each category section
   for (const category of categoryOrder) {
-    const categoryRules = rulesByCategory.get(category) || [];
+    const categoryRules = (rulesByCategory.get(category) || [])
+      .slice()
+      .sort((a, b) => (a.questionOrder ?? a.order ?? 0) - (b.questionOrder ?? b.order ?? 0));
     if (categoryRules.length === 0) continue;
-
-    // Category header
-    ensureSpace(60);
 
     let categoryTitle: string = category;
     if (category === 'Project Purpose' && primaryProjectPurpose) {
-      categoryTitle = `${category} - ${primaryProjectPurpose}`;
+      categoryTitle = `${category} — ${primaryProjectPurpose}`;
     }
+
+    // Reserve room for the header plus the first question's box so we don't
+    // strand a category header at the bottom of a page.
+    ensureSpace(40 + fieldHeight);
 
     page.drawText(categoryTitle, {
       x: margin,
-      y: yPosition,
-      size: 18,
+      y: yPosition - 11,
+      size: 11,
       font: helveticaBold,
-      color: blueColor,
+      color: categoryColor,
     });
-    yPosition -= 6;
-
-    // Blue underline
+    yPosition -= 16;
     page.drawLine({
       start: { x: margin, y: yPosition },
       end: { x: pageWidth - margin, y: yPosition },
-      thickness: 2,
-      color: blueColor,
+      thickness: 1.4,
+      color: categoryColor,
     });
-    yPosition -= 25;
+    yPosition -= 14;
 
-    // Draw questions in this category
     for (const rule of categoryRules) {
-      const questionText = `${questionNumber}. ${rule.questionText}`;
-      const response = responses.find(r => r.ruleId === rule.id);
-      const responseText = response ? stripHtml(response.content) : '';
-
-      // Wrap question text
-      const wrappedQuestion = wrapText(questionText, helveticaBold, 11, contentWidth);
-      const questionHeight = wrappedQuestion.length * 16;
-      const fieldHeight = 100;
-      const totalNeeded = questionHeight + fieldHeight + 30;
+      const questionText = stripHtml(rule.questionText || '').trim();
+      if (!questionText) continue;
+      const numbered = `${questionNumber}. ${questionText}`;
+      const wrapped = wrapText(numbered, helvetica, questionFontSize, contentWidth);
+      const totalNeeded = wrapped.length * lineHeight + 6 + fieldHeight + 12;
 
       ensureSpace(totalNeeded);
 
-      // Draw question text (bold)
-      for (const line of wrappedQuestion) {
+      for (const line of wrapped) {
         page.drawText(line, {
           x: margin,
-          y: yPosition,
-          size: 11,
-          font: helveticaBold,
-          color: blackColor,
+          y: yPosition - questionFontSize,
+          size: questionFontSize,
+          font: helvetica,
+          color: questionColor,
         });
-        yPosition -= 16;
+        yPosition -= lineHeight;
       }
-      yPosition -= 8;
+      yPosition -= 6;
 
-      // Create fillable text field with gray background
-      const textField = form.createTextField(`question_${questionNumber}`);
+      const textField = form.createTextField(`q_${rule.id}`);
       textField.addToPage(page, {
         x: margin,
         y: yPosition - fieldHeight,
         width: contentWidth,
         height: fieldHeight,
-        borderWidth: 1,
-        borderColor: rgb(0.8, 0.8, 0.8),
-        backgroundColor: rgb(0.96, 0.96, 0.96), // Light gray background
+        borderWidth: 0.85,
+        borderColor: fieldBorder,
       });
-
       textField.enableMultiline();
-      textField.setFontSize(10);
+      textField.setFontSize(9);
 
-      if (responseText) {
-        textField.setText(responseText);
+      const response = responses.find(r => r.ruleId === rule.id);
+      if (response?.content) {
+        const text = stripHtml(response.content);
+        if (text) textField.setText(text);
       }
 
-      yPosition -= fieldHeight + 25;
+      yPosition -= fieldHeight + 12;
       questionNumber++;
     }
+
+    yPosition -= 6;
   }
 
   return pdfDoc.save();

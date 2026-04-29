@@ -7,6 +7,16 @@ import { useApplication } from '@/lib/applicationStore';
 import { collection, query, getDocs, db } from '@/lib/db';
 import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
 import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
+
+async function fetchLogoBytes(): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch('/images/TBank-logo.png');
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
 import type { Project } from '@/types';
 
 function normalizePurpose(value: unknown): string {
@@ -63,7 +73,15 @@ function groupRulesByPurpose(
   primaryPurpose: string,
   secondaryPurposes: string[],
 ): PurposeBlock[] {
-  const ordered = [primaryPurpose, ...secondaryPurposes].filter(Boolean);
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const p of [primaryPurpose, ...secondaryPurposes]) {
+    if (!p) continue;
+    const norm = normalizePurpose(p);
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    ordered.push(p);
+  }
   const blocks: PurposeBlock[] = [];
   const general: QuestionnaireRule[] = [];
   const byPurpose = new Map<string, QuestionnaireRule[]>();
@@ -206,11 +224,13 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
 
       const rawPurpose = po?.primaryProjectPurpose;
       const primaryPurposeStr = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+      const logoBytes = await fetchLogoBytes();
       const pdfBytes = await generateQuestionnairePdf(
         projectName,
         exportRules,
         responses,
         primaryPurposeStr,
+        { logoBytes },
       );
       const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -231,7 +251,6 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
 
   const handleDeleteQuestion = async (ruleId: string) => {
     if (!projectId) return;
-    if (!confirm('Remove this question from the questionnaire?\n\nIt will also be hidden in the read-only Business Questionnaire under Loan Application. Click "Regenerate Questions" to restore all questions.')) return;
     setPendingDeleteId(ruleId);
     try {
       const next = Array.from(new Set([...hiddenIds, ruleId]));
@@ -433,8 +452,8 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
                   {sectionTitle}
                 </h3>
                 <div className="space-y-4">
-                  {purposeBlocks.map((block) => (
-                    <div key={block.purposeName || '__general'}>
+                  {purposeBlocks.map((block, blockIndex) => (
+                    <div key={`${block.purposeName || '__general'}-${blockIndex}`}>
                       {block.purposeName && (
                         <h4
                           data-testid={`text-readonly-purpose-subheader-${block.purposeName}`}

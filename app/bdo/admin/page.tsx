@@ -884,8 +884,6 @@ Example format:
     resetUserForm();
     setAddUserModalOpen(false);
     setIsAddingUser(false);
-
-    alert('User added. Click "Save Changes" to persist the directory.');
   };
 
   const saveSettings = async () => {
