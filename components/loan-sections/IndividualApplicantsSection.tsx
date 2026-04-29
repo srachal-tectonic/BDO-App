@@ -1143,6 +1143,7 @@ export default function IndividualApplicantsSection() {
                           value={applicant.ssn}
                           onChange={(value) => updateApplicant(applicant.id, 'ssn', value)}
                           placeholder="XXX-XX-XXXX"
+                          className="px-3 py-1.5 text-[length:var(--t-font-size-base)] outline-none"
                           testId={`input-applicant-${applicant.id}-ssn`}
                         />
                       </div>

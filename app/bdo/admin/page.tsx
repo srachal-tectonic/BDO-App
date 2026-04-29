@@ -586,6 +586,12 @@ const BORROWER_FULL_FORM_SECTIONS: FullFormSection[] = [
   },
 ];
 
+const getRuleTrigger = (rule: QuestionnaireRule): string => {
+  if (rule.mainCategory === 'Project Purpose' && rule.purposeKey) return rule.purposeKey;
+  if (rule.mainCategory === 'Industry' && rule.naicsCodes?.length) return `NAICS: ${rule.naicsCodes.join(', ')}`;
+  return '';
+};
+
 const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
   name: '',
   enabled: true,
@@ -730,6 +736,7 @@ Example format:
   // Add User Modal State
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     firstName: '',
     lastName: '',
@@ -803,6 +810,31 @@ Example format:
     alert('User deleted. Click "Save Changes" to persist the directory.');
   };
 
+  const resetUserForm = () => {
+    setNewUserForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      role: 'BDO',
+    });
+    setEditingUserId(null);
+  };
+
+  const openEditUser = (user: AppUser) => {
+    const [firstName = '', ...rest] = (user.displayName || '').trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    setNewUserForm({
+      firstName,
+      lastName,
+      email: user.email || '',
+      phone: '',
+      role: user.role || 'BDO',
+    });
+    setEditingUserId(user.uid);
+    setAddUserModalOpen(true);
+  };
+
   const handleAddUser = () => {
     if (!newUserForm.email || !newUserForm.role) {
       alert('Email and Role are required.');
@@ -811,14 +843,29 @@ Example format:
 
     setIsAddingUser(true);
 
-    // Create a unique ID for the new user
-    const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Create display name from first and last name
     const displayName = [newUserForm.firstName, newUserForm.lastName]
       .filter(Boolean)
       .join(' ') || null;
 
+    if (editingUserId) {
+      setAppUsers((prev) => {
+        const next = prev.map((u) =>
+          u.uid === editingUserId
+            ? { ...u, email: newUserForm.email, role: newUserForm.role, displayName }
+            : u,
+        );
+        setSettings((s) => ({ ...s, bdoDirectory: next }));
+        return next;
+      });
+      setHasUnsavedChanges(true);
+      resetUserForm();
+      setAddUserModalOpen(false);
+      setIsAddingUser(false);
+      alert('User updated. Click "Save Changes" to persist the directory.');
+      return;
+    }
+
+    const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newUser: AppUser = {
       uid: newUserId,
       email: newUserForm.email,
@@ -834,14 +881,7 @@ Example format:
     });
     setHasUnsavedChanges(true);
 
-    // Reset form and close modal
-    setNewUserForm({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      role: 'BDO',
-    });
+    resetUserForm();
     setAddUserModalOpen(false);
     setIsAddingUser(false);
 
@@ -2118,7 +2158,20 @@ Example format:
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
-                    <span className="text-xs">On</span>
+                    <button
+                      className="flex items-center text-xs font-medium"
+                      onClick={() => {
+                        if (rulesSortField === 'enabled') {
+                          setRulesSortDir(rulesSortDir === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setRulesSortField('enabled');
+                          setRulesSortDir('desc');
+                        }
+                      }}
+                      data-testid="button-sort-enabled"
+                    >
+                      On {rulesSortField === 'enabled' ? (rulesSortDir === 'asc' ? '▲' : '▼') : ''}
+                    </button>
                   </TableHead>
                   <TableHead>
                     <button
@@ -2169,7 +2222,20 @@ Example format:
                     </button>
                   </TableHead>
                   <TableHead>
-                    <span className="text-xs font-medium">Trigger</span>
+                    <button
+                      className="flex items-center text-xs font-medium"
+                      onClick={() => {
+                        if (rulesSortField === 'trigger') {
+                          setRulesSortDir(rulesSortDir === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setRulesSortField('trigger');
+                          setRulesSortDir('asc');
+                        }
+                      }}
+                      data-testid="button-sort-trigger"
+                    >
+                      Trigger {rulesSortField === 'trigger' ? (rulesSortDir === 'asc' ? '▲' : '▼') : ''}
+                    </button>
                   </TableHead>
                   <TableHead>
                     <button
@@ -2205,8 +2271,8 @@ Example format:
                     ? settings.questionnaireRules
                     : settings.questionnaireRules.filter(r => r.mainCategory === rulesCategoryFilter);
                   const sorted = [...filtered].sort((a, b) => {
-                    const aVal = (a as any)[rulesSortField] ?? 0;
-                    const bVal = (b as any)[rulesSortField] ?? 0;
+                    const aVal = rulesSortField === 'trigger' ? getRuleTrigger(a) : (a as any)[rulesSortField] ?? 0;
+                    const bVal = rulesSortField === 'trigger' ? getRuleTrigger(b) : (b as any)[rulesSortField] ?? 0;
                     if (typeof aVal === 'string' && typeof bVal === 'string') {
                       return rulesSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                     }
@@ -2253,11 +2319,7 @@ Example format:
                       </TableCell>
                       <TableCell>
                         <span className="text-xs text-[color:var(--t-color-text-muted)]">
-                          {rule.mainCategory === 'Project Purpose' && rule.purposeKey
-                            ? rule.purposeKey
-                            : rule.mainCategory === 'Industry' && rule.naicsCodes?.length
-                              ? `NAICS: ${rule.naicsCodes.join(', ')}`
-                              : '\u2014'}
+                          {getRuleTrigger(rule) || '\u2014'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -3380,6 +3442,15 @@ Example format:
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openEditUser(user)}
+                              data-testid={`button-edit-bdo-${user.uid}`}
+                              title="Edit BDO"
+                            >
+                              <Edit className="w-4 h-4 text-[color:var(--t-color-text-muted)]" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => deleteAppUser(user.uid, user.email)}
                               disabled={isDeletingUser === user.uid || user.uid === userInfo?.uid}
                               data-testid={`button-delete-bdo-${user.uid}`}
@@ -4307,11 +4378,17 @@ Example format:
           </div>
         </TabsContent>
 
-        {/* Add User Modal */}
-        <Dialog open={addUserModalOpen} onOpenChange={setAddUserModalOpen}>
+        {/* Add / Edit User Modal */}
+        <Dialog
+          open={addUserModalOpen}
+          onOpenChange={(open) => {
+            setAddUserModalOpen(open);
+            if (!open) resetUserForm();
+          }}
+        >
           <DialogContent className="max-w-md" data-testid="dialog-add-user">
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
+              <DialogTitle>{editingUserId ? 'Edit User' : 'Add New User'}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
@@ -4384,7 +4461,14 @@ Example format:
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAddUserModalOpen(false)} data-testid="button-cancel-add-user">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddUserModalOpen(false);
+                  resetUserForm();
+                }}
+                data-testid="button-cancel-add-user"
+              >
                 Cancel
               </Button>
               <Button
@@ -4392,7 +4476,13 @@ Example format:
                 disabled={isAddingUser || !newUserForm.email || !newUserForm.role}
                 data-testid="button-submit-add-user"
               >
-                {isAddingUser ? 'Adding...' : 'Add User'}
+                {isAddingUser
+                  ? editingUserId
+                    ? 'Saving...'
+                    : 'Adding...'
+                  : editingUserId
+                    ? 'Update User'
+                    : 'Add User'}
               </Button>
             </DialogFooter>
           </DialogContent>

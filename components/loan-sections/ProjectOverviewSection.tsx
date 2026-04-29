@@ -262,7 +262,8 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
             <h2 className={sectionTitleClass} data-testid="text-section-project-team">Project Team</h2>
           </div>
           <div className="px-4 py-2 laptop:py-1">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+            {/* TEMP: BDA field hidden. To restore, change md:grid-cols-3 back to md:grid-cols-4 and uncomment the BDA <div> block below. */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
               <div>
                 <label htmlFor="bdo1" className={labelClass}>BDO (1)</label>
                 <select
@@ -307,6 +308,7 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                     )}
                 </select>
               </div>
+              {/* TEMP: BDA field hidden — restore by uncommenting this block and reverting the parent grid to md:grid-cols-4.
               <div>
                 <label htmlFor="bda" className={labelClass}>BDA</label>
                 <select
@@ -324,6 +326,7 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                   <option value="chris-anderson">Chris Anderson</option>
                 </select>
               </div>
+              */}
               <div>
                 <label htmlFor="referral-source" className={labelClass}>Referral Source</label>
                 <select
