@@ -584,6 +584,7 @@ export default function BDOToolsPage() {
                   <CombinedFilesSection
                     projectId={projectId}
                     sharepointFolderId={project?.sharepointFolderId}
+                    onProjectUpdated={loadProject}
                   />
                   <div className="mt-4">
                     <FilesSection projectId={projectId} />

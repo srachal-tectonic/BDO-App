@@ -41,6 +41,13 @@ interface FileUploadWithYearTagsProps {
   sharepointFolderId?: string;
   subfolder?: string; // e.g., "Business Files" or "Individual Files"
   applicantName?: string; // Individual applicant's name - creates a folder with their name
+  /**
+   * Called after a SharePoint upload that auto-provisioned a brand-new
+   * project folder so the parent can refetch the project. Without this, the
+   * very first upload silently fails because `sharepointFolderId` is still
+   * undefined in props.
+   */
+  onProjectUpdated?: () => void;
 }
 
 export default function FileUploadWithYearTags({
@@ -57,6 +64,7 @@ export default function FileUploadWithYearTags({
   sharepointFolderId,
   subfolder,
   applicantName,
+  onProjectUpdated,
 }: FileUploadWithYearTagsProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -72,15 +80,17 @@ export default function FileUploadWithYearTags({
     years: number[],
     fileDescription?: string
   ): Promise<SharePointFileRef | null> => {
-    if (!projectId || !sharepointFolderId) {
-      console.warn('[FileUpload] SharePoint upload skipped - missing projectId or folderId');
+    if (!projectId) {
+      console.warn('[FileUpload] SharePoint upload skipped - missing projectId');
       return null;
     }
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('projectId', projectId);
-    formData.append('folderId', sharepointFolderId);
+    // Omit folderId for brand-new projects — the upload route auto-provisions
+    // a folder and reports back via `folderCreated` so we can refresh state.
+    if (sharepointFolderId) formData.append('folderId', sharepointFolderId);
     if (applicantName) {
       formData.append('applicantName', applicantName);
     } else if (subfolder) {
@@ -112,6 +122,10 @@ export default function FileUploadWithYearTags({
     }
 
     console.log('[FileUpload] SharePoint upload successful:', data.file);
+
+    if (data.folderCreated) {
+      onProjectUpdated?.();
+    }
 
     return {
       id: data.file.id,
