@@ -138,8 +138,13 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   const [isSavingReview, setIsSavingReview] = useState(false);
 
   // Import filled envelope PDF (Business Applicant / Project Information) to
-  // auto-populate project data via /api/projects/[id]/envelope-pdf/apply
+  // auto-populate project data via /api/projects/[id]/envelope-pdf/apply.
+  // For per-individual forms (Individual Applicant) we instead route through
+  // /envelope-pdf/apply-individual with the selected applicant's id, so the
+  // import only touches that one applicant's slot. The active form id is
+  // captured in a ref at click time and read back in the change handler.
   const importFilledFormInputRef = useRef<HTMLInputElement>(null);
+  const filledFormIdRef = useRef<string | null>(null);
   const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
 
   // Archive an imported document to the project's SharePoint "Borrower Forms"
@@ -267,6 +272,12 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       return;
     }
 
+    const formId = filledFormIdRef.current;
+    const isIndividualApplicantForm = formId === 'blank-individual-applicant';
+    const individualApplicantId = isIndividualApplicantForm && formId
+      ? selectedIndividual[formId]
+      : '';
+
     setIsImportingFilledForm(true);
     try {
       const base64: string = await new Promise((resolve, reject) => {
@@ -279,10 +290,16 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
         reader.readAsDataURL(file);
       });
 
-      const res = await fetch(`/api/projects/${projectId}/envelope-pdf/apply`, {
+      const endpoint = isIndividualApplicantForm
+        ? `/api/projects/${projectId}/envelope-pdf/apply-individual`
+        : `/api/projects/${projectId}/envelope-pdf/apply`;
+      const requestBody: Record<string, string> = { fileName: file.name, pdfData: base64 };
+      if (isIndividualApplicantForm) requestBody.individualApplicantId = individualApplicantId;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, pdfData: base64 }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -294,7 +311,8 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       const extracted = payload.extractedFieldCount ?? 0;
       const nonEmpty = payload.nonEmptyFieldCount ?? 0;
       const mapped = payload.mappedFieldCount ?? 0;
-      const applied = payload.appliedFieldCount ?? 0;
+      // apply returns appliedFieldCount; apply-individual returns fieldsImported.
+      const applied = payload.appliedFieldCount ?? payload.fieldsImported ?? 0;
 
       const archived = await archiveToSharePoint(file);
       const archiveNote = archived.ok
@@ -302,6 +320,15 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
           ? '\n\nCreated a new SharePoint folder for this project and saved the file under Borrower Forms.'
           : '\n\nSaved to SharePoint → Borrower Forms.'
         : '\n\n(Note: SharePoint archive failed — see console.)';
+
+      const targetName = isIndividualApplicantForm
+        ? (() => {
+            const ind = individuals.find((i) => i.id === individualApplicantId);
+            return ind
+              ? [ind.firstName, ind.lastName].filter(Boolean).join(' ') || 'the selected individual'
+              : 'the selected individual';
+          })()
+        : '';
 
       if (applied === 0) {
         alert(
@@ -322,8 +349,11 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
             new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
           );
         }
+        const scope = isIndividualApplicantForm
+          ? ` for ${targetName}`
+          : ' to the loan application';
         alert(
-          `Imported "${file.name}". Applied ${applied} field(s) to the loan application ` +
+          `Imported "${file.name}". Applied ${applied} field(s)${scope} ` +
           `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty).`
           + archiveNote
         );
@@ -333,6 +363,7 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       alert(`Import failed: ${err?.message ?? 'Could not process the PDF file'}`);
     } finally {
       setIsImportingFilledForm(false);
+      filledFormIdRef.current = null;
       if (importFilledFormInputRef.current) importFilledFormInputRef.current.value = '';
     }
   };
@@ -1066,6 +1097,13 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
                           pfiImportFormIdRef.current = form.id;
                           importPfiExcelInputRef.current?.click();
                         } else {
+                          // For per-individual envelope forms, require the
+                          // dropdown so the import only updates that applicant.
+                          if (form.id === 'blank-individual-applicant' && !selectedIndividual[form.id]) {
+                            alert('Select an Individual from the dropdown before importing the Individual Applicant PDF.');
+                            return;
+                          }
+                          filledFormIdRef.current = form.id;
                           importFilledFormInputRef.current?.click();
                         }
                       }}
