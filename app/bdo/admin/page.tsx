@@ -1796,7 +1796,7 @@ Example format:
           <TabsTrigger value="ai-block-templates" data-testid="tab-ai-templates">AI Block Templates</TabsTrigger>
           <TabsTrigger value="note-tags" data-testid="tab-note-tags">Note Tags</TabsTrigger>
           <TabsTrigger value="file-upload-instructions" data-testid="tab-file-upload-instructions">File Upload Instructions</TabsTrigger>
-          <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">BDO Directory</TabsTrigger>
+          <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">User Directory</TabsTrigger>
           <TabsTrigger value="borrower-forms" data-testid="tab-borrower-forms">Borrower Forms</TabsTrigger>
           <TabsTrigger value="borrower-forms-full" data-testid="tab-borrower-forms-full">Borrower Forms - Full Form</TabsTrigger>
           <TabsTrigger value="label-comparison" data-testid="tab-label-comparison">Field Label Comparison</TabsTrigger>
@@ -3352,7 +3352,7 @@ Example format:
           <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">BDO Directory</h2>
+                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">User Directory</h2>
                 <p className="text-sm text-[color:var(--t-color-text-muted)]">
                   Manage team members and their contact information for loan applications and proposal letters.
                 </p>
