@@ -727,9 +727,12 @@ Example format:
     setHasUnsavedChanges(true);
   };
 
-  // Add User Modal State
+  // Add/Edit User Modal State. `editingUserUid` is null in "add" mode and
+  // holds the target uid in "edit" mode — the modal renders the same form for
+  // both, switching its title and submit-button label based on this flag.
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [editingUserUid, setEditingUserUid] = useState<string | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     firstName: '',
     lastName: '',
@@ -803,6 +806,38 @@ Example format:
     alert('User deleted. Click "Save Changes" to persist the directory.');
   };
 
+  // Pre-fill the modal with an existing user's data and switch into edit mode.
+  // displayName is split on the first space — names with multiple parts (e.g.
+  // "Mary Jane Smith") put everything after the first space into Last Name.
+  const handleEditUser = (user: AppUser) => {
+    const fullName = (user.displayName || '').trim();
+    const firstSpace = fullName.indexOf(' ');
+    const firstName = firstSpace === -1 ? fullName : fullName.slice(0, firstSpace);
+    const lastName = firstSpace === -1 ? '' : fullName.slice(firstSpace + 1);
+
+    setNewUserForm({
+      firstName,
+      lastName,
+      email: user.email || '',
+      // Phone isn't persisted on AppUser yet; leave blank when editing.
+      phone: '',
+      role: user.role || 'BDO',
+    });
+    setEditingUserUid(user.uid);
+    setAddUserModalOpen(true);
+  };
+
+  const resetUserForm = () => {
+    setNewUserForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      role: 'BDO',
+    });
+    setEditingUserUid(null);
+  };
+
   const handleAddUser = () => {
     if (!newUserForm.email || !newUserForm.role) {
       alert('Email and Role are required.');
@@ -811,14 +846,32 @@ Example format:
 
     setIsAddingUser(true);
 
-    // Create a unique ID for the new user
-    const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
     // Create display name from first and last name
     const displayName = [newUserForm.firstName, newUserForm.lastName]
       .filter(Boolean)
       .join(' ') || null;
 
+    if (editingUserUid) {
+      // Edit existing user — preserve uid and createdAt, update everything else.
+      setAppUsers((prev) => {
+        const next = prev.map((u) =>
+          u.uid === editingUserUid
+            ? { ...u, email: newUserForm.email, role: newUserForm.role, displayName }
+            : u,
+        );
+        setSettings((s) => ({ ...s, bdoDirectory: next }));
+        return next;
+      });
+      setHasUnsavedChanges(true);
+      resetUserForm();
+      setAddUserModalOpen(false);
+      setIsAddingUser(false);
+      alert('User updated. Click "Save Changes" to persist the directory.');
+      return;
+    }
+
+    // Add new user
+    const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newUser: AppUser = {
       uid: newUserId,
       email: newUserForm.email,
@@ -834,14 +887,7 @@ Example format:
     });
     setHasUnsavedChanges(true);
 
-    // Reset form and close modal
-    setNewUserForm({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      role: 'BDO',
-    });
+    resetUserForm();
     setAddUserModalOpen(false);
     setIsAddingUser(false);
 
@@ -3380,6 +3426,15 @@ Example format:
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => handleEditUser(user)}
+                              data-testid={`button-edit-bdo-${user.uid}`}
+                              title="Edit user"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => deleteAppUser(user.uid, user.email)}
                               disabled={isDeletingUser === user.uid || user.uid === userInfo?.uid}
                               data-testid={`button-delete-bdo-${user.uid}`}
@@ -4307,11 +4362,17 @@ Example format:
           </div>
         </TabsContent>
 
-        {/* Add User Modal */}
-        <Dialog open={addUserModalOpen} onOpenChange={setAddUserModalOpen}>
+        {/* Add/Edit User Modal */}
+        <Dialog
+          open={addUserModalOpen}
+          onOpenChange={(open) => {
+            setAddUserModalOpen(open);
+            if (!open) resetUserForm();
+          }}
+        >
           <DialogContent className="max-w-md" data-testid="dialog-add-user">
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
+              <DialogTitle>{editingUserUid ? 'Edit User' : 'Add New User'}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
@@ -4384,7 +4445,14 @@ Example format:
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAddUserModalOpen(false)} data-testid="button-cancel-add-user">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddUserModalOpen(false);
+                  resetUserForm();
+                }}
+                data-testid="button-cancel-add-user"
+              >
                 Cancel
               </Button>
               <Button
@@ -4392,7 +4460,9 @@ Example format:
                 disabled={isAddingUser || !newUserForm.email || !newUserForm.role}
                 data-testid="button-submit-add-user"
               >
-                {isAddingUser ? 'Adding...' : 'Add User'}
+                {isAddingUser
+                  ? editingUserUid ? 'Saving...' : 'Adding...'
+                  : editingUserUid ? 'Save Changes' : 'Add User'}
               </Button>
             </DialogFooter>
           </DialogContent>

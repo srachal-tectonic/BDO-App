@@ -307,6 +307,7 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                     )}
                 </select>
               </div>
+              {/* Temporarily hidden: BDA dropdown
               <div>
                 <label htmlFor="bda" className={labelClass}>BDA</label>
                 <select
@@ -324,6 +325,7 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                   <option value="chris-anderson">Chris Anderson</option>
                 </select>
               </div>
+              */}
               <div>
                 <label htmlFor="referral-source" className={labelClass}>Referral Source</label>
                 <select
