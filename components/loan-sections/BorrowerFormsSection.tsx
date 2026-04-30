@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { getGeneratedForms, generateFormsForProject, deleteGeneratedForm, type GeneratedForm } from '@/services/firestore';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { useApplication } from '@/lib/applicationStore';
+import { authenticatedFormPost } from '@/lib/authenticatedFetch';
 import { ExtractionStatus, ExtractedFieldStatus, ExtractedFieldValue, ExtractionRecord } from '@/types';
 
 /** Form IDs that are per-individual (not per-business). */
@@ -19,6 +20,9 @@ const INDIVIDUAL_FORM_IDS = new Set([
 
 interface BorrowerFormsSectionProps {
   projectId: string;
+  sharepointFolderId?: string;
+  sharepointFolderUrl?: string;
+  onProjectUpdated?: () => void;
 }
 
 interface PortalTokenInfo {
@@ -104,7 +108,7 @@ function getFieldStatusIcon(status: ExtractedFieldStatus) {
   }
 }
 
-export default function BorrowerFormsSection({ projectId }: BorrowerFormsSectionProps) {
+export default function BorrowerFormsSection({ projectId, sharepointFolderId, sharepointFolderUrl, onProjectUpdated }: BorrowerFormsSectionProps) {
   const { currentUser, userInfo } = useFirebaseAuth();
   const { data: appData, loadFromFirestore } = useApplication();
   const individuals = appData.individualApplicants || [];
@@ -134,9 +138,48 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
   const [isSavingReview, setIsSavingReview] = useState(false);
 
   // Import filled envelope PDF (Business Applicant / Project Information) to
-  // auto-populate project data via /api/projects/[id]/envelope-pdf/apply
+  // auto-populate project data via /api/projects/[id]/envelope-pdf/apply.
+  // For per-individual forms (Individual Applicant) we instead route through
+  // /envelope-pdf/apply-individual with the selected applicant's id, so the
+  // import only touches that one applicant's slot. The active form id is
+  // captured in a ref at click time and read back in the change handler.
   const importFilledFormInputRef = useRef<HTMLInputElement>(null);
+  const filledFormIdRef = useRef<string | null>(null);
   const [isImportingFilledForm, setIsImportingFilledForm] = useState(false);
+
+  // Archive an imported document to the project's SharePoint "Borrower Forms"
+  // subfolder. If the project has no SharePoint folder yet, the server will
+  // auto-provision one and persist its IDs onto the project.
+  // Returns { ok, folderCreated } where folderCreated is true when a brand-new
+  // project folder was created during this upload.
+  const archiveToSharePoint = async (
+    file: File,
+  ): Promise<{ ok: boolean; folderCreated: boolean }> => {
+    if (!projectId) {
+      console.warn('[BorrowerForms] SharePoint archive skipped — missing projectId');
+      return { ok: false, folderCreated: false };
+    }
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('projectId', projectId);
+      if (sharepointFolderId) fd.append('folderId', sharepointFolderId);
+      fd.append('subfolder', 'Borrower Forms');
+      const res = await authenticatedFormPost('/api/sharepoint/upload', fd);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[BorrowerForms] SharePoint archive failed:', res.status, err);
+        return { ok: false, folderCreated: false };
+      }
+      const payload = await res.json().catch(() => ({}));
+      const folderCreated = !!payload?.folderCreated;
+      if (folderCreated) onProjectUpdated?.();
+      return { ok: true, folderCreated };
+    } catch (err) {
+      console.error('[BorrowerForms] SharePoint archive threw:', err);
+      return { ok: false, folderCreated: false };
+    }
+  };
 
   // Individual Applicant - Personal Financial Information is an xlsx template,
   // so its Import button needs a separate file input that accepts Excel files.
@@ -196,10 +239,18 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         ? [target.firstName, target.lastName].filter(Boolean).join(' ') || 'the selected individual'
         : 'the selected individual';
 
+      const archived = await archiveToSharePoint(file);
+      const archiveNote = archived.ok
+        ? archived.folderCreated
+          ? ' Created a new SharePoint folder for this project and saved the file under Borrower Forms.'
+          : ' Saved to SharePoint → Borrower Forms.'
+        : ' (Note: SharePoint archive failed — see console.)';
+
       alert(
-        populated === 0
+        (populated === 0
           ? `Imported "${file.name}" but the worksheet had no populated fields for ${targetName}.`
-          : `Imported "${file.name}". Populated ${populated} Personal Financial Statement field(s) for ${targetName}.`,
+          : `Imported "${file.name}". Populated ${populated} Personal Financial Statement field(s) for ${targetName}.`)
+          + archiveNote,
       );
     } catch (err: any) {
       console.error('PFI Excel import failed:', err);
@@ -221,6 +272,12 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       return;
     }
 
+    const formId = filledFormIdRef.current;
+    const isIndividualApplicantForm = formId === 'blank-individual-applicant';
+    const individualApplicantId = isIndividualApplicantForm && formId
+      ? selectedIndividual[formId]
+      : '';
+
     setIsImportingFilledForm(true);
     try {
       const base64: string = await new Promise((resolve, reject) => {
@@ -233,10 +290,16 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         reader.readAsDataURL(file);
       });
 
-      const res = await fetch(`/api/projects/${projectId}/envelope-pdf/apply`, {
+      const endpoint = isIndividualApplicantForm
+        ? `/api/projects/${projectId}/envelope-pdf/apply-individual`
+        : `/api/projects/${projectId}/envelope-pdf/apply`;
+      const requestBody: Record<string, string> = { fileName: file.name, pdfData: base64 };
+      if (isIndividualApplicantForm) requestBody.individualApplicantId = individualApplicantId;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, pdfData: base64 }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -248,7 +311,24 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       const extracted = payload.extractedFieldCount ?? 0;
       const nonEmpty = payload.nonEmptyFieldCount ?? 0;
       const mapped = payload.mappedFieldCount ?? 0;
-      const applied = payload.appliedFieldCount ?? 0;
+      // apply returns appliedFieldCount; apply-individual returns fieldsImported.
+      const applied = payload.appliedFieldCount ?? payload.fieldsImported ?? 0;
+
+      const archived = await archiveToSharePoint(file);
+      const archiveNote = archived.ok
+        ? archived.folderCreated
+          ? '\n\nCreated a new SharePoint folder for this project and saved the file under Borrower Forms.'
+          : '\n\nSaved to SharePoint → Borrower Forms.'
+        : '\n\n(Note: SharePoint archive failed — see console.)';
+
+      const targetName = isIndividualApplicantForm
+        ? (() => {
+            const ind = individuals.find((i) => i.id === individualApplicantId);
+            return ind
+              ? [ind.firstName, ind.lastName].filter(Boolean).join(' ') || 'the selected individual'
+              : 'the selected individual';
+          })()
+        : '';
 
       if (applied === 0) {
         alert(
@@ -258,6 +338,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
           `• ${mapped} matched the expected envelope field naming (ba_*, ia*_*, po_*, si_*, sba_*, oob*_*)\n` +
           `• ${applied} were actually written to the project\n\n` +
           `This usually means the uploaded PDF was not produced by the T Bank envelope generator, so its field names don't match. Open the server console for a sample of the actual field names.`
+          + archiveNote
         );
       } else {
         // Rehydrate the application store from the server's merged doc so
@@ -268,9 +349,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
             new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
           );
         }
+        const scope = isIndividualApplicantForm
+          ? ` for ${targetName}`
+          : ' to the loan application';
         alert(
-          `Imported "${file.name}". Applied ${applied} field(s) to the loan application ` +
+          `Imported "${file.name}". Applied ${applied} field(s)${scope} ` +
           `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty).`
+          + archiveNote
         );
       }
     } catch (err: any) {
@@ -278,6 +363,7 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
       alert(`Import failed: ${err?.message ?? 'Could not process the PDF file'}`);
     } finally {
       setIsImportingFilledForm(false);
+      filledFormIdRef.current = null;
       if (importFilledFormInputRef.current) importFilledFormInputRef.current.value = '';
     }
   };
@@ -745,6 +831,24 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
         </p>
       </div>
 
+      {/* TEMP: project SharePoint URL — remove this block once verified. */}
+      <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs">
+        <span className="font-semibold text-amber-800">SharePoint folder:</span>{' '}
+        {sharepointFolderUrl ? (
+          <a
+            href={sharepointFolderUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-900 underline break-all"
+            data-testid="link-project-sharepoint-url"
+          >
+            {sharepointFolderUrl}
+          </a>
+        ) : (
+          <span className="text-amber-900">(not set on this project)</span>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-[color:var(--t-color-text-primary)] font-bold">
@@ -993,6 +1097,13 @@ export default function BorrowerFormsSection({ projectId }: BorrowerFormsSection
                           pfiImportFormIdRef.current = form.id;
                           importPfiExcelInputRef.current?.click();
                         } else {
+                          // For per-individual envelope forms, require the
+                          // dropdown so the import only updates that applicant.
+                          if (form.id === 'blank-individual-applicant' && !selectedIndividual[form.id]) {
+                            alert('Select an Individual from the dropdown before importing the Individual Applicant PDF.');
+                            return;
+                          }
+                          filledFormIdRef.current = form.id;
                           importFilledFormInputRef.current?.click();
                         }
                       }}

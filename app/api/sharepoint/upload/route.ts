@@ -5,7 +5,9 @@ import {
   getSharePointSiteId,
   parseSharePointSiteUrl,
   sanitizeFolderName,
+  createSharePointFolder,
 } from '@/lib/sharepoint';
+import { getProjectAdmin, updateProjectAdmin } from '@/services/firestoreAdmin';
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { checkRateLimit, rateLimitExceededResponse, addRateLimitHeaders, RATE_LIMITS } from '@/lib/rateLimit';
 import { validateFile, isDangerousExtension, FILE_SIZE_LIMITS } from '@/lib/fileValidation';
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const projectId = formData.get('projectId') as string | null;
-    const folderId = formData.get('folderId') as string | null;
+    let folderId = formData.get('folderId') as string | null;
     const subfolder = formData.get('subfolder') as string | null; // 'Business Files' or 'Individual Files'
     const applicantName = formData.get('applicantName') as string | null; // Individual applicant's name for their folder
     const years = formData.get('years') as string | null; // JSON array of years
@@ -162,14 +164,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
-    if (!folderId) {
-      return NextResponse.json({ error: 'Folder ID is required' }, { status: 400 });
-    }
-
     console.log(`[SharePoint] Uploading file "${file.name}" to project ${projectId}`);
 
     // Get SharePoint access token
     const token = await getSharePointAccessToken();
+
+    // Auto-provision: if the caller didn't supply a folderId, look up the
+    // project in the database. If the project is already linked to a
+    // SharePoint folder, use that. Otherwise create one now (with the standard
+    // subfolders), persist the new IDs back onto the project, and continue.
+    // Mirrors the same pattern used by /api/sharepoint/files.
+    let folderCreatedInfo: { folderId: string; webUrl: string } | null = null;
+    if (!folderId) {
+      const project = await getProjectAdmin(projectId);
+      if (!project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
+      if (project.sharepointFolderId) {
+        folderId = project.sharepointFolderId;
+      } else {
+        try {
+          const folderInfo = await createSharePointFolder(token, project.projectName);
+          folderId = folderInfo.folderId;
+          folderCreatedInfo = { folderId: folderInfo.folderId, webUrl: folderInfo.webUrl };
+
+          const updateData: Record<string, string | undefined> = {
+            sharepointFolderId: folderInfo.folderId,
+            sharepointFolderUrl: folderInfo.webUrl,
+          };
+          if (folderInfo.subfolders?.businessApplicantFolderId) {
+            updateData.sharepointBusinessApplicantFolderId = folderInfo.subfolders.businessApplicantFolderId;
+          }
+          if (folderInfo.subfolders?.otherBusinessesFolderId) {
+            updateData.sharepointOtherBusinessesFolderId = folderInfo.subfolders.otherBusinessesFolderId;
+          }
+          if (folderInfo.subfolders?.projectFilesFolderId) {
+            updateData.sharepointProjectFilesFolderId = folderInfo.subfolders.projectFilesFolderId;
+          }
+          await updateProjectAdmin(projectId, updateData);
+          console.log(`[SharePoint] Auto-provisioned folder for project ${projectId}:`, folderCreatedInfo);
+        } catch (folderError) {
+          console.error('[SharePoint] Failed to auto-provision folder:', folderError);
+          return NextResponse.json(
+            {
+              error: 'Failed to create SharePoint folder for project',
+              message: folderError instanceof Error ? folderError.message : 'Unknown error',
+            },
+            { status: 500 }
+          );
+        }
+      }
+    }
 
     // Get site info
     const siteUrl = await getSharePointSiteUrl();
@@ -341,6 +386,9 @@ export async function POST(request: NextRequest) {
         subfolder: targetSubfolderName || undefined,
         applicantName: applicantName || undefined,
       },
+      folderCreated: folderCreatedInfo
+        ? { folderId: folderCreatedInfo.folderId, folderUrl: folderCreatedInfo.webUrl }
+        : null,
     });
 
     return addRateLimitHeaders(response, rateLimitResult);

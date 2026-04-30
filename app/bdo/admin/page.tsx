@@ -1,28 +1,28 @@
 'use client';
 
+import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
 import { BDOLayout } from '@/components/layout/BDOLayout';
+import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
-import { useTheme, defaultTheme } from '@/contexts/ThemeContext';
 import type { ThemeSettings } from '@/contexts/ThemeContext';
+import { defaultTheme, useTheme } from '@/contexts/ThemeContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
-import { Activity, DollarSign, Download, Edit, FileDown, FileQuestion, FileType, FileUp, Plus, Save, Settings, ShieldAlert, Tag, Trash2, Upload, Users, Wand2, X } from 'lucide-react';
-import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
+import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
+import { Activity, Download, Edit, FileDown, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
 
 interface AIPrompt {
   id: string;
@@ -586,6 +586,12 @@ const BORROWER_FULL_FORM_SECTIONS: FullFormSection[] = [
   },
 ];
 
+const getRuleTrigger = (rule: QuestionnaireRule): string => {
+  if (rule.mainCategory === 'Project Purpose' && rule.purposeKey) return rule.purposeKey;
+  if (rule.mainCategory === 'Industry' && rule.naicsCodes?.length) return `NAICS: ${rule.naicsCodes.join(', ')}`;
+  return '';
+};
+
 const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
   name: '',
   enabled: true,
@@ -732,7 +738,7 @@ Example format:
   // both, switching its title and submit-button label based on this flag.
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [editingUserUid, setEditingUserUid] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newUserForm, setNewUserForm] = useState({
     firstName: '',
     lastName: '',
@@ -806,27 +812,6 @@ Example format:
     alert('User deleted. Click "Save Changes" to persist the directory.');
   };
 
-  // Pre-fill the modal with an existing user's data and switch into edit mode.
-  // displayName is split on the first space — names with multiple parts (e.g.
-  // "Mary Jane Smith") put everything after the first space into Last Name.
-  const handleEditUser = (user: AppUser) => {
-    const fullName = (user.displayName || '').trim();
-    const firstSpace = fullName.indexOf(' ');
-    const firstName = firstSpace === -1 ? fullName : fullName.slice(0, firstSpace);
-    const lastName = firstSpace === -1 ? '' : fullName.slice(firstSpace + 1);
-
-    setNewUserForm({
-      firstName,
-      lastName,
-      email: user.email || '',
-      // Phone isn't persisted on AppUser yet; leave blank when editing.
-      phone: '',
-      role: user.role || 'BDO',
-    });
-    setEditingUserUid(user.uid);
-    setAddUserModalOpen(true);
-  };
-
   const resetUserForm = () => {
     setNewUserForm({
       firstName: '',
@@ -835,7 +820,21 @@ Example format:
       phone: '',
       role: 'BDO',
     });
-    setEditingUserUid(null);
+    setEditingUserId(null);
+  };
+
+  const openEditUser = (user: AppUser) => {
+    const [firstName = '', ...rest] = (user.displayName || '').trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    setNewUserForm({
+      firstName,
+      lastName,
+      email: user.email || '',
+      phone: '',
+      role: user.role || 'BDO',
+    });
+    setEditingUserId(user.uid);
+    setAddUserModalOpen(true);
   };
 
   const handleAddUser = () => {
@@ -846,16 +845,14 @@ Example format:
 
     setIsAddingUser(true);
 
-    // Create display name from first and last name
     const displayName = [newUserForm.firstName, newUserForm.lastName]
       .filter(Boolean)
       .join(' ') || null;
 
-    if (editingUserUid) {
-      // Edit existing user — preserve uid and createdAt, update everything else.
+    if (editingUserId) {
       setAppUsers((prev) => {
         const next = prev.map((u) =>
-          u.uid === editingUserUid
+          u.uid === editingUserId
             ? { ...u, email: newUserForm.email, role: newUserForm.role, displayName }
             : u,
         );
@@ -870,7 +867,6 @@ Example format:
       return;
     }
 
-    // Add new user
     const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newUser: AppUser = {
       uid: newUserId,
@@ -890,8 +886,6 @@ Example format:
     resetUserForm();
     setAddUserModalOpen(false);
     setIsAddingUser(false);
-
-    alert('User added. Click "Save Changes" to persist the directory.');
   };
 
   const saveSettings = async () => {
@@ -1802,7 +1796,7 @@ Example format:
           <TabsTrigger value="ai-block-templates" data-testid="tab-ai-templates">AI Block Templates</TabsTrigger>
           <TabsTrigger value="note-tags" data-testid="tab-note-tags">Note Tags</TabsTrigger>
           <TabsTrigger value="file-upload-instructions" data-testid="tab-file-upload-instructions">File Upload Instructions</TabsTrigger>
-          <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">BDO Directory</TabsTrigger>
+          <TabsTrigger value="bdo-directory" data-testid="tab-bdo-directory">User Directory</TabsTrigger>
           <TabsTrigger value="borrower-forms" data-testid="tab-borrower-forms">Borrower Forms</TabsTrigger>
           <TabsTrigger value="borrower-forms-full" data-testid="tab-borrower-forms-full">Borrower Forms - Full Form</TabsTrigger>
           <TabsTrigger value="label-comparison" data-testid="tab-label-comparison">Field Label Comparison</TabsTrigger>
@@ -2164,7 +2158,20 @@ Example format:
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
-                    <span className="text-xs">On</span>
+                    <button
+                      className="flex items-center text-xs font-medium"
+                      onClick={() => {
+                        if (rulesSortField === 'enabled') {
+                          setRulesSortDir(rulesSortDir === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setRulesSortField('enabled');
+                          setRulesSortDir('desc');
+                        }
+                      }}
+                      data-testid="button-sort-enabled"
+                    >
+                      On {rulesSortField === 'enabled' ? (rulesSortDir === 'asc' ? '▲' : '▼') : ''}
+                    </button>
                   </TableHead>
                   <TableHead>
                     <button
@@ -2215,7 +2222,20 @@ Example format:
                     </button>
                   </TableHead>
                   <TableHead>
-                    <span className="text-xs font-medium">Trigger</span>
+                    <button
+                      className="flex items-center text-xs font-medium"
+                      onClick={() => {
+                        if (rulesSortField === 'trigger') {
+                          setRulesSortDir(rulesSortDir === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setRulesSortField('trigger');
+                          setRulesSortDir('asc');
+                        }
+                      }}
+                      data-testid="button-sort-trigger"
+                    >
+                      Trigger {rulesSortField === 'trigger' ? (rulesSortDir === 'asc' ? '▲' : '▼') : ''}
+                    </button>
                   </TableHead>
                   <TableHead>
                     <button
@@ -2251,8 +2271,8 @@ Example format:
                     ? settings.questionnaireRules
                     : settings.questionnaireRules.filter(r => r.mainCategory === rulesCategoryFilter);
                   const sorted = [...filtered].sort((a, b) => {
-                    const aVal = (a as any)[rulesSortField] ?? 0;
-                    const bVal = (b as any)[rulesSortField] ?? 0;
+                    const aVal = rulesSortField === 'trigger' ? getRuleTrigger(a) : (a as any)[rulesSortField] ?? 0;
+                    const bVal = rulesSortField === 'trigger' ? getRuleTrigger(b) : (b as any)[rulesSortField] ?? 0;
                     if (typeof aVal === 'string' && typeof bVal === 'string') {
                       return rulesSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                     }
@@ -2299,11 +2319,7 @@ Example format:
                       </TableCell>
                       <TableCell>
                         <span className="text-xs text-[color:var(--t-color-text-muted)]">
-                          {rule.mainCategory === 'Project Purpose' && rule.purposeKey
-                            ? rule.purposeKey
-                            : rule.mainCategory === 'Industry' && rule.naicsCodes?.length
-                              ? `NAICS: ${rule.naicsCodes.join(', ')}`
-                              : '\u2014'}
+                          {getRuleTrigger(rule) || '\u2014'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -3336,7 +3352,7 @@ Example format:
           <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">BDO Directory</h2>
+                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2">User Directory</h2>
                 <p className="text-sm text-[color:var(--t-color-text-muted)]">
                   Manage team members and their contact information for loan applications and proposal letters.
                 </p>
@@ -3426,11 +3442,11 @@ Example format:
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEditUser(user)}
+                              onClick={() => openEditUser(user)}
                               data-testid={`button-edit-bdo-${user.uid}`}
-                              title="Edit user"
+                              title="Edit BDO"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-4 h-4 text-[color:var(--t-color-text-muted)]" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -4362,7 +4378,7 @@ Example format:
           </div>
         </TabsContent>
 
-        {/* Add/Edit User Modal */}
+        {/* Add / Edit User Modal */}
         <Dialog
           open={addUserModalOpen}
           onOpenChange={(open) => {
@@ -4372,7 +4388,7 @@ Example format:
         >
           <DialogContent className="max-w-md" data-testid="dialog-add-user">
             <DialogHeader>
-              <DialogTitle>{editingUserUid ? 'Edit User' : 'Add New User'}</DialogTitle>
+              <DialogTitle>{editingUserId ? 'Edit User' : 'Add New User'}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
@@ -4461,8 +4477,12 @@ Example format:
                 data-testid="button-submit-add-user"
               >
                 {isAddingUser
-                  ? editingUserUid ? 'Saving...' : 'Adding...'
-                  : editingUserUid ? 'Save Changes' : 'Add User'}
+                  ? editingUserId
+                    ? 'Saving...'
+                    : 'Adding...'
+                  : editingUserId
+                    ? 'Update User'
+                    : 'Add User'}
               </Button>
             </DialogFooter>
           </DialogContent>

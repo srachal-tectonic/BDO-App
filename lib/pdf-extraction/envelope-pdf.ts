@@ -66,17 +66,39 @@ function initFieldMap() {
     const prefix = `ia${i}_`;
     const pathPrefix = `${i}.`;
     const section = 'individualApplicants';
-    for (const f of [
-      'firstName', 'middleName', 'lastName', 'suffix', 'ssn', 'dateOfBirth', 'militaryVeteran',
-      'phone', 'email', 'title', 'projectRole', 'ownershipPercentage', 'ownershipType', 'businessRole',
-      'travelTimeToBusiness', 'experience', 'yearsOfExperience', 'estimatedCreditScore',
-      'creditScoreExplanation', 'indirectOwnershipDescription', 'planToBeOnSite', 'businessRoleDescription',
-    ]) {
+    // PDF field name → IndividualApplicant property. Most are 1:1, but the
+    // PDF dropdown is `travelTimeToBusiness` while the schema field is
+    // `travelTime` — keep this map authoritative for any future divergence.
+    const iaFieldToPath: Record<string, string> = {
+      firstName: 'firstName',
+      middleName: 'middleName',
+      lastName: 'lastName',
+      suffix: 'suffix',
+      ssn: 'ssn',
+      dateOfBirth: 'dateOfBirth',
+      militaryVeteran: 'militaryVeteran',
+      phone: 'phone',
+      email: 'email',
+      title: 'title',
+      projectRole: 'projectRole',
+      ownershipPercentage: 'ownershipPercentage',
+      ownershipType: 'ownershipType',
+      businessRole: 'businessRole',
+      travelTimeToBusiness: 'travelTime',
+      experience: 'experience',
+      yearsOfExperience: 'yearsOfExperience',
+      estimatedCreditScore: 'estimatedCreditScore',
+      creditScoreExplanation: 'creditScoreExplanation',
+      indirectOwnershipDescription: 'indirectOwnershipDescription',
+      planToBeOnSite: 'planToBeOnSite',
+      businessRoleDescription: 'businessRoleDescription',
+    };
+    for (const [pdfField, propName] of Object.entries(iaFieldToPath)) {
       registerField(
-        `${prefix}${f}`,
+        `${prefix}${pdfField}`,
         section,
-        `${pathPrefix}${f}`,
-        f === 'ssn' ? 'ssn' : f === 'ownershipPercentage' ? 'percentage' : 'text'
+        `${pathPrefix}${propName}`,
+        pdfField === 'ssn' ? 'ssn' : pdfField === 'ownershipPercentage' ? 'percentage' : 'text'
       );
     }
     registerField(`${prefix}homeStreet`, section, `${pathPrefix}homeAddress.street1`, 'text');

@@ -443,11 +443,31 @@ export default function QuestionnairePage() {
 
       const rawPurpose = applicationData?.projectOverview?.primaryProjectPurpose;
       const primaryProjectPurpose = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+
+      // Respect the per-project hidden-question list maintained by the
+      // BDO Edit Questionnaire tab so the exported PDF only contains
+      // questions applicable to this project.
+      const hiddenIds: string[] = Array.isArray(project.hiddenQuestionnaireRuleIds)
+        ? project.hiddenQuestionnaireRuleIds
+        : [];
+      const exportRules = hiddenIds.length > 0
+        ? applicableRules.filter((rule) => !hiddenIds.includes(rule.id))
+        : applicableRules;
+
+      let logoBytes: Uint8Array | null = null;
+      try {
+        const res = await fetch('/images/TBank-logo.png');
+        if (res.ok) logoBytes = new Uint8Array(await res.arrayBuffer());
+      } catch {
+        // Logo is optional.
+      }
+
       const pdfBytes = await generateQuestionnairePdf(
         project.projectName,
-        applicableRules,
+        exportRules,
         latestResponses,
-        primaryProjectPurpose
+        primaryProjectPurpose,
+        { logoBytes },
       );
 
       // Create blob and download

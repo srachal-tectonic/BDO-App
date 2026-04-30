@@ -1,20 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useApplication } from '@/lib/applicationStore';
-import { Sparkles } from 'lucide-react';
-import { authenticatedPost, authenticatedGet } from '@/lib/authenticatedFetch';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { useApplication } from '@/lib/applicationStore';
+import { authenticatedGet, authenticatedPost } from '@/lib/authenticatedFetch';
 import { getAdminSettings, updateProject } from '@/services/firestore';
 import type { ProjectStatus } from '@/types';
+import { Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface BDODirectoryEntry {
   uid: string;
@@ -262,7 +262,8 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
             <h2 className={sectionTitleClass} data-testid="text-section-project-team">Project Team</h2>
           </div>
           <div className="px-4 py-2 laptop:py-1">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+            {/* TEMP: BDA field hidden. To restore, change md:grid-cols-3 back to md:grid-cols-4 and uncomment the BDA <div> block below. */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
               <div>
                 <label htmlFor="bdo1" className={labelClass}>BDO (1)</label>
                 <select
@@ -307,7 +308,7 @@ export default function ProjectOverviewSection({ isReadOnly = false, onProjectSt
                     )}
                 </select>
               </div>
-              {/* Temporarily hidden: BDA dropdown
+              {/* TEMP: BDA field hidden — restore by uncommenting this block and reverting the parent grid to md:grid-cols-4.
               <div>
                 <label htmlFor="bda" className={labelClass}>BDA</label>
                 <select

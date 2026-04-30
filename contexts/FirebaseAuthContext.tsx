@@ -225,6 +225,36 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
     return () => { cancelled = true; };
   }, [fetchEasyAuthUser]);
 
+  // Source-of-truth override: once we know who the user is, ask the server
+  // whether the User Directory (admin-settings.bdoDirectory) assigns them a
+  // role. Admin in the directory grants Admin access; anyone else (including
+  // users not in the directory) is downgraded to BDO. If the directory has
+  // not been populated yet, the server returns role: null and we keep the
+  // claim/dev-bypass role so the seed user can bootstrap the directory.
+  useEffect(() => {
+    const email = userInfo?.email;
+    if (!email) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/me/role');
+        if (!res.ok) return;
+        const payload: { role?: 'Admin' | 'BDO' | null } = await res.json();
+        if (cancelled) return;
+        const next = payload?.role;
+        if (next === 'Admin' || next === 'BDO') {
+          setUserInfo((prev) => (prev && prev.role !== next ? { ...prev, role: next } : prev));
+        }
+      } catch {
+        // Network/parse failure — keep the existing role rather than locking
+        // the user out on a transient error.
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [userInfo?.email]);
+
   const signIn = async (email: string, _password: string): Promise<void> => {
     // Dev bypass for testing
     if (isDevMode()) {

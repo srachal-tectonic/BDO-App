@@ -28,6 +28,12 @@ const KNOWN_FOLDERS = ['Business Applicant', 'Other Businesses', 'Project Files'
 interface CombinedFilesSectionProps {
   projectId?: string;
   sharepointFolderId?: string;
+  /**
+   * Called after a SharePoint upload that auto-provisioned a brand-new
+   * project folder. The parent should refetch the project so subsequent
+   * uploads see the freshly persisted `sharepointFolderId`.
+   */
+  onProjectUpdated?: () => void;
 }
 
 // Extended file reference with file type metadata
@@ -88,7 +94,7 @@ function renameFile(file: File, newName: string): File {
   return new File([file], newName, { type: file.type });
 }
 
-export default function CombinedFilesSection({ projectId, sharepointFolderId }: CombinedFilesSectionProps) {
+export default function CombinedFilesSection({ projectId, sharepointFolderId, onProjectUpdated }: CombinedFilesSectionProps) {
   const [isAboutExpanded, setIsAboutExpanded] = useState(true);
 
   // Get application data from the store
@@ -237,15 +243,19 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
     subfolder?: string,
     applicantName?: string
   ): Promise<SharePointFileRef | null> => {
-    if (!projectId || !sharepointFolderId) {
-      console.warn('[FileUpload] SharePoint upload skipped - missing projectId or folderId');
+    if (!projectId) {
+      console.warn('[FileUpload] SharePoint upload skipped - missing projectId');
       return null;
     }
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('projectId', projectId);
-    formData.append('folderId', sharepointFolderId);
+    // If the project doesn't have a SharePoint folder yet, leave folderId off
+    // and let the upload route auto-provision one. The response's
+    // `folderCreated` flag tells us when to refresh the parent's project state
+    // so subsequent uploads use the persisted folderId directly.
+    if (sharepointFolderId) formData.append('folderId', sharepointFolderId);
     if (applicantName) {
       formData.append('applicantName', applicantName);
     } else if (subfolder) {
@@ -260,6 +270,10 @@ export default function CombinedFilesSection({ projectId, sharepointFolderId }: 
 
     if (!response.ok) {
       throw new Error(responseData.message || 'Failed to upload file');
+    }
+
+    if (responseData.folderCreated) {
+      onProjectUpdated?.();
     }
 
     return {
