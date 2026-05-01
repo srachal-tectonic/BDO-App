@@ -1,6 +1,7 @@
 'use client';
 
 import { BDOLayout, getStageColor } from '@/components/layout/BDOLayout';
+import DiligenceReportPanel from '@/components/diligence/DiligenceReportPanel';
 import BorrowerFormsSection from '@/components/loan-sections/BorrowerFormsSection';
 import BusinessApplicantSection from '@/components/loan-sections/BusinessApplicantSection';
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
@@ -415,6 +416,9 @@ export default function BDOToolsPage() {
             <TabsTrigger value="borrower-forms" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               PDF Forms
             </TabsTrigger>
+            <TabsTrigger value="due-diligence" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
+              Due Diligence
+            </TabsTrigger>
             {/* Temporarily hidden: Broker Access tab
             <TabsTrigger value="broker-access" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Broker Access
@@ -592,6 +596,22 @@ export default function BDOToolsPage() {
                 </div>
               </TabsContent>
             </Tabs>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="due-diligence" className="mt-0">
+          <div className="bg-[var(--t-color-card-bg)] border border-[var(--t-color-border)] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+            <DiligenceReportPanel
+              projectId={projectId}
+              legalName={applicationData.businessApplicant?.legalName}
+              industry={applicationData.projectOverview?.industry}
+              naicsCode={applicationData.projectOverview?.naicsCode}
+              primaryProjectPurpose={
+                Array.isArray(applicationData.projectOverview?.primaryProjectPurpose)
+                  ? applicationData.projectOverview.primaryProjectPurpose.join(', ')
+                  : applicationData.projectOverview?.primaryProjectPurpose
+              }
+            />
           </div>
         </TabsContent>
 

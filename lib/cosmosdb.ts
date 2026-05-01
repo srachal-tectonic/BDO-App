@@ -71,6 +71,9 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       await col.createIndex({ projectId: 1, createdAt: -1 }).catch(() => {});
     } else if (collectionName === 'financialSpreads') {
       await col.createIndex({ projectId: 1, uploadedAt: -1 }).catch(() => {});
+    } else if (collectionName === 'dueDiligenceReports') {
+      await col.createIndex({ projectId: 1 }, { unique: true }).catch(() => {});
+      await col.createIndex({ generatedAt: -1 }).catch(() => {});
     } else if (collectionName === 'auditLogs') {
       await col.createIndex({ projectId: 1, timestamp: -1 }).catch(() => {});
       await col.createIndex({ userId: 1, timestamp: -1 }).catch(() => {});
@@ -99,4 +102,5 @@ export const COLLECTIONS = {
   FINANCIAL_SPREADS: 'financialSpreads',
   ADMIN_SETTINGS: 'adminSettings',
   AUDIT_LOGS: 'auditLogs',
+  DUE_DILIGENCE_REPORTS: 'dueDiligenceReports',
 } as const;

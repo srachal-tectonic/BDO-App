@@ -592,6 +592,22 @@ const getRuleTrigger = (rule: QuestionnaireRule): string => {
   return '';
 };
 
+const PURPOSE_UI_OPTIONS = [
+  'Business Acquisition',
+  'CRE: Construction',
+  'CRE: Improvements',
+  'CRE: Purchase',
+  'Debt Refinance',
+  'Equipment Purchase',
+  'Existing Business',
+  'Franchise',
+  'Inventory Acquisition',
+  'Partner Buyout',
+  'Startup',
+  'Transition Risk',
+  'Working Capital',
+] as const;
+
 const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
   name: '',
   enabled: true,
@@ -601,6 +617,9 @@ const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
   questionText: '',
   aiBlockTemplateId: '',
   purposeKey: '',
+  purposeKeys: [],
+  excludePurposes: [],
+  alwaysShow: false,
   naicsCodes: [],
   questionOrder: 0,
 };
@@ -971,6 +990,14 @@ Example format:
   const openRuleModal = (rule?: QuestionnaireRule) => {
     if (rule) {
       setEditingRule(rule);
+      const validKeys = new Set<string>(PURPOSE_UI_OPTIONS);
+      const rawKeys =
+        rule.purposeKeys && rule.purposeKeys.length > 0
+          ? rule.purposeKeys
+          : rule.purposeKey
+          ? [rule.purposeKey]
+          : [];
+      const purposeKeys = rawKeys.filter((k) => validKeys.has(k));
       setRuleForm({
         name: rule.name,
         enabled: rule.enabled,
@@ -980,6 +1007,9 @@ Example format:
         questionText: rule.questionText || '',
         aiBlockTemplateId: rule.aiBlockTemplateId || '',
         purposeKey: rule.purposeKey || '',
+        purposeKeys,
+        excludePurposes: (rule.excludePurposes || []).filter((k) => validKeys.has(k)),
+        alwaysShow: rule.alwaysShow ?? false,
         naicsCodes: rule.naicsCodes || [],
         questionOrder: rule.questionOrder || 0,
       });
@@ -2085,6 +2115,46 @@ Example format:
 
           <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
             <div className="mb-4">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-due-diligence-prompt-title">
+                Due Diligence Report Prompt
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)] mb-4">
+                This system prompt is sent to Claude when generating an applicant due diligence report. Claude will research the applicant on the public web (entity status, industry context, local market, online reputation, known risk factors) and write a structured markdown report. Leave empty to use the built-in default prompt.
+              </p>
+            </div>
+            <Textarea
+              value={settings.aiPrompts.find(p => p.id === 'due-diligence-report')?.prompt || ''}
+              onChange={(e) => {
+                const existing = settings.aiPrompts.find(p => p.id === 'due-diligence-report');
+                if (existing) {
+                  updateAIPrompt(existing.id, { prompt: e.target.value });
+                } else {
+                  setSettings(prev => ({
+                    ...prev,
+                    aiPrompts: [
+                      ...prev.aiPrompts,
+                      {
+                        id: 'due-diligence-report',
+                        name: 'Due Diligence Report Prompt',
+                        prompt: e.target.value,
+                        description: 'System prompt for generating applicant due diligence reports',
+                      },
+                    ],
+                  }));
+                  setHasUnsavedChanges(true);
+                }
+              }}
+              className="w-full min-h-[500px] font-mono text-sm"
+              placeholder="Leave empty to use the default due diligence prompt. Paste a custom prompt here to override it."
+              data-testid="textarea-due-diligence-prompt"
+            />
+            <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
+              <strong>Available placeholders:</strong> {'{legalName}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-4">
               <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-financial-spread-prompt-title">
                 Financial Spread Analysis Prompt
               </h2>
@@ -2433,23 +2503,6 @@ Example format:
                 </RadioGroup>
               </div>
 
-              <div>
-                <Label htmlFor="main-category">Main Category *</Label>
-                <Select
-                  value={ruleForm.mainCategory}
-                  onValueChange={(value) => setRuleForm({ ...ruleForm, mainCategory: value as 'Business Overview' | 'Project Purpose' | 'Industry' })}
-                >
-                  <SelectTrigger id="main-category" data-testid="select-main-category">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Business Overview">Business Overview</SelectItem>
-                    <SelectItem value="Project Purpose">Project Purpose</SelectItem>
-                    <SelectItem value="Industry">Industry</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {ruleForm.blockType === 'question' && (
                 <div>
                   <Label htmlFor="question-text">Question Text *</Label>
@@ -2485,77 +2538,134 @@ Example format:
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="rule-order">Order</Label>
-                  <p className="text-xs text-[color:var(--t-color-text-muted)] mb-1">Global display order</p>
-                  <Input
-                    id="rule-order"
-                    type="number"
-                    value={ruleForm.order}
-                    onChange={(e) => setRuleForm({ ...ruleForm, order: parseInt(e.target.value) || 0 })}
-                    data-testid="input-rule-order"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="rule-question-order">Question Order (within group)</Label>
-                  <p className="text-xs text-[color:var(--t-color-text-muted)] mb-1">Order within category group</p>
-                  <Input
-                    id="rule-question-order"
-                    type="number"
-                    value={ruleForm.questionOrder || 0}
-                    onChange={(e) => setRuleForm({ ...ruleForm, questionOrder: parseInt(e.target.value) || 0 })}
-                    data-testid="input-rule-question-order"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="main-category">Main Category *</Label>
+                <Select
+                  value={ruleForm.mainCategory}
+                  onValueChange={(value: 'Business Overview' | 'Project Purpose' | 'Industry') =>
+                    setRuleForm({
+                      ...ruleForm,
+                      mainCategory: value,
+                      purposeKeys: [],
+                      purposeKey: '',
+                      naicsCodes: [],
+                    })
+                  }
+                >
+                  <SelectTrigger id="main-category" data-testid="select-main-category">
+                    <SelectValue placeholder="Select main category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Business Overview">Business Overview</SelectItem>
+                    <SelectItem value="Project Purpose">Project Purpose</SelectItem>
+                    <SelectItem value="Industry">Industry</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">
+                  {ruleForm.mainCategory === 'Business Overview' && 'Questions shown to all borrowers'}
+                  {ruleForm.mainCategory === 'Project Purpose' && 'Questions filtered by Project Purpose'}
+                  {ruleForm.mainCategory === 'Industry' && 'Questions filtered by NAICS code'}
+                </p>
               </div>
 
               {ruleForm.mainCategory === 'Project Purpose' && (
                 <div>
-                  <Label htmlFor="rule-purpose-key">Purpose Key</Label>
-                  <Select
-                    value={ruleForm.purposeKey || ''}
-                    onValueChange={(value) => setRuleForm({ ...ruleForm, purposeKey: value || '' })}
-                  >
-                    <SelectTrigger id="rule-purpose-key" data-testid="select-purpose-key">
-                      <SelectValue placeholder="Select a purpose key" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Business Acquisition / Change of Ownership">Business Acquisition / Change of Ownership</SelectItem>
-                      <SelectItem value="Commercial Real Estate: Construction">CRE: Construction</SelectItem>
-                      <SelectItem value="Commercial Real Estate: Improvements">CRE: Improvements</SelectItem>
-                      <SelectItem value="Commercial Real Estate: Purchase">CRE: Purchase</SelectItem>
-                      <SelectItem value="Debt Refinance">Debt Refinance</SelectItem>
-                      <SelectItem value="Equipment Acquisition / Installation">Equipment Acquisition / Installation</SelectItem>
-                      <SelectItem value="Existing Business">Existing Business</SelectItem>
-                      <SelectItem value="Expansion">Expansion</SelectItem>
-                      <SelectItem value="Franchise">Franchise</SelectItem>
-                      <SelectItem value="Inventory Acquisition">Inventory Acquisition</SelectItem>
-                      <SelectItem value="Partner Buyout">Partner Buyout</SelectItem>
-                      <SelectItem value="Start Up">Start Up</SelectItem>
-                      <SelectItem value="Transition Risk">Transition Risk</SelectItem>
-                      <SelectItem value="Working Capital">Working Capital</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Project Purpose(s) *</Label>
+                  <p className="text-xs text-[color:var(--t-color-text-muted)] mb-2">Question will appear if any selected purpose matches the project.</p>
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2" data-testid="purpose-keys-list">
+                    {PURPOSE_UI_OPTIONS.map((purpose) => {
+                      const checked = (ruleForm.purposeKeys || []).includes(purpose);
+                      return (
+                        <div key={purpose} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`purpose-key-${purpose}`}
+                            checked={checked}
+                            onCheckedChange={(isChecked) => {
+                              const current = ruleForm.purposeKeys || [];
+                              const updated = isChecked
+                                ? [...current, purpose]
+                                : current.filter((p) => p !== purpose);
+                              setRuleForm({ ...ruleForm, purposeKeys: updated });
+                            }}
+                            data-testid={`checkbox-purpose-key-${purpose.toLowerCase().replace(/[\s:]/g, '-')}`}
+                          />
+                          <Label htmlFor={`purpose-key-${purpose}`} className="text-sm font-normal cursor-pointer">{purpose}</Label>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
               {ruleForm.mainCategory === 'Industry' && (
                 <div>
-                  <Label htmlFor="rule-naics-codes">NAICS Codes (comma-separated prefixes)</Label>
+                  <Label htmlFor="naics-codes">NAICS Codes *</Label>
                   <Input
-                    id="rule-naics-codes"
+                    id="naics-codes"
                     value={(ruleForm.naicsCodes || []).join(', ')}
-                    onChange={(e) => setRuleForm({
-                      ...ruleForm,
-                      naicsCodes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                    })}
-                    placeholder="e.g., 44, 45"
+                    onChange={(e) => {
+                      const codes = e.target.value.split(',').map((c) => c.trim()).filter((c) => c);
+                      setRuleForm({ ...ruleForm, naicsCodes: codes });
+                    }}
+                    placeholder="e.g., 722511, 531120, 541211"
                     data-testid="input-naics-codes"
                   />
-                  <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">NAICS code prefixes that this rule applies to</p>
+                  <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">Comma-separated NAICS codes. Question will appear for any match.</p>
                 </div>
               )}
+
+              {ruleForm.mainCategory === 'Business Overview' && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="always-show"
+                    checked={ruleForm.alwaysShow ?? false}
+                    onCheckedChange={(checked) => setRuleForm({ ...ruleForm, alwaysShow: checked })}
+                    data-testid="switch-always-show"
+                  />
+                  <Label htmlFor="always-show">Always Show (regardless of filters)</Label>
+                </div>
+              )}
+
+              {ruleForm.mainCategory !== 'Business Overview' && (
+                <div>
+                  <Label>Exclude for Purposes</Label>
+                  <p className="text-xs text-[color:var(--t-color-text-muted)] mb-2">If a project's primary or secondary purpose matches any selected value, this question will be hidden.</p>
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2" data-testid="exclude-purposes-list">
+                    {PURPOSE_UI_OPTIONS.map((purpose) => {
+                      const checked = (ruleForm.excludePurposes || []).includes(purpose);
+                      return (
+                        <div key={purpose} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`exclude-purpose-${purpose}`}
+                            checked={checked}
+                            onCheckedChange={(isChecked) => {
+                              const current = ruleForm.excludePurposes || [];
+                              const updated = isChecked
+                                ? [...current, purpose]
+                                : current.filter((p) => p !== purpose);
+                              setRuleForm({ ...ruleForm, excludePurposes: updated });
+                            }}
+                            data-testid={`checkbox-exclude-purpose-${purpose.toLowerCase().replace(/[\s:]/g, '-')}`}
+                          />
+                          <Label htmlFor={`exclude-purpose-${purpose}`} className="text-sm font-normal cursor-pointer">{purpose}</Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="question-order">Question Order</Label>
+                <Input
+                  id="question-order"
+                  type="number"
+                  value={ruleForm.questionOrder ?? 0}
+                  onChange={(e) => setRuleForm({ ...ruleForm, questionOrder: parseInt(e.target.value) || 0 })}
+                  data-testid="input-question-order"
+                />
+                <p className="text-xs text-[color:var(--t-color-text-muted)] mt-1">Order within the section. Lower numbers appear first.</p>
+              </div>
 
               <div className="flex items-center space-x-2">
                 <Switch

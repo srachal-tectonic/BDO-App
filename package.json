@@ -12,6 +12,7 @@
     "build:prod": "env-cmd -f .env.production next build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@auth0/auth0-react": "^2.8.0",
     "@auth0/nextjs-auth0": "^4.13.2",
     "@azure/cosmos": "^4.9.2",
@@ -48,6 +49,8 @@
     "puppeteer-core": "^24.42.0",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.8"
