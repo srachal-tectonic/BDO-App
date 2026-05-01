@@ -2097,11 +2097,25 @@ Example format:
               </p>
             </div>
             <Textarea
-              value={settings.aiPrompts.find(p => p.id === 'business-description')?.prompt || settings.aiPrompts[1]?.prompt || ''}
+              value={settings.aiPrompts.find(p => p.id === 'business-description')?.prompt || ''}
               onChange={(e) => {
-                const target = settings.aiPrompts.find(p => p.id === 'business-description') || settings.aiPrompts[1];
-                if (target) {
-                  updateAIPrompt(target.id, { prompt: e.target.value });
+                const existing = settings.aiPrompts.find(p => p.id === 'business-description');
+                if (existing) {
+                  updateAIPrompt(existing.id, { prompt: e.target.value });
+                } else {
+                  setSettings(prev => ({
+                    ...prev,
+                    aiPrompts: [
+                      ...prev.aiPrompts,
+                      {
+                        id: 'business-description',
+                        name: 'Business Description Prompt',
+                        prompt: e.target.value,
+                        description: 'System prompt for generating business descriptions',
+                      },
+                    ],
+                  }));
+                  setHasUnsavedChanges(true);
                 }
               }}
               className="w-full min-h-[400px] font-mono text-sm"
@@ -2110,6 +2124,46 @@ Example format:
             />
             <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
               <strong>Available placeholders:</strong> {'{legalName}'}, {'{industry}'}, {'{naicsCode}'}, {'{yearsInOperation}'}, {'{employees}'}, {'{annualRevenue}'}, {'{description}'}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-financial-spread-prompt-title">
+                Financial Spread Analysis Prompt
+              </h2>
+              <p className="text-sm text-[color:var(--t-color-text-muted)] mb-4">
+                This system prompt is sent to Claude when analyzing financial spreads. It controls how the AI evaluates income statements, calculates DSCR trends, assigns repayment scores, and structures its response. Leave empty to use the built-in default prompt.
+              </p>
+            </div>
+            <Textarea
+              value={settings.aiPrompts.find(p => p.id === 'financial-spread')?.prompt || ''}
+              onChange={(e) => {
+                const existing = settings.aiPrompts.find(p => p.id === 'financial-spread');
+                if (existing) {
+                  updateAIPrompt(existing.id, { prompt: e.target.value });
+                } else {
+                  setSettings(prev => ({
+                    ...prev,
+                    aiPrompts: [
+                      ...prev.aiPrompts,
+                      {
+                        id: 'financial-spread',
+                        name: 'Financial Spread Analysis Prompt',
+                        prompt: e.target.value,
+                        description: 'System prompt for analyzing financial spreads',
+                      },
+                    ],
+                  }));
+                  setHasUnsavedChanges(true);
+                }
+              }}
+              className="w-full min-h-[500px] font-mono text-sm"
+              placeholder="Leave empty to use the default financial analysis prompt. Paste a custom prompt here to override it."
+              data-testid="textarea-financial-spread-prompt"
+            />
+            <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
+              <strong>Note:</strong> The prompt receives structured JSON financial period data as user input. The response must be valid JSON matching the expected analysis schema. Modifying the response format may break the analysis display.
             </div>
           </div>
 
@@ -2150,32 +2204,6 @@ Example format:
             />
             <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
               <strong>Available placeholders:</strong> {'{legalName}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-financial-spread-prompt-title">
-                Financial Spread Analysis Prompt
-              </h2>
-              <p className="text-sm text-[color:var(--t-color-text-muted)] mb-4">
-                This system prompt is sent to Claude when analyzing financial spreads. It controls how the AI evaluates income statements, calculates DSCR trends, assigns repayment scores, and structures its response. Leave empty to use the built-in default prompt.
-              </p>
-            </div>
-            <Textarea
-              value={settings.aiPrompts.find(p => p.id === 'financial-spread')?.prompt || settings.aiPrompts[2]?.prompt || ''}
-              onChange={(e) => {
-                const target = settings.aiPrompts.find(p => p.id === 'financial-spread') || settings.aiPrompts[2];
-                if (target) {
-                  updateAIPrompt(target.id, { prompt: e.target.value });
-                }
-              }}
-              className="w-full min-h-[500px] font-mono text-sm"
-              placeholder="Leave empty to use the default financial analysis prompt. Paste a custom prompt here to override it."
-              data-testid="textarea-financial-spread-prompt"
-            />
-            <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
-              <strong>Note:</strong> The prompt receives structured JSON financial period data as user input. The response must be valid JSON matching the expected analysis schema. Modifying the response format may break the analysis display.
             </div>
           </div>
         </TabsContent>
