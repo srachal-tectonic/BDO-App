@@ -17,13 +17,6 @@ export interface DiligenceReport {
 
 export type DiligencePhase = 'thinking' | 'researching' | 'writing' | null;
 
-interface GenerateInput {
-  legalName: string;
-  industry: string;
-  naicsCode: string;
-  primaryProjectPurpose: string;
-}
-
 interface UseDiligenceReportResult {
   report: DiligenceReport | null;
   isLoading: boolean;
@@ -32,7 +25,7 @@ interface UseDiligenceReportResult {
   streamedText: string;
   searchQueries: string[];
   error: string | null;
-  generate: (input: GenerateInput) => Promise<void>;
+  generate: () => Promise<void>;
 }
 
 export function useDiligenceReport(projectId: string | undefined): UseDiligenceReportResult {
@@ -89,7 +82,7 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
   }, []);
 
   const generate = useCallback(
-    async (input: GenerateInput) => {
+    async () => {
       if (!projectId) {
         setError('Missing projectId');
         return;
@@ -111,7 +104,7 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
         const res = await authenticatedFetch('/api/diligence-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, ...input }),
+          body: JSON.stringify({ projectId }),
           signal: controller.signal,
         });
 
@@ -169,10 +162,10 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
                   reportText: evt.reportText || '',
                   model: evt.model || '',
                   generatedAt: evt.generatedAt || new Date().toISOString(),
-                  legalName: input.legalName,
-                  industry: input.industry,
-                  naicsCode: input.naicsCode,
-                  primaryProjectPurpose: input.primaryProjectPurpose,
+                  legalName: evt.legalName,
+                  industry: evt.industry,
+                  naicsCode: evt.naicsCode,
+                  primaryProjectPurpose: evt.primaryProjectPurpose,
                 });
                 break;
             }

@@ -77,12 +77,7 @@ export default function DiligenceReportPanel({
 
   const runGenerate = () => {
     if (!canGenerate || isStreaming) return;
-    return generate({
-      legalName: legalName!.trim(),
-      industry: industry!.trim(),
-      naicsCode: naicsCode!.trim(),
-      primaryProjectPurpose: primaryProjectPurpose!.trim(),
-    });
+    return generate();
   };
 
   if (isLoading) {

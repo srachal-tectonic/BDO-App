@@ -2203,7 +2203,9 @@ Example format:
               data-testid="textarea-due-diligence-prompt"
             />
             <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
-              <strong>Available placeholders:</strong> {'{legalName}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}
+              <strong>Available placeholders:</strong> {'{legalName}'}, {'{dba}'}, {'{entityType}'}, {'{stateOfFormation}'}, {'{ein}'}, {'{businessAddress}'}, {'{projectAddress}'}, {'{websiteUrl}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}, {'{secondaryProjectPurposes}'}, {'{loanAmount}'}, {'{useOfProceeds}'}, {'{projectDescription}'}, {'{yearsInOperation}'}, {'{businessStage}'}, {'{ownerNames}'}.
+              <br />
+              <strong>Note:</strong> The full application data is also appended automatically as a "Loan Application Data" block at the end of the prompt, so Claude has access to every field even if your prompt doesn't reference it directly.
             </div>
           </div>
         </TabsContent>
