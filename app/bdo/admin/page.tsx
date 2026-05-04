@@ -20,7 +20,12 @@ import type { ThemeSettings } from '@/contexts/ThemeContext';
 import { defaultTheme, useTheme } from '@/contexts/ThemeContext';
 import type { CREScope, ProjectTypeRule, RiskLevel, TriStateCondition } from '@/lib/schema';
 import { getAdminSettings, saveAdminSettings } from '@/services/firestore';
-import { Activity, Download, Edit, FileDown, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { Activity, Download, Edit, FileDown, Plus, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
+import {
+  DEFAULT_DILIGENCE_CORE_PROMPT,
+  DEFAULT_DILIGENCE_PURPOSE_APPENDICES,
+  DILIGENCE_PURPOSE_OPTIONS,
+} from '@/lib/diligencePrompts';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
@@ -189,6 +194,10 @@ interface AdminSettings {
   feeConfigurations?: FeeConfiguration[];
   // Persisted directory used to populate Project Overview's BDO (1) / BDO (2) dropdowns.
   bdoDirectory?: AppUser[];
+  // Due Diligence report prompts (DD Prompts tab). Core is always sent; each
+  // appendix is appended only when its purpose is selected on the project.
+  diligenceCorePrompt?: string;
+  diligencePurposeAppendices?: Record<string, string>;
 }
 
 interface AppUser {
@@ -934,6 +943,16 @@ Example format:
         if (!cancelled && loaded) {
           // Strip themeSettings from the admin settings merge; apply it to ThemeContext instead.
           const { themeSettings: loadedTheme, ...rest } = loaded;
+          // One-shot migration: surface the legacy single-prompt due-diligence
+          // entry as the new Core prompt when the new fields haven't been saved
+          // yet, so admins don't lose the customization they had before the
+          // Core/Appendix split. The route applies the same fallback at runtime.
+          if (rest.diligenceCorePrompt === undefined) {
+            const legacy = (rest.aiPrompts ?? []).find((p: any) => p?.id === 'due-diligence-report');
+            if (legacy?.prompt && typeof legacy.prompt === 'string' && legacy.prompt.trim()) {
+              (rest as any).diligenceCorePrompt = legacy.prompt;
+            }
+          }
           setSettings((prev) => ({ ...prev, ...rest }));
           if (loadedTheme) {
             setThemeSettings({ ...defaultTheme, ...loadedTheme });
@@ -1821,6 +1840,7 @@ Example format:
         <TabsList className="mb-6 flex-wrap">
           <TabsTrigger value="default-values" data-testid="tab-default-inputs">Default Inputs</TabsTrigger>
           <TabsTrigger value="ai-prompts" data-testid="tab-ai-prompts">AI Prompts</TabsTrigger>
+          <TabsTrigger value="dd-prompts" data-testid="tab-dd-prompts">DD Prompts</TabsTrigger>
           <TabsTrigger value="questionnaire-rules" data-testid="tab-questionnaire-rules">Questionnaire Rules</TabsTrigger>
           <TabsTrigger value="risk-score-rules" data-testid="tab-risk-score-rules">Risk Score Rules</TabsTrigger>
           <TabsTrigger value="ai-block-templates" data-testid="tab-ai-templates">AI Block Templates</TabsTrigger>
@@ -2167,47 +2187,115 @@ Example format:
             </div>
           </div>
 
+        </TabsContent>
+
+        {/* DD Prompts Tab */}
+        <TabsContent value="dd-prompts" className="space-y-6">
           <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-due-diligence-prompt-title">
-                Due Diligence Report Prompt
-              </h2>
-              <p className="text-sm text-[color:var(--t-color-text-muted)] mb-4">
-                This system prompt is sent to Claude when generating an applicant due diligence report. Claude will research the applicant on the public web (entity status, industry context, local market, online reputation, known risk factors) and write a structured markdown report. Leave empty to use the built-in default prompt.
-              </p>
+            <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-dd-prompts-title">
+              Due Diligence Report Prompts
+            </h2>
+            <p className="text-sm text-[color:var(--t-color-text-muted)]">
+              The system prompt sent to Claude for the AI Due Diligence report is composed of a <strong>Core</strong> prompt plus a <strong>Purpose-Specific Appendix</strong> appended for each project purpose selected on the project (the primary purpose, plus each secondary purpose). Edit the Core to change baseline methodology and report structure. Edit a Purpose Appendix to add guidance that should only apply when that purpose is selected — empty appendices are skipped at runtime.
+            </p>
+            <p className="text-sm text-[color:var(--t-color-text-muted)] mt-3">
+              <strong>Available placeholders</strong> (substituted into both Core and Appendices): {'{legalName}'}, {'{dba}'}, {'{entityType}'}, {'{stateOfFormation}'}, {'{ein}'}, {'{businessAddress}'}, {'{projectAddress}'}, {'{websiteUrl}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}, {'{secondaryProjectPurposes}'}, {'{loanAmount}'}, {'{useOfProceeds}'}, {'{projectDescription}'}, {'{yearsInOperation}'}, {'{businessStage}'}, {'{ownerNames}'}.
+              <br />
+              The full application data is also appended automatically as a "Loan Application Data" block at the end of the prompt.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-diligence-core-prompt-title">
+                  Core Prompt
+                </h3>
+                <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                  Always sent. Defines the methodology, source categories the model should research, and the structure of the final report.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSettings(prev => ({ ...prev, diligenceCorePrompt: DEFAULT_DILIGENCE_CORE_PROMPT }));
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={(settings.diligenceCorePrompt ?? DEFAULT_DILIGENCE_CORE_PROMPT) === DEFAULT_DILIGENCE_CORE_PROMPT}
+                data-testid="button-reset-diligence-core-prompt"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset to default
+              </Button>
             </div>
             <Textarea
-              value={settings.aiPrompts.find(p => p.id === 'due-diligence-report')?.prompt || ''}
+              value={settings.diligenceCorePrompt ?? DEFAULT_DILIGENCE_CORE_PROMPT}
               onChange={(e) => {
-                const existing = settings.aiPrompts.find(p => p.id === 'due-diligence-report');
-                if (existing) {
-                  updateAIPrompt(existing.id, { prompt: e.target.value });
-                } else {
-                  setSettings(prev => ({
-                    ...prev,
-                    aiPrompts: [
-                      ...prev.aiPrompts,
-                      {
-                        id: 'due-diligence-report',
-                        name: 'Due Diligence Report Prompt',
-                        prompt: e.target.value,
-                        description: 'System prompt for generating applicant due diligence reports',
-                      },
-                    ],
-                  }));
-                  setHasUnsavedChanges(true);
-                }
+                setSettings(prev => ({ ...prev, diligenceCorePrompt: e.target.value }));
+                setHasUnsavedChanges(true);
               }}
               className="w-full min-h-[500px] font-mono text-sm"
-              placeholder="Leave empty to use the default due diligence prompt. Paste a custom prompt here to override it."
-              data-testid="textarea-due-diligence-prompt"
+              placeholder="Loading default core prompt…"
+              data-testid="textarea-diligence-core-prompt"
             />
-            <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
-              <strong>Available placeholders:</strong> {'{legalName}'}, {'{dba}'}, {'{entityType}'}, {'{stateOfFormation}'}, {'{ein}'}, {'{businessAddress}'}, {'{projectAddress}'}, {'{websiteUrl}'}, {'{industry}'}, {'{naicsCode}'}, {'{primaryProjectPurpose}'}, {'{secondaryProjectPurposes}'}, {'{loanAmount}'}, {'{useOfProceeds}'}, {'{projectDescription}'}, {'{yearsInOperation}'}, {'{businessStage}'}, {'{ownerNames}'}.
-              <br />
-              <strong>Note:</strong> The full application data is also appended automatically as a "Loan Application Data" block at the end of the prompt, so Claude has access to every field even if your prompt doesn't reference it directly.
-            </div>
+            <p className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
+              Saving content that exactly matches the default removes the override at runtime so future updates to the built-in default flow through automatically.
+            </p>
           </div>
+
+          {DILIGENCE_PURPOSE_OPTIONS.map((purpose) => {
+            const value = settings.diligencePurposeAppendices?.[purpose] ?? '';
+            const defaultValue = DEFAULT_DILIGENCE_PURPOSE_APPENDICES[purpose] ?? '';
+            return (
+              <div key={purpose} className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+                <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid={`text-diligence-appendix-title-${purpose}`}>
+                      {purpose}
+                    </h3>
+                    <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                      Appended whenever a project selects <strong>{purpose}</strong> as a primary or secondary purpose.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSettings(prev => ({
+                        ...prev,
+                        diligencePurposeAppendices: {
+                          ...(prev.diligencePurposeAppendices ?? {}),
+                          [purpose]: defaultValue,
+                        },
+                      }));
+                      setHasUnsavedChanges(true);
+                    }}
+                    disabled={value === defaultValue}
+                    data-testid={`button-reset-diligence-appendix-${purpose}`}
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset
+                  </Button>
+                </div>
+                <Textarea
+                  value={value}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSettings(prev => ({
+                      ...prev,
+                      diligencePurposeAppendices: {
+                        ...(prev.diligencePurposeAppendices ?? {}),
+                        [purpose]: next,
+                      },
+                    }));
+                    setHasUnsavedChanges(true);
+                  }}
+                  className="w-full min-h-[200px] font-mono text-sm"
+                  placeholder={`Optional purpose-specific guidance for ${purpose}…`}
+                  data-testid={`textarea-diligence-appendix-${purpose}`}
+                />
+              </div>
+            );
+          })}
         </TabsContent>
 
         {/* Questionnaire Rules Tab */}

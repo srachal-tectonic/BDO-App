@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { checkRateLimit, rateLimitExceededResponse, RATE_LIMITS } from '@/lib/rateLimit';
 import { checkCsrf } from '@/lib/csrf';
+import { DEFAULT_DILIGENCE_CORE_PROMPT } from '@/lib/diligencePrompts';
 
 export const runtime = 'nodejs';
 // Web research can take 2-4 minutes — keep the function alive long enough.
@@ -13,27 +14,10 @@ const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const WEB_SEARCH_MAX_USES = 5;
 
 const ADMIN_SETTINGS_CONFIG_ID = 'config';
-const DUE_DILIGENCE_PROMPT_ID = 'due-diligence-report';
-
-const DEFAULT_PROMPT = `You are an SBA loan due diligence analyst. Research the applicant using public web sources and produce a structured markdown report for the lender.
-
-Use the web_search tool to verify:
-1. Entity status (registered, active, in good standing where discoverable)
-2. Industry context and outlook for this NAICS code
-3. Local market conditions for the applicant's geography
-4. Online reputation (reviews, news, complaints, lawsuits)
-5. Known risk factors (regulatory actions, sanctions lists, OFAC, bankruptcies)
-
-Output a markdown report with these sections (use H2 headings):
-- Executive Summary
-- Entity Verification
-- Industry & Market Context
-- Online Reputation
-- Risk Factors
-- Open Questions for Underwriting
-- Sources (bulleted list of URLs you cited)
-
-Be concise. Cite specific URLs inline as markdown links. If a fact cannot be verified, say so explicitly rather than guessing.`;
+// Legacy single-prompt id, kept as a fallback so admins who customized the
+// prompt before the Core/Appendix split don't lose their work until they save
+// the new DD Prompts tab.
+const LEGACY_DUE_DILIGENCE_PROMPT_ID = 'due-diligence-report';
 
 interface ExtractedFields {
   legalName: string;
@@ -301,21 +285,69 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Resolve the prompt template — admin override or default.
-  let promptTemplate = DEFAULT_PROMPT;
+  // Resolve the Core prompt + Purpose Appendices from admin settings, falling
+  // back to the legacy single-prompt entry, and finally to the built-in
+  // default. Per the DD Prompts admin tab: empty appendices are skipped.
+  let coreTemplate = DEFAULT_DILIGENCE_CORE_PROMPT;
+  let appendices: Record<string, string> = {};
   try {
     const adminCol = await getCollection(COLLECTIONS.ADMIN_SETTINGS);
     const adminDoc = await adminCol.findOne({ id: ADMIN_SETTINGS_CONFIG_ID });
-    const override = (adminDoc as any)?.aiPrompts?.find((p: any) => p?.id === DUE_DILIGENCE_PROMPT_ID);
-    if (override?.prompt && typeof override.prompt === 'string' && override.prompt.trim()) {
-      promptTemplate = override.prompt;
+    const settings: any = adminDoc ?? {};
+
+    const coreOverride = typeof settings.diligenceCorePrompt === 'string' ? settings.diligenceCorePrompt.trim() : '';
+    if (coreOverride) {
+      coreTemplate = coreOverride;
+    } else {
+      // Migration fallback: read the old aiPrompts[id=due-diligence-report]
+      // entry until the admin saves the new DD Prompts tab.
+      const legacy = settings.aiPrompts?.find((p: any) => p?.id === LEGACY_DUE_DILIGENCE_PROMPT_ID);
+      if (legacy?.prompt && typeof legacy.prompt === 'string' && legacy.prompt.trim()) {
+        coreTemplate = legacy.prompt;
+      }
+    }
+
+    if (settings.diligencePurposeAppendices && typeof settings.diligencePurposeAppendices === 'object') {
+      appendices = settings.diligencePurposeAppendices;
     }
   } catch (err) {
-    console.warn('[diligence-report] Failed to load admin prompt override, using default:', err);
+    console.warn('[diligence-report] Failed to load admin prompt overrides, using defaults:', err);
   }
 
-  // Substitute every supported placeholder.
-  let renderedPrompt = promptTemplate;
+  // Build the ordered, deduped list of selected purposes (primary + secondary).
+  const primaryRaw = (loanApp?.projectOverview?.primaryProjectPurpose ?? null) as string | string[] | null;
+  const secondaryRaw = (loanApp?.projectOverview?.secondaryProjectPurposes ?? []) as string[];
+  const selectedPurposes: string[] = [];
+  const seen = new Set<string>();
+  const pushPurpose = (raw: unknown) => {
+    if (typeof raw !== 'string') return;
+    const trimmed = raw.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    selectedPurposes.push(trimmed);
+  };
+  if (Array.isArray(primaryRaw)) {
+    primaryRaw.forEach(pushPurpose);
+  } else {
+    pushPurpose(primaryRaw);
+  }
+  if (Array.isArray(secondaryRaw)) {
+    secondaryRaw.forEach(pushPurpose);
+  }
+
+  const appendixSections: string[] = [];
+  for (const purpose of selectedPurposes) {
+    const text = typeof appendices[purpose] === 'string' ? appendices[purpose].trim() : '';
+    if (!text) continue;
+    appendixSections.push(`## Appendix: ${purpose}\n\n${text}`);
+  }
+
+  const composedTemplate = appendixSections.length
+    ? `${coreTemplate}\n\n${appendixSections.join('\n\n')}`
+    : coreTemplate;
+
+  // Substitute every supported placeholder against the composed template.
+  let renderedPrompt = composedTemplate;
   for (const [key, value] of Object.entries(fields)) {
     const re = new RegExp(`\\{${key}\\}`, 'g');
     renderedPrompt = renderedPrompt.replace(re, value || 'Not provided');
