@@ -1,12 +1,17 @@
 'use client';
 
 /**
- * Spread schema driven by the Ferrell Electric Spreads - Full Import.xlsm template.
- * Field `key`s are the camelCase names emitted by the uploader; field `label`s match
- * the row labels in the workbook's "Financial Spread" sheet (Income Statement Spreads
- * section onward). The Financing Structure and Sources & Uses sections in that same
- * sheet are per-source (not per-period), so they live on a separate component and
- * are intentionally excluded from the per-period comparison sections here.
+ * Spread schema for the BDO Prequal workbook's "Financial Spreads" sheet
+ * (Income Statement Spreads section onward). Field `key`s are the camelCase
+ * names emitted by the uploader; field `label`s match the row labels in the
+ * sheet. Both the legacy "New BDO Pre-Qual_04.2026" layout and the newer
+ * "New BDO Prequal Ben 5.5.26" layout populate the same keys via aliases in
+ * lib/parseSpreadsheet.ts, so labels missing from one layout simply render
+ * as "—" in the comparison view.
+ *
+ * The Financing Structure and Sources & Uses sections in the same sheet are
+ * per-source (not per-period), so they live on a separate component and are
+ * intentionally excluded from the per-period comparison sections here.
  */
 
 export type SpreadFieldType = 'currency' | 'ratio' | 'percent' | 'date' | 'months' | 'string';
@@ -61,6 +66,8 @@ export const SPREAD_SECTIONS: SpreadSection[] = [
       { key: 'otherAddBack3', label: 'Other Add Back 3' },
       { key: 'otherAddBack4', label: 'Other Add Back 4' },
       { key: 'otherAddBack5', label: 'Other Add Back 5' },
+      { key: 'estimatedPropertyTax', label: 'Estimated Property Tax' },
+      { key: 'requiredOwnersDraw', label: "Required Owner's Draw" },
     ],
   },
   {
@@ -80,11 +87,12 @@ export const SPREAD_SECTIONS: SpreadSection[] = [
   {
     title: 'Global Debt Coverage',
     fields: [
-      { key: 'totalAffiliateCashAvailable', label: 'Total Affiliate Cash Available' },
       { key: 'totalSubjectBusinessCashAvailable', label: 'Total Subject Business Cash Available' },
+      { key: 'totalAffiliateCashAvailable', label: 'Total Affiliate Cash Available' },
+      { key: 'totalGuarantorCashAvailable', label: 'Total Guarantor Cash Available' },
       { key: 'totalGlobalCashAvailable', label: 'Total Global Cash Available', isTotal: true },
-      { key: 'totalAffiliateDebtService', label: 'Total Affiliate Debt Service' },
       { key: 'totalSubjectBusinessDebtService', label: 'Total Subject Business Debt Service' },
+      { key: 'totalAffiliateDebtService', label: 'Total Affiliate Debt Service' },
       { key: 'totalGlobalDebtService', label: 'Total Global Debt Service', isTotal: true },
       { key: 'globalDebtCoverageRatio', label: 'Global Debt Coverage Ratio', type: 'ratio', isTotal: true },
     ],

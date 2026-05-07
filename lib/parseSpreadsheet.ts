@@ -1,11 +1,15 @@
 import * as XLSX from 'xlsx';
 
 /**
- * Maps row labels from the "Financial Spread" sheet (column B, rows 35-72)
- * to the camelCase keys expected by SpreadComparisonTable / SPREAD_SECTIONS.
+ * Maps row labels from the "Financial Spread"/"Financial Spreads" sheet
+ * (column B) to the camelCase keys expected by SpreadComparisonTable /
+ * SPREAD_SECTIONS.
  *
  * Labels are trimmed and lowercased for matching; the spreadsheet sometimes
- * truncates long labels so we match by prefix where necessary.
+ * truncates long labels so we match by prefix where necessary. Both the
+ * legacy "New BDO Pre-Qual_04.2026" layout and the newer "New BDO Prequal
+ * Ben 5.5.26" layout are supported — newer label names are listed alongside
+ * the older ones so existing uploads keep parsing.
  */
 const ROW_LABEL_TO_KEY: Record<string, string> = {
   'statement date': 'statementDate',
@@ -25,19 +29,33 @@ const ROW_LABEL_TO_KEY: Record<string, string> = {
   'other add back 3': 'otherAddBack3',
   'other add back 4': 'otherAddBack4',
   'other add back 5': 'otherAddBack5',
+  'estimated property tax': 'estimatedPropertyTax',
+  "required owner's draw": 'requiredOwnersDraw',
   'cash available': 'cashAvailable',
   'existing debt service': 'existingDebtService',
+  // Per-source debt-service rows. Older sheets used the "Proposed X Debt"
+  // labels; the 5.5.26 layout names them after the financing type itself
+  // (e.g. "SBA 7(a) Debt Service").
   'proposed 7a debt': 'proposed7aDebt',
+  'sba 7(a) debt service': 'proposed7aDebt',
+  'sba 7a debt service': 'proposed7aDebt',
   'proposed 504 debt': 'proposed504Debt',
+  'sba 504 debt service': 'proposed504Debt',
+  '504 debt service': 'proposed504Debt',
   'proposed cdc debt': 'proposedCdcDebt',
+  'cdc debt service': 'proposedCdcDebt',
+  'cdc debenture debt service': 'proposedCdcDebt',
   'proposed seller note': 'proposedSellerNote',
+  'seller note debt service': 'proposedSellerNote',
   'proposed 3rd party financing': 'proposed3rdPartyFinancing',
+  '3rd party debt service': 'proposed3rdPartyFinancing',
   'total debt service': 'totalDebtService',
   'debt coverage ratio': 'debtCoverageRatio',
   'total affiliate cash available': 'totalAffiliateCashAvailable',
   'total affiliate cash avail': 'totalAffiliateCashAvailable',
   'total subject business cash available': 'totalSubjectBusinessCashAvailable',
   'total subject business cash': 'totalSubjectBusinessCashAvailable',
+  'total guarantor cash available': 'totalGuarantorCashAvailable',
   'total global cash available': 'totalGlobalCashAvailable',
   'total affiliate debt service': 'totalAffiliateDebtService',
   'total affiliate debt servic': 'totalAffiliateDebtService',
@@ -154,29 +172,33 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
       if (v && String(v).trim() && !isNA(v)) srcCols.push(c);
     }
 
-    const FINANCING_ROWS = [
-      'Financing Source',
-      'Guarantee %',
-      'Amount',
-      'Rate Type',
-      'Term Yrs',
-      'Amortization (Months)',
-      'Base Rate',
-      'Spread',
-      'Total Rate',
+    // Each entry: list of label patterns to match (case-insensitive prefix),
+    // followed by the canonical key used to look up the row index downstream.
+    // The 5.5.26 layout renames "Financing Source" to "Financing Type"; both
+    // forms resolve to the same canonical key so the rest of the parser is
+    // unchanged.
+    const FINANCING_ROW_PATTERNS: Array<[string[], string]> = [
+      [['Financing Source', 'Financing Type'], 'Financing Source'],
+      [['Guarantee %'], 'Guarantee %'],
+      [['Amount'], 'Amount'],
+      [['Rate Type'], 'Rate Type'],
+      [['Term Yrs'], 'Term Yrs'],
+      [['Amortization (Months)', 'Amortization'], 'Amortization (Months)'],
+      [['Base Rate'], 'Base Rate'],
+      [['Spread'], 'Spread'],
+      [['Total Rate'], 'Total Rate'],
     ];
 
     // Map row labels to their row indices
     const rowMap: Record<string, number> = {};
     for (let r = financingHeaderRow + 2; r <= financingHeaderRow + 12 && r <= range.e.r; r++) {
       const v = cellVal(ws, r, 1);
-      if (v) {
-        const norm = String(v).trim();
-        for (const expected of FINANCING_ROWS) {
-          if (norm.toLowerCase().startsWith(expected.toLowerCase())) {
-            rowMap[expected] = r;
-            break;
-          }
+      if (!v) continue;
+      const norm = String(v).trim().toLowerCase();
+      for (const [patterns, key] of FINANCING_ROW_PATTERNS) {
+        if (patterns.some(p => norm.startsWith(p.toLowerCase()))) {
+          if (rowMap[key] === undefined) rowMap[key] = r;
+          break;
         }
       }
     }

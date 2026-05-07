@@ -15,11 +15,16 @@ const isNegative = isSpreadNegative;
 // ── Mapping helpers: parsed spreadsheet → application store ──
 
 /**
- * Map Excel "Financing Source" names to store financingType values.
+ * Map Excel "Financing Source"/"Financing Type" cell values to the store's
+ * financingType options. Both the legacy "7A Standard"-style values and the
+ * 5.5.26 layout's "SBA 7(a)"-style values are accepted.
  */
 const FINANCING_TYPE_MAP: Record<string, string> = {
   '7a standard': 'SBA 7(a) Standard',
+  'sba 7(a)': 'SBA 7(a) Standard',
+  'sba 7a': 'SBA 7(a) Standard',
   'sba 504': 'SBA 504',
+  '504': 'SBA 504',
   'debenture': 'CDC Debenture',
   'cdc debenture': 'CDC Debenture',
   'seller': 'Seller Note',
@@ -27,6 +32,7 @@ const FINANCING_TYPE_MAP: Record<string, string> = {
   '3rd party': '3rd Party',
   'equity': 'Equity',
   '7a express': 'SBA 7(a) Express',
+  'sba 7(a) express': 'SBA 7(a) Express',
   'sba capline': 'SBA CAPLine',
   'capline': 'SBA CAPLine',
   'usda': 'USDA',
@@ -86,6 +92,11 @@ function mapSuColumn(header: string): string | null {
 
 /**
  * Map Sources & Uses row labels from the spreadsheet to store category keys.
+ * Includes aliases for the 5.5.26 layout's renamed rows
+ * ("Construction Contingency - 10%", "Interest Reserve - 18 Mos",
+ * "Construction Soft Costs"). USDA Gty Fee is intentionally not mapped —
+ * it has no slot in the SourcesUses store schema, but the row is still
+ * persisted on the parsed spread document for display.
  */
 const SU_ROW_MAP: Record<string, string> = {
   'real estate acquisition': 'realEstate',
@@ -101,8 +112,11 @@ const SU_ROW_MAP: Record<string, string> = {
   'franchise fees': 'franchiseFees',
   'construction hard costs': 'constructionHardCosts',
   'interim interest reserve': 'interimInterestReserve',
+  'interest reserve - 18 mos': 'interimInterestReserve',
   'construction contingency': 'constructionContingency',
+  'construction contingency - 10%': 'constructionContingency',
   'other construction soft costs': 'otherConstructionSoftCosts',
+  'construction soft costs': 'otherConstructionSoftCosts',
   'closing costs': 'closingCosts',
   'sba gty fee': 'sbaGtyFee',
   'other': 'other',
