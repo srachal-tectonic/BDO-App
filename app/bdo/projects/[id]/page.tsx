@@ -559,13 +559,6 @@ export default function BDOToolsPage() {
                   >
                     Edit Questionnaire
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="borrower-files-sub"
-                    className="px-4 py-2.5 text-[13px] font-medium uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none bg-transparent text-[color:var(--t-color-primary-lighter)]"
-                    data-testid="tab-borrower-files-sub"
-                  >
-                    Borrower Files
-                  </TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value="borrower-forms-sub" className="mt-0">

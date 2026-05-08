@@ -32,7 +32,7 @@ export interface SpreadSection {
 
 export const SPREAD_SECTIONS: SpreadSection[] = [
   {
-    title: 'Period Metadata',
+    title: 'Statement Details',
     fields: [
       { key: 'statementDate', label: 'Statement Date', type: 'date' },
       { key: 'monthsCovered', label: 'Months Covered', type: 'months' },
@@ -117,14 +117,15 @@ export function formatSpreadValue(key: string, value: any): string {
   if (type === 'string') return String(value);
 
   if (type === 'date') {
+    const dateOpts: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
     // Excel serial dates come through as numbers — convert to ISO date.
     if (typeof value === 'number' && value > 25569) {
       const ms = (value - 25569) * 86400 * 1000;
       const d = new Date(ms);
-      if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', dateOpts);
     }
     const d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', dateOpts);
     return String(value);
   }
 
@@ -158,18 +159,24 @@ export default function SpreadComparisonTable({ periods }: { periods: FinancialP
   }
 
   return (
-    <div>
+    <div style={{ fontFamily: 'var(--t-font-family)' }}>
       {SPREAD_SECTIONS.map(section => (
         <div key={section.title} className="mb-6">
-          <h3 className="text-[13px] font-semibold text-[#2563eb] mb-2 pb-1 border-b-2 border-[#2563eb]">
+          <h3 className="text-[13px] font-bold text-[#2563eb] mb-2 pb-1 border-b-2 border-[#2563eb]">
             {section.title}
           </h3>
-          <table className="w-full text-[13px]">
+          <table className="w-full text-[13px] table-fixed">
+            <colgroup>
+              <col style={{ width: '240px' }} />
+              {periods.map((_, i) => (
+                <col key={i} />
+              ))}
+            </colgroup>
             <thead>
               <tr className="border-b border-[#c5d4e8]">
-                <th className="text-left py-2 px-2 font-medium text-[#1a1a1a] min-w-[200px]">Item</th>
+                <th className="text-left py-2 px-2 font-medium text-[#1a1a1a]">Item</th>
                 {periods.map((p, i) => (
-                  <th key={i} className="text-right py-2 px-2 font-medium text-[#1a1a1a] min-w-[120px]">
+                  <th key={i} className="text-right py-2 px-2 font-medium text-[#1a1a1a]">
                     {p.periodLabel || `Period ${i + 1}`}
                   </th>
                 ))}

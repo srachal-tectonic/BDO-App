@@ -274,22 +274,6 @@ export default function NotesSection({ projectId }: NotesSectionProps) {
           </div>
         )}
 
-        {/* Current User Selection */}
-        <div className="mb-4 p-3 bg-[#f8f9fb] border border-[var(--t-color-border)] rounded-lg">
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[color:var(--t-color-text-secondary)] font-medium">Current User:</span>
-            <select
-              className="px-3 py-1.5 text-[13px] font-medium bg-white border border-[var(--t-color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--t-color-accent)] cursor-pointer"
-            >
-              <option value="User 1">User 1</option>
-              <option value="User 2">User 2</option>
-              <option value="User 3">User 3</option>
-              <option value="Admin">Admin</option>
-            </select>
-            <span className="text-[12px] text-[color:var(--t-color-text-muted)] italic">(Temporary - auth to be added)</span>
-          </div>
-        </div>
-
         {/* Filter Bar */}
         <div className="mb-6">
           <div className="flex items-center gap-2">

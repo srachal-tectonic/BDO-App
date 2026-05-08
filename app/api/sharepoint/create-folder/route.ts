@@ -18,6 +18,7 @@ import { checkCsrf } from '@/lib/csrf';
 
 interface CreateFolderRequest {
   projectName: string;
+  bdoName?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CreateFolderRequest = await request.json();
-    const { projectName } = body;
+    const { projectName, bdoName } = body;
 
     if (!projectName) {
       return NextResponse.json(
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const token = await getSharePointAccessToken();
 
     // Create the folder with subfolders (sanitization is handled in the shared function)
-    const folderInfo = await createSharePointFolder(token, projectName);
+    const folderInfo = await createSharePointFolder(token, projectName, bdoName);
 
     const response = NextResponse.json({
       success: true,

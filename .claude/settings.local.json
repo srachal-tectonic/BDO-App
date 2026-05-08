@@ -86,7 +86,8 @@
       "Bash(pip3 list *)",
       "Bash(tee /tmp/tsc.out)",
       "Bash(echo \"EXIT $?\")",
-      "Bash(node --experimental-strip-types --no-warnings -e ' *)"
+      "Bash(node --experimental-strip-types --no-warnings -e ' *)",
+      "Bash(echo \"EXIT=$?\")"
     ],
     "deny": [],
     "ask": []

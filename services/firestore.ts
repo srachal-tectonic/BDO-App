@@ -289,9 +289,9 @@ export const getPrimarySpreadId = async (projectId: string): Promise<string | nu
 // Static form templates served from /pdfs/
 const FORM_TEMPLATES = [
   { id: 'blank-individual-applicant', formName: 'Individual Applicant', fileName: 'Blanks_Individual_Applicant.pdf' },
+  { id: 'individual-pfi-worksheet', formName: 'Individual Applicant - Personal Financial Information', fileName: 'Individual_Applicant_Personal_Financial_Information 6.xlsx' },
   { id: 'blank-business-applicant', formName: 'Business Applicant / Project Information', fileName: 'blank_Business_Applicant_Project_Information.pdf' },
   { id: 'blank-business-questionnaire', formName: 'Business Questionnaire', fileName: 'Blanks_Business_Questionnaire.pdf' },
-  { id: 'individual-pfi-worksheet', formName: 'Individual Applicant - Personal Financial Information', fileName: 'Individual_Applicant_Personal_Financial_Information 6.xlsx' },
 ];
 
 export const getGeneratedForms = async (_projectId: string): Promise<GeneratedForm[]> => {

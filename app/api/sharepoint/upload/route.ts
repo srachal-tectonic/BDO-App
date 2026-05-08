@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
         folderId = project.sharepointFolderId;
       } else {
         try {
-          const folderInfo = await createSharePointFolder(token, project.projectName);
+          const folderInfo = await createSharePointFolder(token, project.projectName, project.bdoUserName);
           folderId = folderInfo.folderId;
           folderCreatedInfo = { folderId: folderInfo.folderId, webUrl: folderInfo.webUrl };
 

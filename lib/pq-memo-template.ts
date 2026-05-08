@@ -301,24 +301,26 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const financialPeriods = input.financialPeriods || [];
   const spreadFileName = input.spreadFileName;
 
-  // Render a card for every financing source record, even if blank.
-  // The app auto-seeds defaults (SBA 7(a) Standard, SBA 504, CDC Debenture,
-  // Seller Note, 3rd Party, Equity) with zeroed amounts, and BDOs want to
-  // see those placeholder cards in the memo so reviewers know a source
-  // was considered and left blank — not just missing.
-  const loanCards = financingSources
-    .map(
-      (source: any) => `<div class="loan-card">
-        <h3>${esc(source.financingType || 'Unnamed Source')}</h3>
-        <div class="loan-details">
-          <div class="loan-detail"><span>Amount:</span><strong>${formatCurrency(Number(source.amount))}</strong></div>
-          <div class="loan-detail"><span>Rate:</span><strong>${source.totalRate ? `${Number(source.totalRate).toFixed(2)}%` : 'N/A'}</strong></div>
-          <div class="loan-detail"><span>Term:</span><strong>${source.termYears ? `${source.termYears} years` : 'N/A'}</strong></div>
-          ${Number(source.guaranteePercent) > 0 ? `<div class="loan-detail"><span>Guarantee:</span><strong>${esc(source.guaranteePercent)}%</strong></div>` : ''}
-        </div>
-      </div>`,
-    )
-    .join('');
+  const loanStructureRows = financingSources.length > 0
+    ? financingSources
+        .map((source: any) => {
+          const label = esc(source.financingType || 'Unnamed Source');
+          const amount = formatCurrency(Number(source.amount));
+          const guarantee = Number(source.guaranteePercent) > 0 ? `${esc(source.guaranteePercent)}%` : '-';
+          const rateType = source.rateType ? esc(source.rateType) : '-';
+          const rate = source.totalRate ? `${Number(source.totalRate).toFixed(2)}%` : '-';
+          const term = source.termYears ? `${esc(source.termYears)} years` : '-';
+          return `<tr>
+            <td style="text-align:left; font-weight:600;">${label}</td>
+            <td style="text-align:right;">${amount}</td>
+            <td>${guarantee}</td>
+            <td>${rateType}</td>
+            <td>${rate}</td>
+            <td>${term}</td>
+          </tr>`;
+        })
+        .join('')
+    : `<tr><td colspan="6" style="text-align:center; color:#9ca3af; font-style:italic; padding:14px;">No financing sources added yet</td></tr>`;
 
   const sourcesUsesBlock =
     grandTotal > 0
@@ -534,19 +536,22 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
 
   <div class="content">
     <div class="section">
-      <h2 class="section-title">Loan Structure &amp; Project Information</h2>
-      <div class="loan-grid">
-        ${loanCards}
-        <div class="project-card">
-          <h3>Project Information</h3>
-          <div class="project-details">
-            <div class="project-detail"><span>Type:</span><strong>${esc(projectOverview.primaryProjectPurpose || 'N/A')}</strong></div>
-            <div class="project-detail"><span>NAICS:</span><strong>${esc(projectOverview.naicsCode || 'N/A')}</strong></div>
-            <div class="project-detail"><span>Industry:</span><strong>${esc(projectOverview.industry || 'N/A')}</strong></div>
-            <div class="project-detail"><span>Franchise:</span><strong>-</strong></div>
-          </div>
-        </div>
-      </div>
+      <h2 class="section-title">Loan Structure</h2>
+      <table class="scores-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Source</th>
+            <th style="text-align:right">Amount</th>
+            <th>Guarantee</th>
+            <th>Rate Type</th>
+            <th>Rate</th>
+            <th>Term</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${loanStructureRows}
+        </tbody>
+      </table>
     </div>
 
     <div class="section">

@@ -126,6 +126,59 @@ function PfsScheduleTextarea({ title, subtext, field, pfs, updatePfs, idx }: {
   );
 }
 
+function PfsSectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <h5 className="text-sm font-bold text-[#133c7f] mb-2 uppercase tracking-wide">{children}</h5>
+  );
+}
+
+function PfsField({
+  label, value, onChange, helperText, indent, sublabel, testId,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  helperText?: string;
+  indent?: boolean;
+  sublabel?: boolean;
+  testId?: string;
+}) {
+  return (
+    <div className={`flex items-center justify-between gap-2 py-1 ${indent ? 'pl-5' : ''}`}>
+      <div className="flex-1 min-w-0">
+        <label className={`block ${sublabel ? 'text-[12px] text-[color:var(--t-color-text-muted)] italic' : 'text-sm text-[color:var(--t-color-text-body)]'}`}>
+          {label}
+        </label>
+        {helperText && (
+          <div className="text-[11px] text-[color:var(--t-color-text-muted)] leading-tight">{helperText}</div>
+        )}
+      </div>
+      <input
+        type="text"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="$0"
+        className="w-32 shrink-0 px-3 py-1.5 border border-[var(--t-color-border)] rounded text-sm text-right"
+        data-testid={testId}
+      />
+    </div>
+  );
+}
+
+function PfsReadonly({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  const cls = bold ? 'font-bold text-[#133c7f]' : 'text-[color:var(--t-color-text-body)]';
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className={`text-sm ${cls}`}>{label}</span>
+      <span className={`text-sm w-32 shrink-0 text-right ${cls}`}>{currency(value)}</span>
+    </div>
+  );
+}
+
+function formatDollar(n: number): string {
+  return currency(n);
+}
+
 const emptyNote = { noteholder: '', originalBalance: '', currentBalance: '', paymentAmount: '', frequency: '', collateral: '' };
 const emptySecurity = { numberOfShares: '', nameOfSecurities: '', cost: '', marketValue: '', dateOfQuotation: '', totalValue: '' };
 interface RealEstateItem {
@@ -284,7 +337,12 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
   );
 
   const netWorth = totalAssets - totalLiabilities;
-  const balanced = Math.abs(totalAssets - (totalLiabilities + netWorth)) < 0.01;
+  const totalLiabPlusNw = totalLiabilities + netWorth;
+  const showWarning = Math.abs(totalAssets - totalLiabPlusNw) >= 0.01;
+
+  const v = (field: keyof PersonalFinancialStatement) => (pfs[field] as string) || '';
+  const upd = (field: keyof PersonalFinancialStatement) => (val: string) => update(field, val);
+  const idx = applicantId;
 
   // --- Schedule helpers ---
   const updateScheduleRow = useCallback(
@@ -352,130 +410,72 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
       </div>
       */}
 
-      {/* ---------- Section 1: Assets & Liabilities ---------- */}
-      <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 mb-6">
-        <h5 className="text-sm font-bold text-[#133c7f] mb-4 uppercase tracking-wide">Section 1 &mdash; Assets & Liabilities</h5>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Assets Column */}
-          <div>
-            <div className="text-sm font-semibold text-[#133c7f] mb-3 px-2 py-1 bg-[#c5d4e8] rounded">Assets</div>
-            {assetFields.map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-sm text-[color:var(--t-color-text-body)] flex-1 min-w-0 truncate">{f.label}</label>
-                <input
-                  type="text"
-                  value={pfs[f.key] as string || ''}
-                  onChange={(e) => update(f.key, e.target.value)}
-                  placeholder="$0"
-                  className="w-32 px-3 py-2 border border-[var(--t-color-border)] rounded text-sm text-right"
-                />
-              </div>
-            ))}
-            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#c5d4e8]">
-              <span className="text-sm font-bold text-[#133c7f]">Total Assets</span>
-              <span className="text-sm font-bold text-[#133c7f] w-32 text-right">{currency(totalAssets)}</span>
-            </div>
-          </div>
-
-          {/* Liabilities Column */}
-          <div>
-            <div className="text-sm font-semibold text-[#133c7f] mb-3 px-2 py-1 bg-[#c5d4e8] rounded">Liabilities</div>
-            {liabilityFields.map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-sm text-[color:var(--t-color-text-body)] flex-1 min-w-0 truncate">{f.label}</label>
-                <input
-                  type="text"
-                  value={pfs[f.key] as string || ''}
-                  onChange={(e) => update(f.key, e.target.value)}
-                  placeholder="$0"
-                  className="w-32 px-3 py-2 border border-[var(--t-color-border)] rounded text-sm text-right"
-                />
-              </div>
-            ))}
-            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#c5d4e8]">
-              <span className="text-sm font-bold text-[#133c7f]">Total Liabilities</span>
-              <span className="text-sm font-bold text-[#133c7f] w-32 text-right">{currency(totalLiabilities)}</span>
-            </div>
+      {/* ---------- Assets & Liabilities ---------- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0">
+        <div>
+          <PfsSectionHeader>Assets (Omit Cents)</PfsSectionHeader>
+          <PfsField label="Cash on Hand & in Banks" value={v('cashOnHand')} onChange={upd('cashOnHand')} testId={`pfs-cashOnHand-${idx}`} />
+          <PfsField label="Savings Accounts" value={v('savingsAccounts')} onChange={upd('savingsAccounts')} testId={`pfs-savingsAccounts-${idx}`} />
+          <PfsField label="IRA or Other Retirement Account" value={v('iraRetirement')} onChange={upd('iraRetirement')} helperText="Describe in Section 5" testId={`pfs-iraRetirement-${idx}`} />
+          <PfsField label="Accounts & Notes Receivable" value={v('accountsReceivable')} onChange={upd('accountsReceivable')} helperText="Describe in Section 5" testId={`pfs-accountsReceivable-${idx}`} />
+          <PfsField label="Life Insurance – Cash Surrender Value Only" value={v('lifeInsuranceCashValue')} onChange={upd('lifeInsuranceCashValue')} helperText="Describe in Section 8" testId={`pfs-lifeInsurance-${idx}`} />
+          <PfsField label="Stocks and Bonds" value={v('stocksAndBonds')} onChange={upd('stocksAndBonds')} helperText="Describe in Section 3" testId={`pfs-stocksAndBonds-${idx}`} />
+          <PfsField label="Real Estate" value={v('realEstate')} onChange={upd('realEstate')} helperText="Describe in Section 4" testId={`pfs-realEstate-${idx}`} />
+          <PfsField label="Automobiles" value={v('automobiles')} onChange={upd('automobiles')} helperText="Describe in Section 5 (Year/Make/Model)" testId={`pfs-automobiles-${idx}`} />
+          <PfsField label="Other Personal Property" value={v('otherPersonalProperty')} onChange={upd('otherPersonalProperty')} helperText="Describe in Section 5" testId={`pfs-otherPersonalProperty-${idx}`} />
+          <PfsField label="Other Assets" value={v('otherAssets')} onChange={upd('otherAssets')} helperText="Describe in Section 5" testId={`pfs-otherAssets-${idx}`} />
+          <div className="border-t-2 border-[#133c7f] mt-2 pt-1">
+            <PfsReadonly label="Total Assets" value={totalAssets} bold />
           </div>
         </div>
 
-        {/* Net Worth & Balance */}
-        <div className="mt-4 pt-4 border-t-2 border-[#133c7f] flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-[#133c7f]">Net Worth:</span>
-            <span className={`text-sm font-bold ${netWorth >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-              {currency(netWorth)}
-            </span>
+        <div>
+          <PfsSectionHeader>Liabilities (Omit Cents)</PfsSectionHeader>
+          <PfsField label="Accounts Payable" value={v('accountsPayable')} onChange={upd('accountsPayable')} testId={`pfs-accountsPayable-${idx}`} />
+          <PfsField label="Notes Payable to Banks and Others" value={v('notesPayableToBanks')} onChange={upd('notesPayableToBanks')} helperText="Describe in Section 2" testId={`pfs-notesPayable-${idx}`} />
+          <PfsField label="Installment Account (Auto)" value={v('installmentAccountAuto')} onChange={upd('installmentAccountAuto')} testId={`pfs-installmentAuto-${idx}`} />
+          <PfsField label="Mo. Payments" value={v('installmentAccountAutoPayments')} onChange={upd('installmentAccountAutoPayments')} indent sublabel testId={`pfs-installmentAutoMo-${idx}`} />
+          <PfsField label="Installment Account (Other)" value={v('installmentAccountOther')} onChange={upd('installmentAccountOther')} testId={`pfs-installmentOther-${idx}`} />
+          <PfsField label="Mo. Payments" value={v('installmentAccountOtherPayments')} onChange={upd('installmentAccountOtherPayments')} indent sublabel testId={`pfs-installmentOtherMo-${idx}`} />
+          <PfsField label="Loan(s) Against Life Insurance" value={v('loansAgainstLifeInsurance')} onChange={upd('loansAgainstLifeInsurance')} testId={`pfs-loansLifeInsurance-${idx}`} />
+          <PfsField label="Mortgages on Real Estate" value={v('mortgagesOnRealEstate')} onChange={upd('mortgagesOnRealEstate')} helperText="Describe in Section 4" testId={`pfs-mortgages-${idx}`} />
+          <PfsField label="Unpaid Taxes" value={v('unpaidTaxes')} onChange={upd('unpaidTaxes')} helperText="Describe in Section 6" testId={`pfs-unpaidTaxes-${idx}`} />
+          <PfsField label="Other Liabilities" value={v('otherLiabilities')} onChange={upd('otherLiabilities')} helperText="Describe in Section 7" testId={`pfs-otherLiabilities-${idx}`} />
+          <div className="border-t-2 border-[#133c7f] mt-2 pt-1">
+            <PfsReadonly label="Total Liabilities" value={totalLiabilities} bold />
+            <PfsReadonly label="Net Worth" value={netWorth} bold />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: balanced ? '#dcfce7' : '#fef2f2', color: balanced ? '#166534' : '#991b1b' }}>
-              {balanced ? 'Balanced' : 'Not Balanced'}
-            </span>
+          <div className="border-t-2 border-[#133c7f] mt-2 pt-1">
+            <PfsReadonly label="Total (Liabilities + Net Worth)" value={totalLiabPlusNw} bold />
+            <p className="text-[11px] text-[#a1b3d2] text-right">Must equal total in assets column</p>
           </div>
         </div>
       </div>
 
-      {/* ---------- Source of Income & Contingent Liabilities ---------- */}
-      <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-4 mb-6">
-        <h5 className="text-sm font-bold text-[#133c7f] mb-4 uppercase tracking-wide">Source of Income & Contingent Liabilities</h5>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Income */}
-          <div>
-            <div className="text-sm font-semibold text-[#133c7f] mb-3 px-2 py-1 bg-[#c5d4e8] rounded">Source of Income</div>
-            {([
-              { key: 'salary' as const, label: 'Salary' },
-              { key: 'netInvestmentIncome' as const, label: 'Net Investment Income' },
-              { key: 'realEstateIncome' as const, label: 'Real Estate Income' },
-              { key: 'otherIncome' as const, label: 'Other Income' },
-            ]).map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-sm text-[color:var(--t-color-text-body)] flex-1">{f.label}</label>
-                <input
-                  type="text"
-                  value={pfs[f.key] as string || ''}
-                  onChange={(e) => update(f.key, e.target.value)}
-                  placeholder="$0"
-                  className="w-32 px-3 py-2 border border-[var(--t-color-border)] rounded text-sm text-right"
-                />
-              </div>
-            ))}
-            <div className="mt-2">
-              <label className="block text-sm text-[color:var(--t-color-text-body)] mb-1">Description of Other Income</label>
-              <input
-                type="text"
-                value={pfs.otherIncomeDescription || ''}
-                onChange={(e) => update('otherIncomeDescription', e.target.value)}
-                placeholder="Describe other income sources"
-                className={inputCls}
-              />
-            </div>
-          </div>
-
-          {/* Contingent */}
-          <div>
-            <div className="text-sm font-semibold text-[#133c7f] mb-3 px-2 py-1 bg-[#c5d4e8] rounded">Contingent Liabilities</div>
-            {([
-              { key: 'asEndorserOrCoMaker' as const, label: 'As Endorser or Co-Maker' },
-              { key: 'legalClaimsJudgments' as const, label: 'Legal Claims & Judgments' },
-              { key: 'provisionFederalIncomeTax' as const, label: 'Provision for Federal Income Tax' },
-              { key: 'otherSpecialDebt' as const, label: 'Other Special Debt' },
-            ]).map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-sm text-[color:var(--t-color-text-body)] flex-1">{f.label}</label>
-                <input
-                  type="text"
-                  value={pfs[f.key] as string || ''}
-                  onChange={(e) => update(f.key, e.target.value)}
-                  placeholder="$0"
-                  className="w-32 px-3 py-2 border border-[var(--t-color-border)] rounded text-sm text-right"
-                />
-              </div>
-            ))}
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 mt-1">
+        <div>
+          <PfsSectionHeader>Section 1. Source of Income</PfsSectionHeader>
+          <PfsField label="Salary" value={v('salary')} onChange={upd('salary')} testId={`pfs-salary-${idx}`} />
+          <PfsField label="Net Investment Income" value={v('netInvestmentIncome')} onChange={upd('netInvestmentIncome')} testId={`pfs-netInvestmentIncome-${idx}`} />
+          <PfsField label="Real Estate Income" value={v('realEstateIncome')} onChange={upd('realEstateIncome')} testId={`pfs-realEstateIncome-${idx}`} />
+          <PfsField label="Other Income" value={v('otherIncome')} onChange={upd('otherIncome')} testId={`pfs-otherIncome-${idx}`} />
+        </div>
+        <div>
+          <PfsSectionHeader>Contingent Liabilities</PfsSectionHeader>
+          <PfsField label="As Endorser or Co-Maker" value={v('asEndorserOrCoMaker')} onChange={upd('asEndorserOrCoMaker')} testId={`pfs-endorser-${idx}`} />
+          <PfsField label="Legal Claims & Judgments" value={v('legalClaimsJudgments')} onChange={upd('legalClaimsJudgments')} testId={`pfs-legalClaims-${idx}`} />
+          <PfsField label="Provision for Federal Income Tax" value={v('provisionFederalIncomeTax')} onChange={upd('provisionFederalIncomeTax')} testId={`pfs-federalTax-${idx}`} />
+          <PfsField label="Other Special Debt" value={v('otherSpecialDebt')} onChange={upd('otherSpecialDebt')} testId={`pfs-otherDebt-${idx}`} />
         </div>
       </div>
+
+      {showWarning && (
+        <div className="mt-3 px-3 py-2 bg-[#fef3c7] border border-[#f59e0b] rounded-md text-[13px] text-[#92400e]" data-testid={`pfs-warning-${idx}`}>
+          Total Assets ({formatDollar(totalAssets)}) does not equal Total Liabilities + Net Worth ({formatDollar(totalLiabPlusNw)}). By definition these should always balance — check your entries.
+        </div>
+      )}
+
+      <div className="mt-4 space-y-2">
 
       {/* ---------- Section 2: Notes Payable ---------- */}
       {(() => {
@@ -816,6 +816,7 @@ function PFSForm({ applicantId, applicantName }: PFSFormProps) {
           </>
         );
       })()}
+      </div>
     </div>
   );
 }
@@ -1003,12 +1004,6 @@ export default function IndividualApplicantsSection() {
 
   const updateApplicant = (id: string, field: keyof IndividualApplicant, value: any) => {
     updateIndividualApplicant(id, { [field]: value } as Partial<IndividualApplicant>);
-  };
-
-  const handleAddApplicant = () => {
-    if (individualApplicants.length >= 5) return;
-    const newId = addIndividualApplicant({ ...defaultIndividualApplicant, id: undefined as any });
-    setExpandedApplicants((prev) => [...prev, newId]);
   };
 
   return (
@@ -1449,17 +1444,6 @@ export default function IndividualApplicantsSection() {
           );
         })}
 
-        {/* Add applicant button (max 5) */}
-        {individualApplicants.length < 5 && (
-          <button
-            onClick={handleAddApplicant}
-            className="w-full py-4 bg-white border-2 border-dashed border-[var(--t-color-accent)] text-[color:var(--t-color-accent)] font-medium rounded-lg cursor-pointer transition-all hover:bg-blue-50 mb-8"
-            data-testid="button-add-individual"
-          >
-            <Plus className="w-5 h-5 inline mr-2" />
-            Add Individual {individualApplicants.length > 0 ? `(${individualApplicants.length}/5)` : ''}
-          </button>
-        )}
       </div>
 
       {/* Learn More Panel - Indirect Ownership explanation */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import { useApplication } from '@/lib/applicationStore';
@@ -18,6 +18,84 @@ const SOURCES_USES_ROW_KEYS = [
   'furnitureFixtures', 'inventory', 'businessAcquisition',
   'workingCapital', 'closingCosts', 'other',
 ] as const;
+
+type LoanGroupColumn = { key: string; label: string; source: any };
+type LoanGroup = { key: 'tBank' | 'other'; label: string; columns: LoanGroupColumn[] };
+
+function isTBankSource(source: any): boolean {
+  const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
+  if (!ft) return false;
+  if (ft.includes('equity') || ft.includes('seller') || ft.includes('3rd') || ft.includes('third') || ft.includes('borrower')) {
+    return false;
+  }
+  return true;
+}
+
+function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
+  const valid = (sources || []).filter((s) => s && (Number(s.amount) > 0 || s.financingType || s.financingSource));
+  const tBank = valid.filter(isTBankSource);
+  const other = valid.filter((s) => !isTBankSource(s));
+  const groups: LoanGroup[] = [];
+  if (tBank.length > 0) {
+    groups.push({
+      key: 'tBank',
+      label: 'T Bank',
+      columns: tBank.map((s, i) => ({
+        key: `tbank-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  if (other.length > 0) {
+    groups.push({
+      key: 'other',
+      label: 'Other',
+      columns: other.map((s, i) => ({
+        key: `other-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  return groups;
+}
+
+function sumGroupAmount(group: LoanGroup): number {
+  return group.columns.reduce((s, c) => s + (Number(c.source?.amount) || 0), 0);
+}
+
+function sumGroupNetExposure(group: LoanGroup): number {
+  return group.columns.reduce((s, c) => {
+    const amt = Number(c.source?.amount) || 0;
+    const guaranteeRaw = c.source?.guaranteePercent;
+    const guaranteeNum = typeof guaranteeRaw === 'string' ? parseFloat(guaranteeRaw) : Number(guaranteeRaw) || 0;
+    const guaranteePct = guaranteeNum > 1 ? guaranteeNum / 100 : guaranteeNum;
+    return s + amt * (1 - guaranteePct);
+  }, 0);
+}
+
+function sumAllAmounts(groups: LoanGroup[]): number {
+  return groups.reduce((sum, g) => sum + sumGroupAmount(g), 0);
+}
+
+function formatLoanRate(source: any): { text: string; warning?: string } {
+  const raw = source?.totalRate;
+  if (raw == null || raw === '' || (typeof raw === 'number' && raw === 0)) {
+    return { text: '-' };
+  }
+  const n = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+  if (isNaN(n)) return { text: '-' };
+  const pct = n < 1 ? n * 100 : n;
+  const text = `${pct.toFixed(2)}%`;
+  let warning: string | undefined;
+  const rateType = String(source?.rateType || '').toLowerCase();
+  if (rateType.includes('variable') || rateType.includes('floating')) {
+    const base = Number(source?.baseRate) || 0;
+    if (base === 0) warning = 'Variable rate selected but base rate is missing.';
+  }
+  return { text, warning };
+}
 
 const SOURCES_USES_ROW_LABELS: Record<string, string> = {
   realEstate: 'Real Estate',
@@ -89,7 +167,8 @@ function BDOSummaryEditor({ value, onChange }: { value: string; onChange: (html:
         ref={editorRef}
         contentEditable
         onInput={handleInput}
-        className="min-h-[400px] px-4 py-3 text-[15px] text-[#1a1a1a] font-sans outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-[#9ca3af] [&:empty]:before:pointer-events-none prose prose-sm max-w-none"
+        style={{ fontFamily: 'var(--font-poppins), sans-serif' }}
+        className="min-h-[400px] px-4 py-3 text-[15px] text-[#1a1a1a] outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-[#9ca3af] [&:empty]:before:pointer-events-none prose prose-sm max-w-none"
         data-placeholder="Write your thoughts on this deal..."
         data-testid="editor-bdo-summary"
       />
@@ -267,10 +346,6 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
 
   const { totals, percentages, grandTotal } = calculateSourcesUsesTotals();
 
-  const primaryProjectPurpose = Array.isArray(projectOverview.primaryProjectPurpose)
-    ? projectOverview.primaryProjectPurpose.join(', ')
-    : (projectOverview.primaryProjectPurpose || '');
-
   // Build DSCR display items from store data
   const dscrItems = [
     { label: dscr?.period1 ? `${dscr.period1} DSCR` : 'Period 1 DSCR', value: dscr?.dscr1 },
@@ -376,110 +451,148 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             <div className="p-5">
               <div className="mb-5">
                 <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
-                  Loan Structure & Project Information
+                  Loan Structure
                 </h2>
-            {(() => {
-              const formatRate = (val: any) => {
-                if (val == null || val === '') return '-';
-                const n = typeof val === 'string' ? parseFloat(val) : val;
-                if (isNaN(n)) return String(val);
-                // If value is already > 1, it's already a percentage
-                return `${n < 1 ? (n * 100).toFixed(2) : n.toFixed(2)}%`;
-              };
-
-              // Use actual sources from the spread, or show placeholder cards
-              const PLACEHOLDER_CARDS = ['P&E', 'USDA', 'Conventional', 'SBA 7(a) Express', 'SBA CAPLine', 'Equity', 'Seller Notes', '3rd Party'];
-              // Prefer live store data (what the Spreads tab edits) so inline
-              // edits like Amount refresh here without a reload. Fall back to
-              // the API-fetched spread data for projects that only have an
-              // uploaded workbook and no inline edits yet.
-              const activeFinancingSources = financingSources.length > 0
-                ? financingSources
-                : spreadFinancingSources;
-              const hasSpreadData = activeFinancingSources.length > 0;
-
-              // Build cards: use spread data if available, otherwise show placeholders.
-              // When spread data is present, render exactly one card per imported
-              // source (N/A columns have already been filtered upstream by the
-              // parser). Only pad to 8 cards in the no-spread placeholder case.
-              const sourceCards = hasSpreadData
-                ? activeFinancingSources.map((src: any, i: number) => ({
-                    key: `src-${i}`,
-                    label: src.financingSource || src.financingType || src.label || `Source ${i + 1}`,
-                    src,
-                  }))
-                : PLACEHOLDER_CARDS.map((label, i) => ({
-                    key: `placeholder-${i}`,
-                    label,
-                    src: null as any,
-                  }));
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {sourceCards.map((card) => (
-                    <div key={card.key} className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid={`card-${card.key}`}>
-                      <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">{card.label}</h3>
-                      <div className="flex flex-col gap-1">
-                        {card.src ? (
-                          <>
-                            <div className="flex justify-between text-[13px]">
-                              <span>Amount:</span>
-                              <strong className="text-gray-700">{formatCurrency(card.src.amount)}</strong>
-                            </div>
-                            {card.src.guaranteePercent && String(card.src.guaranteePercent).trim() && (
-                              <div className="flex justify-between text-[13px]">
-                                <span>Guarantee:</span>
-                                <strong className="text-gray-700">{card.src.guaranteePercent}</strong>
-                              </div>
+                <div className="rounded-md overflow-hidden shadow-sm">
+                  {(() => {
+                    const activeFinancingSources = financingSources.length > 0
+                      ? financingSources
+                      : spreadFinancingSources;
+                    const groups = buildLoanStructureGroups(activeFinancingSources);
+                    const totalColCount = groups.reduce((sum, g) => sum + g.columns.length, 0);
+                    if (totalColCount === 0) {
+                      return (
+                        <div className="p-4 text-[13px] text-gray-500 bg-white" data-testid="text-loan-structure-empty">
+                          No financing sources have been added yet.
+                        </div>
+                      );
+                    }
+                    const grandTotal = sumAllAmounts(groups);
+                    return (
+                      <table className="w-full border-collapse" data-testid="table-loan-structure">
+                        <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white [&_th]:text-white">
+                          <tr>
+                            <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold border-r border-gray-500"></th>
+                            {groups.map((g) => (
+                              <th
+                                key={`group-${g.key}`}
+                                colSpan={g.columns.length}
+                                className="text-center py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold border-r border-gray-500 last:border-r-0"
+                                data-testid={`header-group-${g.key}`}
+                              >
+                                {g.label}
+                              </th>
+                            ))}
+                          </tr>
+                          <tr className="bg-gray-600">
+                            <th className="text-left py-2 px-3 text-[11px] uppercase tracking-wide font-semibold border-r border-gray-500"></th>
+                            {groups.flatMap((g) =>
+                              g.columns.map((col) => (
+                                <th
+                                  key={col.key}
+                                  className="text-right py-2 px-3 text-[11px] uppercase tracking-wide font-semibold border-r border-gray-500 last:border-r-0"
+                                  data-testid={`header-col-${col.key}`}
+                                >
+                                  {col.label}
+                                </th>
+                              ))
                             )}
-                            {card.src.rateType && (
-                              <div className="flex justify-between text-[13px]">
-                                <span>Rate Type:</span>
-                                <strong className="text-gray-700">{card.src.rateType}</strong>
-                              </div>
-                            )}
-                            {card.src.totalRate != null && card.src.totalRate !== '' && (
-                              <div className="flex justify-between text-[13px]">
-                                <span>Rate:</span>
-                                <strong className="text-gray-700">{formatRate(card.src.totalRate)}</strong>
-                              </div>
-                            )}
-                            {card.src.termYears != null && card.src.termYears !== '' && (
-                              <div className="flex justify-between text-[13px]">
-                                <span>Term:</span>
-                                <strong className="text-gray-700">{card.src.termYears} years</strong>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-[13px] text-gray-400 italic">No data</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Project Information card — always last */}
-                  <div className="bg-gray-50 rounded-md p-3.5 border-l-[3px] border-blue-500" data-testid="card-project-info">
-                    <h3 className="text-[15px] font-semibold text-gray-700 mb-2.5">Project Information</h3>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[13px]">
-                        <span>Type:</span>
-                        <strong className="text-gray-700">{primaryProjectPurpose || '-'}</strong>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span>NAICS:</span>
-                        <strong className="text-gray-700">{projectOverview.naicsCode || '-'}</strong>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span>Industry:</span>
-                        <strong className="text-gray-700">{projectOverview.industry || '-'}</strong>
-                      </div>
-                    </div>
-                  </div>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(['Amount', 'Rate', 'Term', 'Guarantee'] as const).map((rowLabel) => (
+                            <tr key={rowLabel} className="bg-white border-b border-gray-200" data-testid={`row-detail-${rowLabel.toLowerCase()}`}>
+                              <td className="py-2.5 px-3 text-[13px] font-medium text-gray-700 bg-gray-50">{rowLabel}</td>
+                              {groups.flatMap((g) =>
+                                g.columns.map((col) => {
+                                  const source = col.source;
+                                  if (rowLabel === 'Amount') {
+                                    return (
+                                      <td key={col.key} className="py-2.5 px-3 text-[13px] text-right text-gray-700" data-testid={`cell-${col.key}-amount`}>
+                                        {formatCurrency(source.amount)}
+                                      </td>
+                                    );
+                                  }
+                                  if (rowLabel === 'Rate') {
+                                    const rate = formatLoanRate(source);
+                                    return (
+                                      <td key={col.key} className="py-2.5 px-3 text-[13px] text-right text-gray-700" data-testid={`cell-${col.key}-rate`}>
+                                        <div className="inline-flex items-center justify-end gap-1.5">
+                                          <span>{rate.text}</span>
+                                          {rate.warning && (
+                                            <span title={rate.warning} className="text-amber-600 inline-flex" data-testid={`icon-rate-warning-${col.key}`}>
+                                              <AlertTriangle className="w-3.5 h-3.5" />
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+                                  if (rowLabel === 'Term') {
+                                    return (
+                                      <td key={col.key} className="py-2.5 px-3 text-[13px] text-right text-gray-700" data-testid={`cell-${col.key}-term`}>
+                                        {source.termYears ? `${source.termYears} years` : '-'}
+                                      </td>
+                                    );
+                                  }
+                                  const guaranteeRaw = source.guaranteePercent;
+                                  const guaranteeNum = typeof guaranteeRaw === 'string' ? parseFloat(guaranteeRaw) : Number(guaranteeRaw) || 0;
+                                  const guaranteePct = guaranteeNum > 1 ? guaranteeNum : guaranteeNum * 100;
+                                  return (
+                                    <td key={col.key} className="py-2.5 px-3 text-[13px] text-right text-gray-700" data-testid={`cell-${col.key}-guarantee`}>
+                                      {guaranteePct > 0 ? `${guaranteePct.toFixed(0)}%` : '-'}
+                                    </td>
+                                  );
+                                })
+                              )}
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-100 border-t-2 border-gray-400 font-semibold" data-testid="row-group-totals">
+                            <td className="py-2.5 px-3 text-[13px] text-gray-700">
+                              {groups[0]?.key === 'tBank' ? 'T Bank Total' : 'Group Total'}
+                            </td>
+                            {groups.map((g) => (
+                              <td
+                                key={`total-${g.key}`}
+                                colSpan={g.columns.length}
+                                className="py-2.5 px-3 text-[13px] text-right text-gray-800"
+                                data-testid={`cell-group-total-${g.key}`}
+                              >
+                                {formatCurrency(sumGroupAmount(g))}
+                              </td>
+                            ))}
+                          </tr>
+                          {groups.some((g) => g.key === 'tBank') && (
+                            <tr className="bg-gray-100 border-t border-gray-300 font-semibold" data-testid="row-tbank-net-exposure">
+                              <td className="py-2.5 px-3 text-[13px] text-gray-700">T Bank Net Exposure</td>
+                              {groups.map((g) => (
+                                <td
+                                  key={`exposure-${g.key}`}
+                                  colSpan={g.columns.length}
+                                  className="py-2.5 px-3 text-[13px] text-right text-gray-800"
+                                  data-testid={`cell-net-exposure-${g.key}`}
+                                >
+                                  {g.key === 'tBank' ? formatCurrency(sumGroupNetExposure(g)) : ''}
+                                </td>
+                              ))}
+                            </tr>
+                          )}
+                          <tr className="bg-gray-200 border-t border-gray-400 font-bold" data-testid="row-total-project">
+                            <td className="py-2.5 px-3 text-[13px] text-gray-800">Total Project</td>
+                            <td
+                              colSpan={totalColCount}
+                              className="py-2.5 px-3 text-[13px] text-right text-gray-900"
+                              data-testid="cell-total-project-amount"
+                            >
+                              {formatCurrency(grandTotal)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    );
+                  })()}
                 </div>
-              );
-            })()}
-          </div>
+              </div>
 
               <div className="mb-5">
                 <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
@@ -487,7 +600,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 </h2>
                 <div className="rounded-md overflow-hidden shadow-sm">
                   <table className="w-full border-collapse">
-                    <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white">
+                    <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white [&_th]:text-white">
                       <tr>
                         <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold">Category</th>
                         <th className="text-center py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold">Repayment</th>
@@ -529,16 +642,36 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                 </div>
               </div>
 
-          {projectOverview.projectDescription && (
-            <div className="mb-5">
-              <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
-                Project Description
-              </h2>
-              <div className="bg-gray-50 p-3 rounded-md border-l-[3px] border-blue-500 text-[13px] leading-relaxed text-gray-700" data-testid="text-project-description">
-                {projectOverview.projectDescription}
+              <div className="mb-5">
+                <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
+                  Project Information
+                </h2>
+                <div className="rounded-md overflow-hidden shadow-sm mb-3">
+                  <table className="w-full border-collapse" data-testid="table-project-info">
+                    <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white [&_th]:text-white">
+                      <tr>
+                        <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold">Primary Loan Purpose</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold">Industry</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wide font-semibold">NAICS Code</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="bg-white border-b border-gray-200">
+                        <td className="py-2.5 px-3 text-[13px] text-gray-700" data-testid="text-project-type">
+                          {Array.isArray(projectOverview.primaryProjectPurpose)
+                            ? (projectOverview.primaryProjectPurpose.join(', ') || 'N/A')
+                            : (projectOverview.primaryProjectPurpose || 'N/A')}
+                        </td>
+                        <td className="py-2.5 px-3 text-[13px] text-gray-700" data-testid="text-project-industry">{projectOverview.industry || 'N/A'}</td>
+                        <td className="py-2.5 px-3 text-[13px] text-gray-700" data-testid="text-project-naics">{projectOverview.naicsCode || 'N/A'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md border-l-[3px] border-blue-500 text-[13px] leading-relaxed text-gray-700" data-testid="text-project-description">
+                  {projectOverview.projectDescription || <span className="text-gray-400 italic">No project description entered yet.</span>}
+                </div>
               </div>
-            </div>
-          )}
 
           {applicationData.sellerInfo?.businessDescription && (
             <div className="mb-5">
@@ -557,7 +690,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               </h2>
               <div className="rounded-md overflow-hidden shadow-sm">
                 <table className="w-full border-collapse">
-                  <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white">
+                  <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white [&_th]:text-white">
                     <tr>
                       <th className="text-left py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Name</th>
                       <th className="text-left py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Role</th>
@@ -609,7 +742,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             </h2>
             <div className="rounded-md overflow-hidden shadow-sm">
               <table className="w-full border-collapse">
-                <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white">
+                <thead className="bg-gradient-to-r from-gray-700 to-gray-600 text-white [&_th]:text-white">
                   <tr>
                     <th className="text-left py-2.5 px-2 text-[11px] uppercase tracking-wide font-semibold">Use Category</th>
                     {suColumns.map(col => (
@@ -752,7 +885,7 @@ function PQMemoFinancials({ projectId }: { projectId: string }) {
 
   if (isLoading) {
     return (
-      <div className="p-5 text-center text-[#7da1d4]">
+      <div className="p-5 text-center text-[#7da1d4]" style={{ fontFamily: 'var(--t-font-family)' }}>
         <div className="inline-block animate-spin w-6 h-6 border-3 border-[#2563eb] border-t-transparent rounded-full mb-2" />
         <p className="text-sm">Loading financial data...</p>
       </div>
@@ -761,7 +894,7 @@ function PQMemoFinancials({ projectId }: { projectId: string }) {
 
   if (!latestSpread || periods.length === 0) {
     return (
-      <div className="p-5 text-center py-16">
+      <div className="p-5 text-center py-16" style={{ fontFamily: 'var(--t-font-family)' }}>
         <TrendingUp className="w-10 h-10 text-[#7da1d4] mx-auto mb-3" />
         <p className="text-[#7da1d4] text-sm">No financial spreads available for this project.</p>
         <p className="text-[#7da1d4] text-xs mt-1">Upload spreads from the Spreads tab to see the comparison view here.</p>
@@ -770,7 +903,7 @@ function PQMemoFinancials({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="p-5">
+    <div className="p-5" style={{ fontFamily: 'var(--t-font-family)' }}>
       <div className="mb-4">
         <h2 className="text-base font-semibold text-gray-700 mb-1 pb-1.5 border-b-2 border-blue-500">
           Financial Spread Comparison

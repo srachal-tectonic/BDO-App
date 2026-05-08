@@ -243,7 +243,7 @@ export async function GET(request: NextRequest) {
 
       try {
         // Create SharePoint folder with subfolders using the project name (sanitization handled in shared function)
-        const folderInfo = await createSharePointFolder(token, project.projectName);
+        const folderInfo = await createSharePointFolder(token, project.projectName, project.bdoUserName);
         folderId = folderInfo.folderId;
         folderUrl = folderInfo.webUrl;
 

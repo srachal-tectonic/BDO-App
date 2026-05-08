@@ -401,13 +401,14 @@ async function createSubfolder(
  */
 export async function createSharePointFolder(
   token: string,
-  projectName: string
+  projectName: string,
+  bdoName?: string
 ): Promise<CreateFolderResult> {
   const sanitizedProjectName = sanitizeFolderName(projectName);
   const siteUrl = await getSharePointSiteUrl();
   const { hostname, sitePath } = parseSharePointSiteUrl(siteUrl);
 
-  console.log(`[SharePoint] Creating folder for project: "${sanitizedProjectName}"`);
+  console.log(`[SharePoint] Creating folder for project: "${sanitizedProjectName}"${bdoName ? ` (BDO: "${bdoName}")` : ''}`);
 
   // Get the site ID
   const siteId = await getSharePointSiteId(token, hostname, sitePath);
@@ -430,8 +431,14 @@ export async function createSharePointFolder(
   const driveData = await driveResponse.json();
   const driveId = driveData.id;
 
-  // Get parent folder path from environment variable or use root
-  const parentFolderPath = process.env.SHAREPOINT_PARENT_FOLDER_PATH || '';
+  // Get parent folder path from environment variable or use root, then nest
+  // the project under a per-BDO subfolder when a BDO name is supplied so the
+  // final layout is `{parentFolderPath}/{bdoName}/{projectName}`.
+  const baseParentPath = process.env.SHAREPOINT_PARENT_FOLDER_PATH || '';
+  const trimmedBdoName = (bdoName || '').trim();
+  const parentFolderPath = trimmedBdoName
+    ? (baseParentPath ? `${baseParentPath}/${trimmedBdoName}` : trimmedBdoName)
+    : baseParentPath;
 
   let parentFolderId: string;
 

@@ -58,9 +58,7 @@ export default function OtherOwnedBusinessesSection({ isBDO = true }: OtherOwned
       hasOtherBusinesses: value,
       businesses: value.toLowerCase() === 'yes' && otherOwnedBusinesses.businesses.length === 0
         ? Array.from({ length: 10 }, (_, i) => createEmptyRow(`row-${i + 1}`))
-        : value.toLowerCase() === 'no'
-          ? []
-          : otherOwnedBusinesses.businesses,
+        : otherOwnedBusinesses.businesses,
     });
   };
 
@@ -170,6 +168,7 @@ export default function OtherOwnedBusinessesSection({ isBDO = true }: OtherOwned
           </div>
         </div>
 
+        {otherOwnedBusinesses.hasOtherBusinesses?.toLowerCase() !== 'no' && (
         <div className="mt-6">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm" data-testid="other-businesses-table">
@@ -293,6 +292,7 @@ export default function OtherOwnedBusinessesSection({ isBDO = true }: OtherOwned
             </table>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
