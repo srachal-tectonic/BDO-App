@@ -97,7 +97,7 @@ export default function BorrowerPortalPage() {
           try {
             const folderResponse = await authenticatedPost('/api/sharepoint/create-folder', {
               projectName: data.projectName,
-              bdoName: data.bdoUserName,
+              projectId,
             });
 
             if (folderResponse.ok) {

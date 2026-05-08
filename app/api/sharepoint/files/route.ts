@@ -1,4 +1,5 @@
 import { getProjectAdmin, updateProjectAdmin } from '@/services/firestoreAdmin';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import {
   getSharePointAccessToken,
   getSharePointSiteUrl,
@@ -242,8 +243,13 @@ export async function GET(request: NextRequest) {
       console.log(`No SharePoint folder found for project ${projectId}. Creating one...`);
 
       try {
-        // Create SharePoint folder with subfolders using the project name (sanitization handled in shared function)
-        const folderInfo = await createSharePointFolder(token, project.projectName, project.bdoUserName);
+        // Create SharePoint folder with subfolders using the project name (sanitization handled in shared function).
+        // Nest under the BDO selected on the loan application (projectOverview.bdo1),
+        // not the logged-in BDO. If bdo1 isn't set, no BDO subfolder is added.
+        const loanAppCol = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+        const loanAppDoc = await loanAppCol.findOne({ projectId });
+        const bdo1 = loanAppDoc?.projectOverview?.bdo1;
+        const folderInfo = await createSharePointFolder(token, project.projectName, bdo1);
         folderId = folderInfo.folderId;
         folderUrl = folderInfo.webUrl;
 

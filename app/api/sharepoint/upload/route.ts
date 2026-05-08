@@ -8,6 +8,7 @@ import {
   createSharePointFolder,
 } from '@/lib/sharepoint';
 import { getProjectAdmin, updateProjectAdmin } from '@/services/firestoreAdmin';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { checkRateLimit, rateLimitExceededResponse, addRateLimitHeaders, RATE_LIMITS } from '@/lib/rateLimit';
 import { validateFile, isDangerousExtension, FILE_SIZE_LIMITS } from '@/lib/fileValidation';
@@ -184,7 +185,13 @@ export async function POST(request: NextRequest) {
         folderId = project.sharepointFolderId;
       } else {
         try {
-          const folderInfo = await createSharePointFolder(token, project.projectName, project.bdoUserName);
+          // Use the BDO selected on the loan application's "BDO 1" field
+          // (projectOverview.bdo1) to drive the SharePoint folder hierarchy.
+          // Falls through to no BDO subfolder when bdo1 isn't filled in yet.
+          const loanAppCol = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+          const loanAppDoc = await loanAppCol.findOne({ projectId });
+          const bdo1 = loanAppDoc?.projectOverview?.bdo1;
+          const folderInfo = await createSharePointFolder(token, project.projectName, bdo1);
           folderId = folderInfo.folderId;
           folderCreatedInfo = { folderId: folderInfo.folderId, webUrl: folderInfo.webUrl };
 

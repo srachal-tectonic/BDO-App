@@ -6,6 +6,7 @@ import {
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { checkRateLimit, rateLimitExceededResponse, addRateLimitHeaders, RATE_LIMITS } from '@/lib/rateLimit';
 import { checkCsrf } from '@/lib/csrf';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 
 /**
  * SharePoint Create Folder API Route
@@ -18,7 +19,10 @@ import { checkCsrf } from '@/lib/csrf';
 
 interface CreateFolderRequest {
   projectName: string;
-  bdoName?: string;
+  // Optional: when supplied, the server resolves the BDO from
+  // `projectOverview.bdo1` on the loan application (not the logged-in BDO)
+  // and nests the project folder under that BDO's name.
+  projectId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -45,13 +49,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CreateFolderRequest = await request.json();
-    const { projectName, bdoName } = body;
+    const { projectName, projectId } = body;
 
     if (!projectName) {
       return NextResponse.json(
         { error: 'Project name is required' },
         { status: 400 }
       );
+    }
+
+    // Resolve the BDO name from the loan application's BDO 1 field so the
+    // project folder is nested under the BDO selected on the project — not
+    // the currently logged-in BDO.
+    let bdoName: string | undefined;
+    if (projectId) {
+      const loanAppCol = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+      const loanAppDoc = await loanAppCol.findOne({ projectId });
+      bdoName = loanAppDoc?.projectOverview?.bdo1;
     }
 
     // Get SharePoint access token
