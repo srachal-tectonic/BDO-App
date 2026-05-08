@@ -58,6 +58,7 @@ const injectGooglePlacesStyles = () => {
       width: 100% !important;
       display: block !important;
       color-scheme: light only !important;
+      font-family: var(--font-poppins), sans-serif !important;
       --gmp-color-surface: #ffffff !important;
       --gmp-color-on-surface: #1f2937 !important;
       --gmp-color-on-surface-variant: #6b7280 !important;
@@ -70,6 +71,7 @@ const injectGooglePlacesStyles = () => {
       background-color: #ffffff !important;
       color: #1f2937 !important;
       font-size: 15px !important;
+      font-family: var(--font-poppins), sans-serif !important;
       border: 1px solid #d1d5db !important;
       border-radius: 8px !important;
       padding: 12px 16px !important;
@@ -83,6 +85,7 @@ const injectGooglePlacesStyles = () => {
 
     gmp-place-autocomplete::part(input)::placeholder {
       color: #9ca3af !important;
+      font-family: var(--font-poppins), sans-serif !important;
     }
 
     gmp-place-autocomplete::part(prediction-list) {
@@ -90,6 +93,11 @@ const injectGooglePlacesStyles = () => {
       border: 1px solid #d1d5db !important;
       border-radius: 8px !important;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+      font-family: var(--font-poppins), sans-serif !important;
+    }
+
+    gmp-place-autocomplete::part(prediction-item) {
+      font-family: var(--font-poppins), sans-serif !important;
     }
   `;
   document.head.appendChild(style);
@@ -100,9 +108,11 @@ interface AddressInputProps {
   onChange: (address: Address) => void;
   idPrefix: string;
   disabled?: boolean;
+  /** Render Street / Suite / City / ST / ZIP sub-fields below the autocomplete. Defaults to true. */
+  showFields?: boolean;
 }
 
-export default function AddressInput({ value, onChange, idPrefix, disabled = false }: AddressInputProps) {
+export default function AddressInput({ value, onChange, idPrefix, disabled = false, showFields = true }: AddressInputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const autocompleteElementRef = useRef<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -370,10 +380,118 @@ export default function AddressInput({ value, onChange, idPrefix, disabled = fal
     onChangeRef.current(newAddress);
   };
 
+  // Update one sub-field of the address while leaving the others intact.
+  const updateField = (field: keyof Address, val: string) => {
+    onChangeRef.current({ ...safeValue, [field]: val });
+  };
+
+  const subFieldInputCls = 'w-full px-3 py-[7px] text-[13px] border border-[#c5d4e8] rounded-md bg-white text-[#1a1a1a] focus:outline-none focus:ring-1 focus:ring-[#2563eb] focus:border-[#2563eb] disabled:bg-gray-50 disabled:text-gray-400';
+  const subFieldInputStyle: React.CSSProperties = { fontFamily: 'var(--font-poppins), sans-serif' };
+
+  const renderSubFields = () => (
+    <div className="grid grid-cols-12 gap-2 mt-2">
+      <div className="col-span-4">
+        <input
+          type="text"
+          value={safeValue.street1 || ''}
+          onChange={(e) => updateField('street1', e.target.value)}
+          disabled={disabled}
+          placeholder="Street"
+          className={subFieldInputCls}
+          style={subFieldInputStyle}
+          data-testid={`input-${idPrefix}-street1`}
+          autoComplete="address-line1"
+        />
+      </div>
+      <div className="col-span-2">
+        <input
+          type="text"
+          value={safeValue.street2 || ''}
+          onChange={(e) => updateField('street2', e.target.value)}
+          disabled={disabled}
+          placeholder="Suite / Unit"
+          className={subFieldInputCls}
+          style={subFieldInputStyle}
+          data-testid={`input-${idPrefix}-street2`}
+          autoComplete="address-line2"
+        />
+      </div>
+      <div className="col-span-3">
+        <input
+          type="text"
+          value={safeValue.city || ''}
+          onChange={(e) => updateField('city', e.target.value)}
+          disabled={disabled}
+          placeholder="City"
+          className={subFieldInputCls}
+          style={subFieldInputStyle}
+          data-testid={`input-${idPrefix}-city`}
+          autoComplete="address-level2"
+        />
+      </div>
+      <div className="col-span-1">
+        <input
+          type="text"
+          value={safeValue.state || ''}
+          onChange={(e) => updateField('state', e.target.value)}
+          disabled={disabled}
+          maxLength={2}
+          placeholder="ST"
+          className={subFieldInputCls}
+          style={subFieldInputStyle}
+          data-testid={`input-${idPrefix}-state`}
+          autoComplete="address-level1"
+        />
+      </div>
+      <div className="col-span-2">
+        <input
+          type="text"
+          value={safeValue.zipCode || ''}
+          onChange={(e) => updateField('zipCode', e.target.value)}
+          disabled={disabled}
+          maxLength={10}
+          placeholder="ZIP"
+          className={subFieldInputCls}
+          style={subFieldInputStyle}
+          data-testid={`input-${idPrefix}-zip`}
+          autoComplete="postal-code"
+        />
+      </div>
+    </div>
+  );
+
   // Render fallback input if Google Maps fails to load
   if (isFallbackMode) {
     return (
-      <div className="relative w-full">
+      <div className="w-full">
+        <div className="relative w-full">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            placeholder="Enter street address"
+            disabled={disabled}
+            className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
+          style={{ fontFamily: 'var(--font-poppins), sans-serif' }}
+            data-testid={`input-${idPrefix}-street`}
+            autoComplete="street-address"
+          />
+        </div>
+        {showFields && renderSubFields()}
+      </div>
+    );
+  }
+
+  // Container for Google Places autocomplete element
+  return (
+    <div className="w-full">
+      <div
+        ref={containerRef}
+        className="relative w-full"
+        style={{ colorScheme: 'light' }}
+        data-testid={`container-${idPrefix}-address`}
+      >
+        {/* Placeholder while loading */}
         <input
           type="text"
           value={inputValue}
@@ -381,32 +499,12 @@ export default function AddressInput({ value, onChange, idPrefix, disabled = fal
           placeholder="Enter street address"
           disabled={disabled}
           className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
+          style={{ fontFamily: 'var(--font-poppins), sans-serif' }}
           data-testid={`input-${idPrefix}-street`}
-          autoComplete="street-address"
+          autoComplete="off"
         />
       </div>
-    );
-  }
-
-  // Container for Google Places autocomplete element
-  return (
-    <div
-      ref={containerRef}
-      className="relative w-full"
-      style={{ colorScheme: 'light' }}
-      data-testid={`container-${idPrefix}-address`}
-    >
-      {/* Placeholder while loading */}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        placeholder="Enter street address"
-        disabled={disabled}
-        className="w-full px-4 py-3 border border-[var(--t-color-border)] rounded-lg text-[15px] bg-white text-gray-900 transition-all focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] focus:outline-none disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed"
-        data-testid={`input-${idPrefix}-street`}
-        autoComplete="off"
-      />
+      {showFields && renderSubFields()}
     </div>
   );
 }
