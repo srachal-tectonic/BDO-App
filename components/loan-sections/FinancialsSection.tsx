@@ -16,8 +16,9 @@ const isNegative = isSpreadNegative;
 
 /**
  * Map Excel "Financing Source"/"Financing Type" cell values to the store's
- * financingType options. Both the legacy "7A Standard"-style values and the
- * 5.5.26 layout's "SBA 7(a)"-style values are accepted.
+ * financingType options. Accepts the legacy "7A Standard" values, the 5.5.26
+ * "SBA 7(a)" values, and the 5.6.26 "SBA Express Line" / "Contribution"
+ * additions from the workbook's Lists → Loan Type dropdown.
  */
 const FINANCING_TYPE_MAP: Record<string, string> = {
   '7a standard': 'SBA 7(a) Standard',
@@ -31,8 +32,10 @@ const FINANCING_TYPE_MAP: Record<string, string> = {
   'seller note': 'Seller Note',
   '3rd party': '3rd Party',
   'equity': 'Equity',
+  'contribution': 'Equity',
   '7a express': 'SBA 7(a) Express',
   'sba 7(a) express': 'SBA 7(a) Express',
+  'sba express line': 'SBA 7(a) Express',
   'sba capline': 'SBA CAPLine',
   'capline': 'SBA CAPLine',
   'usda': 'USDA',
@@ -92,8 +95,8 @@ function mapSuColumn(header: string): string | null {
 
 /**
  * Map Sources & Uses row labels from the spreadsheet to store category keys.
- * Includes aliases for the 5.5.26 layout's renamed rows
- * ("Construction Contingency - 10%", "Interest Reserve - 18 Mos",
+ * Includes aliases for the 5.5.26 / 5.6.26 layout's renamed rows
+ * ("Construction Contingency - 10%", "Interest Reserve - N Mos",
  * "Construction Soft Costs"). USDA Gty Fee is intentionally not mapped —
  * it has no slot in the SourcesUses store schema, but the row is still
  * persisted on the parsed spread document for display.
@@ -112,9 +115,8 @@ const SU_ROW_MAP: Record<string, string> = {
   'franchise fees': 'franchiseFees',
   'construction hard costs': 'constructionHardCosts',
   'interim interest reserve': 'interimInterestReserve',
-  'interest reserve - 18 mos': 'interimInterestReserve',
+  'interest reserve': 'interimInterestReserve',
   'construction contingency': 'constructionContingency',
-  'construction contingency - 10%': 'constructionContingency',
   'other construction soft costs': 'otherConstructionSoftCosts',
   'construction soft costs': 'otherConstructionSoftCosts',
   'closing costs': 'closingCosts',
@@ -123,8 +125,16 @@ const SU_ROW_MAP: Record<string, string> = {
 };
 
 function mapSuRow(label: string): string | null {
-  const norm = label.trim().toLowerCase();
+  let norm = label.trim().toLowerCase();
   if (norm === 'total' || norm === 'percentage of project') return null;
+  if (SU_ROW_MAP[norm]) return SU_ROW_MAP[norm];
+  // Strip trailing month/percent suffixes so labels like
+  // "Interest Reserve - 3 Mos" or "Construction Contingency - 10%" match
+  // their base entry (any month count, any percent — both old and new
+  // workbook layouts use these patterns interchangeably).
+  norm = norm
+    .replace(/\s*-\s*\d+\s*(?:%|mos\.?|months?)\s*$/i, '')
+    .trim();
   return SU_ROW_MAP[norm] || null;
 }
 

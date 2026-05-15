@@ -34,21 +34,33 @@ const ROW_LABEL_TO_KEY: Record<string, string> = {
   'cash available': 'cashAvailable',
   'existing debt service': 'existingDebtService',
   // Per-source debt-service rows. Older sheets used the "Proposed X Debt"
-  // labels; the 5.5.26 layout names them after the financing type itself
-  // (e.g. "SBA 7(a) Debt Service").
+  // labels; the 5.5.26 / 5.6.26 layouts name each row after the financing
+  // type the user selected (e.g. "Seller Note Debt Service"). Unused slots
+  // are labelled "N/A Debt Service" — those don't match any key and are
+  // skipped. SBA Express Line / CAPLine and USDA / P&E / Conventional fold
+  // into the existing 7(a) and 3rd-party slots respectively, since the
+  // downstream comparison table has fixed slot keys.
   'proposed 7a debt': 'proposed7aDebt',
   'sba 7(a) debt service': 'proposed7aDebt',
   'sba 7a debt service': 'proposed7aDebt',
+  'sba 7(a) standard debt service': 'proposed7aDebt',
+  'sba 7(a) express debt service': 'proposed7aDebt',
+  'sba express line debt service': 'proposed7aDebt',
+  'sba capline debt service': 'proposed7aDebt',
   'proposed 504 debt': 'proposed504Debt',
   'sba 504 debt service': 'proposed504Debt',
   '504 debt service': 'proposed504Debt',
   'proposed cdc debt': 'proposedCdcDebt',
   'cdc debt service': 'proposedCdcDebt',
   'cdc debenture debt service': 'proposedCdcDebt',
+  'debenture debt service': 'proposedCdcDebt',
   'proposed seller note': 'proposedSellerNote',
   'seller note debt service': 'proposedSellerNote',
   'proposed 3rd party financing': 'proposed3rdPartyFinancing',
   '3rd party debt service': 'proposed3rdPartyFinancing',
+  'usda debt service': 'proposed3rdPartyFinancing',
+  'p&e debt service': 'proposed3rdPartyFinancing',
+  'conventional debt service': 'proposed3rdPartyFinancing',
   'total debt service': 'totalDebtService',
   'debt coverage ratio': 'debtCoverageRatio',
   'total affiliate cash available': 'totalAffiliateCashAvailable',
