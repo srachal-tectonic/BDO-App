@@ -617,6 +617,31 @@ const PURPOSE_UI_OPTIONS = [
   'Working Capital',
 ] as const;
 
+// Map legacy / stored purpose keys to the canonical PURPOSE_UI_OPTIONS spelling
+// using a whitespace-stripped, case-insensitive comparison. This is what makes
+// historical "Start up" rules show up as "Startup" in the edit modal and match
+// the Project Purpose dropdown on the loan application.
+const PURPOSE_KEY_LOOKUP: Map<string, string> = new Map(
+  PURPOSE_UI_OPTIONS.map((opt) => [opt.replace(/\s+/g, '').toLowerCase(), opt])
+);
+
+function canonicalizePurposeKey(key: string | undefined | null): string {
+  if (!key) return '';
+  const norm = String(key).replace(/\s+/g, '').toLowerCase();
+  return PURPOSE_KEY_LOOKUP.get(norm) ?? key;
+}
+
+function canonicalizeRule(rule: QuestionnaireRule): QuestionnaireRule {
+  const purposeKey = canonicalizePurposeKey(rule.purposeKey);
+  const purposeKeys = Array.isArray(rule.purposeKeys)
+    ? Array.from(new Set(rule.purposeKeys.map(canonicalizePurposeKey).filter(Boolean)))
+    : [];
+  const excludePurposes = Array.isArray(rule.excludePurposes)
+    ? Array.from(new Set(rule.excludePurposes.map(canonicalizePurposeKey).filter(Boolean)))
+    : [];
+  return { ...rule, purposeKey, purposeKeys, excludePurposes };
+}
+
 const emptyRuleForm: Omit<QuestionnaireRule, 'id'> = {
   name: '',
   enabled: true,
@@ -953,6 +978,13 @@ Example format:
               (rest as any).diligenceCorePrompt = legacy.prompt;
             }
           }
+          // Canonicalize legacy purpose-key spellings (e.g. "Start up" → "Startup")
+          // so older rules align with the Project Purpose dropdown values and
+          // the edit-modal checkboxes show them as selected. Re-saving persists
+          // the corrected values.
+          if (Array.isArray((rest as any).questionnaireRules)) {
+            (rest as any).questionnaireRules = ((rest as any).questionnaireRules as QuestionnaireRule[]).map(canonicalizeRule);
+          }
           setSettings((prev) => ({ ...prev, ...rest }));
           if (loadedTheme) {
             setThemeSettings({ ...defaultTheme, ...loadedTheme });
@@ -1016,7 +1048,12 @@ Example format:
           : rule.purposeKey
           ? [rule.purposeKey]
           : [];
-      const purposeKeys = rawKeys.filter((k) => validKeys.has(k));
+      const purposeKeys = Array.from(
+        new Set(rawKeys.map(canonicalizePurposeKey).filter((k) => validKeys.has(k)))
+      );
+      const excludePurposes = Array.from(
+        new Set((rule.excludePurposes || []).map(canonicalizePurposeKey).filter((k) => validKeys.has(k)))
+      );
       setRuleForm({
         name: rule.name,
         enabled: rule.enabled,
@@ -1025,9 +1062,9 @@ Example format:
         mainCategory: rule.mainCategory || 'Business Overview',
         questionText: rule.questionText || '',
         aiBlockTemplateId: rule.aiBlockTemplateId || '',
-        purposeKey: rule.purposeKey || '',
+        purposeKey: canonicalizePurposeKey(rule.purposeKey),
         purposeKeys,
-        excludePurposes: (rule.excludePurposes || []).filter((k) => validKeys.has(k)),
+        excludePurposes,
         alwaysShow: rule.alwaysShow ?? false,
         naicsCodes: rule.naicsCodes || [],
         questionOrder: rule.questionOrder || 0,
@@ -1118,10 +1155,20 @@ Example format:
         setImportRulesError(`Item ${i} (${raw.name ?? raw.id}) has invalid block_type: ${blockType}`);
         return;
       }
-      const purposeKeys: string[] = Array.isArray(raw.purpose_keys ?? raw.purposeKeys)
+      const rawPurposeKeys: string[] = Array.isArray(raw.purpose_keys ?? raw.purposeKeys)
         ? (raw.purpose_keys ?? raw.purposeKeys)
         : [];
-      const singleKey: string = raw.purpose_key ?? raw.purposeKey ?? '';
+      const rawSingleKey: string = raw.purpose_key ?? raw.purposeKey ?? '';
+      const purposeKeys = Array.from(
+        new Set(rawPurposeKeys.map(canonicalizePurposeKey).filter(Boolean))
+      );
+      const singleKey = canonicalizePurposeKey(rawSingleKey);
+      const rawExclude: string[] = Array.isArray(raw.exclude_purposes ?? raw.excludePurposes)
+        ? (raw.exclude_purposes ?? raw.excludePurposes)
+        : [];
+      const excludePurposes = Array.from(
+        new Set(rawExclude.map(canonicalizePurposeKey).filter(Boolean))
+      );
       imported.push({
         id: String(raw.id ?? `rule-${Date.now()}-${i}`),
         name: String(raw.name ?? ''),
@@ -1133,9 +1180,7 @@ Example format:
         aiBlockTemplateId: raw.ai_block_template_id ?? raw.aiBlockTemplateId ?? '',
         purposeKey: singleKey || purposeKeys[0] || '',
         purposeKeys: purposeKeys.length > 0 ? purposeKeys : (singleKey ? [singleKey] : []),
-        excludePurposes: Array.isArray(raw.exclude_purposes ?? raw.excludePurposes)
-          ? (raw.exclude_purposes ?? raw.excludePurposes)
-          : [],
+        excludePurposes,
         alwaysShow: Boolean(raw.always_show ?? raw.alwaysShow ?? false),
         naicsCodes: Array.isArray(raw.naics_codes ?? raw.naicsCodes)
           ? (raw.naics_codes ?? raw.naicsCodes)

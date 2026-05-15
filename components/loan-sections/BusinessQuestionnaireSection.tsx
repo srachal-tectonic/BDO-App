@@ -20,7 +20,9 @@ async function fetchLogoBytes(): Promise<Uint8Array | null> {
 import type { Project } from '@/types';
 
 function normalizePurpose(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  // Strip *all* whitespace so legacy spellings like "Start up" still match the
+  // canonical "Startup" option emitted by the Project Purpose dropdown.
+  return String(value ?? '').replace(/\s+/g, '').toLowerCase();
 }
 
 function purposeMatches(key: string, purposes: string[]): boolean {
