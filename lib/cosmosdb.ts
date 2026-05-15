@@ -103,4 +103,5 @@ export const COLLECTIONS = {
   ADMIN_SETTINGS: 'adminSettings',
   AUDIT_LOGS: 'auditLogs',
   DUE_DILIGENCE_REPORTS: 'dueDiligenceReports',
+  QUESTIONNAIRE_RESPONSES: 'questionnaireResponses',
 } as const;

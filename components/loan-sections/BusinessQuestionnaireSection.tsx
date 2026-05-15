@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ClipboardList, FileDown, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApplication } from '@/lib/applicationStore';
-import { collection, query, getDocs, db } from '@/lib/db';
 import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
 import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
 
@@ -155,12 +154,13 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
       let projectResponses: QuestionnaireResponse[] = [];
       if (projectId) {
         try {
-          const responsesSnapshot = await getDocs(query(collection(db, 'questionnaireResponses')));
-          projectResponses = responsesSnapshot.docs
-            .map((d: any) => ({ id: d.id, ...d.data() } as QuestionnaireResponse))
-            .filter((r: any) => r.projectId === projectId);
+          const res = await fetch(`/api/projects/${projectId}/questionnaire-responses`);
+          if (res.ok) {
+            const json = await res.json();
+            projectResponses = Array.isArray(json?.responses) ? json.responses : [];
+          }
         } catch (err) {
-          console.warn('[BusinessQuestionnaire] responses load failed (shim):', err);
+          console.warn('[BusinessQuestionnaire] responses load failed:', err);
         }
       }
 
@@ -179,7 +179,12 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
   useEffect(() => {
     const signal = { cancelled: false };
     loadAll(signal);
-    return () => { signal.cancelled = true; };
+    const onImported = () => loadAll();
+    window.addEventListener('questionnaire-responses-imported', onImported);
+    return () => {
+      signal.cancelled = true;
+      window.removeEventListener('questionnaire-responses-imported', onImported);
+    };
   }, [loadAll]);
 
   const handleRegenerate = async () => {

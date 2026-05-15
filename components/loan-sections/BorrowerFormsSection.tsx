@@ -290,9 +290,16 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
         reader.readAsDataURL(file);
       });
 
-      const endpoint = isIndividualApplicantForm
-        ? `/api/projects/${projectId}/envelope-pdf/apply-individual`
-        : `/api/projects/${projectId}/envelope-pdf/apply`;
+      // Business Questionnaire PDFs use a completely different field naming
+      // scheme (q_{ruleId}) and target collection (questionnaireResponses),
+      // so route those through their own endpoint instead of the envelope
+      // applier — that's what was producing the "0 fields applied" error.
+      const isBusinessQuestionnaireForm = formId === 'blank-business-questionnaire';
+      const endpoint = isBusinessQuestionnaireForm
+        ? `/api/projects/${projectId}/questionnaire-pdf/apply`
+        : isIndividualApplicantForm
+          ? `/api/projects/${projectId}/envelope-pdf/apply-individual`
+          : `/api/projects/${projectId}/envelope-pdf/apply`;
       const requestBody: Record<string, string> = { fileName: file.name, pdfData: base64 };
       if (isIndividualApplicantForm) requestBody.individualApplicantId = individualApplicantId;
 
@@ -331,13 +338,19 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
         : '';
 
       if (applied === 0) {
+        const expectedNaming = isBusinessQuestionnaireForm
+          ? 'questionnaire field naming (q_*)'
+          : 'envelope field naming (ba_*, ia*_*, po_*, si_*, sba_*, oob*_*)';
+        const generatorName = isBusinessQuestionnaireForm
+          ? 'Business Questionnaire generator'
+          : 'T Bank envelope generator';
         alert(
           `Imported "${file.name}" but 0 fields were applied.\n\n` +
           `• ${extracted} total AcroForm fields found in the PDF\n` +
           `• ${nonEmpty} of those had a non-empty value\n` +
-          `• ${mapped} matched the expected envelope field naming (ba_*, ia*_*, po_*, si_*, sba_*, oob*_*)\n` +
+          `• ${mapped} matched the expected ${expectedNaming}\n` +
           `• ${applied} were actually written to the project\n\n` +
-          `This usually means the uploaded PDF was not produced by the T Bank envelope generator, so its field names don't match. Open the server console for a sample of the actual field names.`
+          `This usually means the uploaded PDF was not produced by the ${generatorName}, so its field names don't match. Open the server console for a sample of the actual field names.`
           + archiveNote
         );
       } else {
@@ -349,12 +362,21 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
             new CustomEvent('loan-application-imported', { detail: payload.loanApplication }),
           );
         }
-        const scope = isIndividualApplicantForm
-          ? ` for ${targetName}`
-          : ' to the loan application';
+        // Notify other open tabs (e.g. the Business Questionnaire read view)
+        // that fresh responses have been written so they can refetch.
+        if (isBusinessQuestionnaireForm) {
+          window.dispatchEvent(new CustomEvent('questionnaire-responses-imported'));
+        }
+        const scope = isBusinessQuestionnaireForm
+          ? ' as questionnaire responses'
+          : isIndividualApplicantForm
+            ? ` for ${targetName}`
+            : ' to the loan application';
+        const summary = isBusinessQuestionnaireForm
+          ? `(${nonEmpty}/${extracted} non-empty)`
+          : `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty)`;
         alert(
-          `Imported "${file.name}". Applied ${applied} field(s)${scope} ` +
-          `(${mapped} matched the envelope map, ${nonEmpty}/${extracted} non-empty).`
+          `Imported "${file.name}". Applied ${applied} field(s)${scope} ${summary}.`
           + archiveNote
         );
       }
