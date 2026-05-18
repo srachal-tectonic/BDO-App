@@ -151,7 +151,8 @@ export type SourcesUsesCategory =
   | 'constructionContingency'
   | 'otherConstructionSoftCosts'
   | 'closingCosts'
-  | 'sbaGtyFee';
+  | 'sbaGtyFee'
+  | 'usdaGtyFee';
 
 /**
  * Complete Sources & Uses table for 7(a) Standard loan program
@@ -174,6 +175,7 @@ export interface SourcesUses7a {
   otherConstructionSoftCosts?: SourcesUsesRow7a;
   closingCosts?: SourcesUsesRow7a;
   sbaGtyFee?: SourcesUsesRow7a;
+  usdaGtyFee?: SourcesUsesRow7a;
   // Totals row
   totals?: SourcesUsesRow7a;
   // Column percentages
@@ -209,6 +211,7 @@ export interface SourcesUses504 {
   otherConstructionSoftCosts?: SourcesUsesRow504;
   closingCosts?: SourcesUsesRow504;
   sbaGtyFee?: SourcesUsesRow504;
+  usdaGtyFee?: SourcesUsesRow504;
   // Totals row
   totals?: SourcesUsesRow504;
   // Column percentages
@@ -244,6 +247,7 @@ export interface SourcesUsesExpress {
   otherConstructionSoftCosts?: SourcesUsesRow7a;
   closingCosts?: SourcesUsesRow7a;
   sbaGtyFee?: SourcesUsesRow7a;
+  usdaGtyFee?: SourcesUsesRow7a;
   // Totals row
   totals?: SourcesUsesRow7a;
   // Column percentages

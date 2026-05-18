@@ -330,11 +330,12 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
         businessAcquisition: 'Business Acquisition',
         franchiseFees: 'Franchise Fees',
         constructionHardCosts: 'Construction Hard Costs',
-        interimInterestReserve: 'Interim Interest Reserve',
         constructionContingency: 'Construction Contingency',
-        otherConstructionSoftCosts: 'Other Construction Soft Costs',
+        interimInterestReserve: 'Interest Reserve - 3 Mos',
+        otherConstructionSoftCosts: 'Construction Soft Costs',
         closingCosts: 'Closing Costs',
         sbaGtyFee: 'SBA Gty Fee',
+        usdaGtyFee: 'USDA Gty Fee',
       };
       Object.entries(su7a).forEach(([key, row]) => {
         if (key === 'totals' || key === 'columnPercentages' || key === 'weightedTerm') return;

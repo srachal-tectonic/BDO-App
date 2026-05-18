@@ -12,11 +12,11 @@ import { mapSyncedDataToStore, hasSyncedData } from '@/lib/syncedDataMapper';
 /** Row keys that hold numeric source data (matching SourcesUsesMatrix rows). */
 const DATA_ROW_KEYS = [
   'realEstate', 'debtRefiCRE', 'debtRefiNonCRE', 'equipment',
-  'furnitureFixtures', 'inventory', 'businessAcquisition',
-  'workingCapital', 'workingCapitalPreOpening', 'franchiseFees',
-  'constructionHardCosts', 'interimInterestReserve',
-  'constructionContingency', 'otherConstructionSoftCosts',
-  'closingCosts', 'sbaGtyFee', 'other',
+  'furnitureFixtures', 'inventory', 'workingCapital',
+  'workingCapitalPreOpening', 'businessAcquisition', 'franchiseFees',
+  'constructionHardCosts', 'constructionContingency',
+  'interimInterestReserve', 'otherConstructionSoftCosts',
+  'closingCosts', 'sbaGtyFee', 'usdaGtyFee', 'other',
 ];
 
 /** Returns true when every data row in the table has all-zero / undefined values. */

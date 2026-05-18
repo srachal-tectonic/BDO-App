@@ -97,9 +97,8 @@ function mapSuColumn(header: string): string | null {
  * Map Sources & Uses row labels from the spreadsheet to store category keys.
  * Includes aliases for the 5.5.26 / 5.6.26 layout's renamed rows
  * ("Construction Contingency - 10%", "Interest Reserve - N Mos",
- * "Construction Soft Costs"). USDA Gty Fee is intentionally not mapped —
- * it has no slot in the SourcesUses store schema, but the row is still
- * persisted on the parsed spread document for display.
+ * "Construction Soft Costs"). USDA Gty Fee maps to its own `usdaGtyFee`
+ * store row, alongside SBA Gty Fee.
  */
 const SU_ROW_MAP: Record<string, string> = {
   'real estate acquisition': 'realEstate',
@@ -121,6 +120,7 @@ const SU_ROW_MAP: Record<string, string> = {
   'construction soft costs': 'otherConstructionSoftCosts',
   'closing costs': 'closingCosts',
   'sba gty fee': 'sbaGtyFee',
+  'usda gty fee': 'usdaGtyFee',
   'other': 'other',
 };
 
