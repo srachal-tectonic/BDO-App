@@ -254,11 +254,19 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
     // even if numeric values appear in the cells below.
     const colHeaderRow = sourcesHeaderRow + 1;
     const suCols: number[] = [];
+    const headerSeen: Record<string, number> = {};
     for (let c = 2; c <= Math.min(range.e.c, 9); c++) {
       const v = cellVal(ws, colHeaderRow, c);
       if (v && String(v).trim() && !isNA(v)) {
+        const raw = String(v).trim();
+        // Disambiguate repeated column headers (e.g. a workbook with two
+        // separate "SBA 7(a)" loans) by appending " (N)". Without this, the
+        // per-row `values` object below is keyed by header text and the
+        // second column silently overwrites the first.
+        headerSeen[raw] = (headerSeen[raw] || 0) + 1;
+        const header = headerSeen[raw] > 1 ? `${raw} (${headerSeen[raw]})` : raw;
         suCols.push(c);
-        sourcesUsesHeaders.push(String(v).trim());
+        sourcesUsesHeaders.push(header);
       }
     }
 

@@ -222,7 +222,12 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       // Build deduplicated column keys matching what financing sources use
       const headerCounts: Record<string, number> = {};
       const mappedHeaders = validHeaders.map((h: string) => {
-        const mapped = mapFinancingType(h);
+        // parseSpreadsheet appends a " (N)" suffix to repeated column headers
+        // (e.g. two "SBA 7(a)" loans) so each column's values stay distinct.
+        // Strip it before mapping to a financing type, then re-derive the
+        // dedup suffix so the colKey matches FundingStructureSection's columns.
+        const baseHeader = h.replace(/\s*\(\d+\)\s*$/, '').trim();
+        const mapped = mapFinancingType(baseHeader);
         headerCounts[mapped] = (headerCounts[mapped] || 0) + 1;
         const colKey = headerCounts[mapped] > 1 ? `${mapped} (${headerCounts[mapped]})` : mapped;
         return { original: h, colKey };
