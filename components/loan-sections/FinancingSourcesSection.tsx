@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useApplication, FinancingSource } from '@/lib/applicationStore';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,52 @@ function formatCurrency(value: number): string {
 function parseCurrency(value: string): number {
   const cleaned = value.replace(/[^0-9.-]/g, '');
   return parseInt(cleaned, 10) || 0;
+}
+
+/**
+ * Text input for percentage rates. Shows the value with two decimal places
+ * (e.g. a whole number like 7 renders as "7.00") when not being edited, while
+ * still allowing free-form typing once focused.
+ */
+function RateInput({
+  value,
+  onChange,
+  disabled,
+  className,
+  testId,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  disabled?: boolean;
+  className: string;
+  testId: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const display = focused ? draft : value ? value.toFixed(2) : '';
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={display}
+      onFocus={() => {
+        setDraft(value ? String(value) : '');
+        setFocused(true);
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        onChange(parseFloat(raw) || 0);
+      }}
+      onBlur={() => setFocused(false)}
+      disabled={disabled}
+      placeholder="0.00"
+      className={className}
+      data-testid={testId}
+    />
+  );
 }
 
 export default function FinancingSourcesSection({ isReadOnly = false }: FinancingSourcesSectionProps) {
@@ -223,29 +269,21 @@ export default function FinancingSourcesSection({ isReadOnly = false }: Financin
                   />
                 </td>
                 <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={source.baseRate || ''}
-                    onChange={(e) => handleUpdate(source.id, 'baseRate', parseFloat(e.target.value) || 0)}
+                  <RateInput
+                    value={source.baseRate || 0}
+                    onChange={(n) => handleUpdate(source.id, 'baseRate', n)}
                     disabled={isReadOnly}
-                    placeholder="0.00"
-                    step="0.01"
-                    min={0}
                     className={inputClass}
-                    data-testid={`input-base-rate-${index}`}
+                    testId={`input-base-rate-${index}`}
                   />
                 </td>
                 <td className="px-1 py-1">
-                  <input
-                    type="number"
-                    value={source.spread || ''}
-                    onChange={(e) => handleUpdate(source.id, 'spread', parseFloat(e.target.value) || 0)}
+                  <RateInput
+                    value={source.spread || 0}
+                    onChange={(n) => handleUpdate(source.id, 'spread', n)}
                     disabled={isReadOnly}
-                    placeholder="0.00"
-                    step="0.01"
-                    min={0}
                     className={inputClass}
-                    data-testid={`input-spread-${index}`}
+                    testId={`input-spread-${index}`}
                   />
                 </td>
                 <td className="px-1 py-1">

@@ -71,6 +71,34 @@ function toRate(v: any): number {
 }
 
 /**
+ * Extract a 4-digit year from a Statement Date cell. The cell may arrive as an
+ * Excel date serial number (e.g. 45291 → 2023), a JS Date, a plain year, or a
+ * formatted date string like "01/02/2025" — in every case only the year is
+ * kept. Returns '' when no year can be determined.
+ */
+function extractYear(value: any): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return String(value.getUTCFullYear());
+  }
+  if (typeof value === 'number' && isFinite(value)) {
+    // Already a bare year.
+    if (value >= 1900 && value <= 2100) return String(Math.trunc(value));
+    // Excel date serial (1900 date system; epoch 1899-12-30).
+    if (value > 20000 && value < 80000) {
+      const d = new Date(Date.UTC(1899, 11, 30) + Math.round(value) * 86400000);
+      if (!isNaN(d.getTime())) return String(d.getUTCFullYear());
+    }
+    return '';
+  }
+  const s = String(value).trim();
+  const yearMatch = s.match(/\b(19|20)\d{2}\b/);
+  if (yearMatch) return yearMatch[0];
+  const parsed = new Date(s);
+  return isNaN(parsed.getTime()) ? '' : String(parsed.getFullYear());
+}
+
+/**
  * Map Sources & Uses column headers from the spreadsheet to store column keys.
  * The spreadsheet uses "7a", "504", "Debenture", "Seller Note", "Equity", "Total".
  * The store uses "tBankLoan", "sba504", "cdcDebenture", "sellerNote", "thirdParty", "equity".
@@ -258,18 +286,26 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     }
 
     // ── DSCR from period data ──
+    // Each period column maps to one DSCR slot. The period label is the YEAR of
+    // that period's Statement Date (sheet row 38 / C38, D38, …) — a cell that
+    // may show a full date like "12/31/2023" but should reduce to "2023". The
+    // DSCR value is the Debt Coverage Ratio (sheet row 68 / C68, D68, …).
     const periods = spreadData.periodData;
     if (Array.isArray(periods) && periods.length > 0) {
       const dscrUpdate: Record<string, any> = {};
       periods.slice(0, 4).forEach((period: any, i: number) => {
         const idx = i + 1;
-        if (period.periodLabel) {
+
+        const year = extractYear(period.statementDate);
+        if (year) {
+          dscrUpdate[`period${idx}`] = year;
+        } else if (period.periodLabel) {
           dscrUpdate[`period${idx}`] = period.periodLabel;
         }
-        if (period.debtCoverageRatio != null) {
-          const val = typeof period.debtCoverageRatio === 'string'
-            ? parseFloat(period.debtCoverageRatio)
-            : period.debtCoverageRatio;
+
+        const rawDscr = period.debtCoverageRatio;
+        if (rawDscr != null) {
+          const val = typeof rawDscr === 'string' ? parseFloat(rawDscr) : rawDscr;
           dscrUpdate[`dscr${idx}`] = isNaN(val) ? null : parseFloat(val.toFixed(2));
         }
       });
