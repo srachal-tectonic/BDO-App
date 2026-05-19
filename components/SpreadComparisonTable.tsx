@@ -63,9 +63,6 @@ export const SPREAD_SECTIONS: SpreadSection[] = [
       { key: 'standardAddBacks', label: 'Standard Add Backs' },
       { key: 'otherAddBack1', label: 'Other Add Back 1' },
       { key: 'otherAddBack2', label: 'Other Add Back 2' },
-      { key: 'otherAddBack3', label: 'Other Add Back 3' },
-      { key: 'otherAddBack4', label: 'Other Add Back 4' },
-      { key: 'otherAddBack5', label: 'Other Add Back 5' },
       { key: 'estimatedPropertyTax', label: 'Estimated Property Tax' },
       { key: 'requiredOwnersDraw', label: "Required Owner's Draw" },
     ],
@@ -92,8 +89,6 @@ export const SPREAD_SECTIONS: SpreadSection[] = [
       { key: 'totalGuarantorCashAvailable', label: 'Total Guarantor Cash Available' },
       { key: 'totalGlobalCashAvailable', label: 'Total Global Cash Available', isTotal: true },
       { key: 'totalSubjectBusinessDebtService', label: 'Total Subject Business Debt Service' },
-      { key: 'totalAffiliateDebtService', label: 'Total Affiliate Debt Service' },
-      { key: 'totalGlobalDebtService', label: 'Total Global Debt Service', isTotal: true },
       { key: 'globalDebtCoverageRatio', label: 'Global Debt Coverage Ratio', type: 'ratio', isTotal: true },
     ],
   },
@@ -109,6 +104,53 @@ const FIELD_TYPE_BY_KEY: Record<string, SpreadFieldType> = (() => {
   }
   return out;
 })();
+
+/** A per-source debt-service row captured from the uploaded sheet. */
+export interface DebtServiceLine {
+  key: string;
+  label: string;
+}
+
+/**
+ * Legacy per-source debt-service field keys in the static Debt Coverage
+ * section. When a spread carries its own debtServiceLines, these placeholder
+ * "Proposed …" rows are swapped out for the sheet's verbatim labels.
+ */
+const LEGACY_DEBT_SERVICE_KEYS = new Set([
+  'proposed7aDebt',
+  'proposed504Debt',
+  'proposedCdcDebt',
+  'proposedSellerNote',
+  'proposed3rdPartyFinancing',
+]);
+
+/**
+ * Resolve the section schema for a given spread. When the upload captured the
+ * actual debt-service row labels (`debtServiceLines`), the Debt Coverage
+ * section shows those verbatim — e.g. "SBA 7(a) Debt Service" — in place of the
+ * fixed "Proposed …" placeholders. Spreads uploaded before this was captured
+ * fall back to the static SPREAD_SECTIONS schema.
+ */
+export function getSpreadSections(debtServiceLines?: DebtServiceLine[]): SpreadSection[] {
+  if (!debtServiceLines || debtServiceLines.length === 0) return SPREAD_SECTIONS;
+  return SPREAD_SECTIONS.map(section => {
+    if (section.title !== 'Debt Coverage') return section;
+    const fields: SpreadField[] = [];
+    for (const field of section.fields) {
+      if (!LEGACY_DEBT_SERVICE_KEYS.has(field.key)) {
+        fields.push(field);
+        continue;
+      }
+      // Replace the whole legacy block at the position of its first key.
+      if (field.key === 'proposed7aDebt') {
+        for (const line of debtServiceLines) {
+          fields.push({ key: line.key, label: line.label });
+        }
+      }
+    }
+    return { ...section, fields };
+  });
+}
 
 export function formatSpreadValue(key: string, value: any): string {
   if (value === undefined || value === null || value === '') return '—';
@@ -153,14 +195,22 @@ interface FinancialPeriod {
   [key: string]: any;
 }
 
-export default function SpreadComparisonTable({ periods }: { periods: FinancialPeriod[] }) {
+export default function SpreadComparisonTable({
+  periods,
+  debtServiceLines,
+}: {
+  periods: FinancialPeriod[];
+  debtServiceLines?: DebtServiceLine[];
+}) {
   if (!periods || periods.length === 0) {
     return <p className="text-[#7da1d4] text-center py-10 text-[13px]">No period data available for comparison.</p>;
   }
 
+  const sections = getSpreadSections(debtServiceLines);
+
   return (
     <div style={{ fontFamily: 'var(--t-font-family)' }}>
-      {SPREAD_SECTIONS.map(section => (
+      {sections.map(section => (
         <div key={section.title} className="mb-6">
           <h3 className="text-[13px] font-bold text-[#2563eb] mb-2 pb-1 border-b-2 border-[#2563eb]">
             {section.title}

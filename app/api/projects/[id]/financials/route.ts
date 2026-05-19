@@ -64,6 +64,7 @@ export async function POST(
       financingSources: parsed.financingSources,
       sourcesUses: parsed.sourcesUses,
       sourcesUsesHeaders: parsed.sourcesUsesHeaders,
+      debtServiceLines: parsed.debtServiceLines,
     };
 
     const col = await getCollection(COLLECTIONS.FINANCIAL_SPREADS);

@@ -118,12 +118,37 @@ export interface SourcesUsesRow {
   total: number | null;
 }
 
+/**
+ * One per-source debt-service row from the "Debt Coverage" block, in the order
+ * it appears on the sheet. `label` is the verbatim row label (e.g. "SBA 7(a)
+ * Debt Service"); `key` is a unique per-row key under which each period's value
+ * is stored, so two rows of the same loan type don't collide.
+ */
+export interface DebtServiceLine {
+  key: string;
+  label: string;
+}
+
 export interface ParsedSpreadsheet {
   periods: ParsedPeriod[];
   financingSources: FinancingSource[];
   sourcesUses: SourcesUsesRow[];
   sourcesUsesHeaders: string[]; // column headers for Sources & Uses (e.g. ["7a","504","Debenture",...])
+  debtServiceLines: DebtServiceLine[]; // per-source debt-service rows, in sheet order
 }
+
+/**
+ * Field keys that matchKey() produces for per-source debt-service rows. These
+ * rows are rendered as their own dynamic lines in the comparison view, keyed
+ * uniquely per row (the legacy fixed keys are still populated for the PQ memo).
+ */
+const DEBT_SERVICE_KEYS = new Set([
+  'proposed7aDebt',
+  'proposed504Debt',
+  'proposedCdcDebt',
+  'proposedSellerNote',
+  'proposed3rdPartyFinancing',
+]);
 
 /** Helper to read a cell value, returning undefined if empty. */
 function cellVal(ws: XLSX.WorkSheet, r: number, c: number): any {
@@ -334,6 +359,7 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
   }
 
   const periods: ParsedPeriod[] = periodLabels.map(label => ({ periodLabel: label }));
+  const debtServiceLines: DebtServiceLine[] = [];
 
   if (periodCols.length > 0) {
     const dataStartRow = periodLabelRow + 1;
@@ -358,6 +384,24 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
       const key = matchKey(rawLabel);
       if (!key) continue;
 
+      // Per-source debt-service rows become their own dynamic lines so the
+      // comparison view can show the sheet's verbatim labels — and so two rows
+      // of the same loan type (e.g. two "SBA 7(a) Debt Service" rows) don't
+      // overwrite each other. Each gets a unique key; the legacy fixed key is
+      // still populated alongside it because the PQ memo keys off those.
+      if (DEBT_SERVICE_KEYS.has(key)) {
+        const lineKey = `debtServiceLine${debtServiceLines.length}`;
+        debtServiceLines.push({ key: lineKey, label: rawLabel });
+        for (let pi = 0; pi < periodCols.length; pi++) {
+          const valCell = ws[XLSX.utils.encode_cell({ r, c: periodCols[pi] })];
+          if (valCell && valCell.v !== undefined && valCell.v !== null) {
+            periods[pi][lineKey] = valCell.v;
+            periods[pi][key] = valCell.v;
+          }
+        }
+        continue;
+      }
+
       for (let pi = 0; pi < periodCols.length; pi++) {
         const valCell = ws[XLSX.utils.encode_cell({ r, c: periodCols[pi] })];
         if (valCell && valCell.v !== undefined && valCell.v !== null) {
@@ -367,5 +411,5 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
     }
   }
 
-  return { periods, financingSources, sourcesUses, sourcesUsesHeaders };
+  return { periods, financingSources, sourcesUses, sourcesUsesHeaders, debtServiceLines };
 }

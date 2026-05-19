@@ -5,10 +5,9 @@ import { Upload, ArrowLeft, Trash2, FileSpreadsheet, Calendar, Layers, X, Loader
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import FinancialAnalysisPanel from '@/components/FinancialAnalysisPanel';
-import SpreadComparisonTable, { SPREAD_SECTIONS, formatSpreadValue, isSpreadNegative } from '@/components/SpreadComparisonTable';
+import SpreadComparisonTable, { getSpreadSections, formatSpreadValue, isSpreadNegative, type DebtServiceLine } from '@/components/SpreadComparisonTable';
 import { useApplication, type FinancingSource as StoreFinancingSource } from '@/lib/applicationStore';
 
-const SECTIONS = SPREAD_SECTIONS;
 const formatValue = formatSpreadValue;
 const isNegative = isSpreadNegative;
 
@@ -178,6 +177,7 @@ interface FinancialSpread {
   isActive: boolean;
   uploadedAt?: string;
   periodData?: FinancialPeriod[];
+  debtServiceLines?: DebtServiceLine[];
 }
 
 interface FinancialsSectionProps {
@@ -675,6 +675,7 @@ function SpreadDetailView({
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const periods = spread.periodData || [];
+  const debtServiceLines = spread.debtServiceLines;
 
   // Build fixed period tabs — always show Period 1-4
   const periodTabs = Array.from({ length: FIXED_PERIOD_COUNT }, (_, idx) => {
@@ -767,12 +768,12 @@ function SpreadDetailView({
             spreadId={spread.id}
           />
         ) : activeTab === 'comparison' ? (
-          <SpreadComparisonTable periods={periods} />
+          <SpreadComparisonTable periods={periods} debtServiceLines={debtServiceLines} />
         ) : (() => {
           const periodIdx = parseInt(activeTab.split('-')[1]);
           const period = periods[periodIdx];
           return period
-            ? <PeriodDetail period={period} index={periodIdx} />
+            ? <PeriodDetail period={period} index={periodIdx} debtServiceLines={debtServiceLines} />
             : <p className="text-[#7da1d4] text-center py-10 text-[13px]">No data available for this period.</p>;
         })()}
       </div>
@@ -780,14 +781,22 @@ function SpreadDetailView({
   );
 }
 
-function PeriodDetail({ period, index }: { period: FinancialPeriod; index: number }) {
+function PeriodDetail({
+  period,
+  index,
+  debtServiceLines,
+}: {
+  period: FinancialPeriod;
+  index: number;
+  debtServiceLines?: DebtServiceLine[];
+}) {
   if (!period) {
     return <p className="text-[#7da1d4] text-center py-10">Period data not available.</p>;
   }
 
   return (
     <div className="max-w-2xl" data-testid={`detail-period-${index}`}>
-      {SECTIONS.map(section => (
+      {getSpreadSections(debtServiceLines).map(section => (
         <div key={section.title} className="mb-6">
           <h3 className="text-[13px] font-semibold text-[#2563eb] mb-2 pb-1 border-b-2 border-[#2563eb]">
             {section.title}
