@@ -70,31 +70,58 @@ function toRate(v: any): number {
 }
 
 /**
- * Extract a 4-digit year from a Statement Date cell. The cell may arrive as an
- * Excel date serial number (e.g. 45291 → 2023), a JS Date, a plain year, or a
- * formatted date string like "01/02/2025" — in every case only the year is
- * kept. Returns '' when no year can be determined.
+ * Derive a period label from a Statement Date cell (sheet row 38 — C38, D38, …).
+ * The cell may arrive as an Excel date serial number (e.g. 45291 → 12/31/2023),
+ * a JS Date, a bare year, or a formatted date string like "01/02/2025".
+ *
+ * Convention: a Statement Date that lands on December anchors a fiscal year
+ * (return the 4-digit year). Any other month is treated as a mid-year stub and
+ * labelled "Interim". A bare year value carries no month info, so it falls
+ * through as the year. Returns '' when no year can be determined.
  */
 function extractYear(value: any): string {
   if (value === null || value === undefined || value === '') return '';
+
+  let year = 0;
+  let month = 0; // 1–12, or 0 when unknown
+
   if (value instanceof Date && !isNaN(value.getTime())) {
-    return String(value.getUTCFullYear());
-  }
-  if (typeof value === 'number' && isFinite(value)) {
-    // Already a bare year.
-    if (value >= 1900 && value <= 2100) return String(Math.trunc(value));
-    // Excel date serial (1900 date system; epoch 1899-12-30).
-    if (value > 20000 && value < 80000) {
+    year = value.getUTCFullYear();
+    month = value.getUTCMonth() + 1;
+  } else if (typeof value === 'number' && isFinite(value)) {
+    // Already a bare year — no month info.
+    if (value >= 1900 && value <= 2100) {
+      year = Math.trunc(value);
+    } else if (value > 20000 && value < 80000) {
+      // Excel date serial (1900 date system; epoch 1899-12-30).
       const d = new Date(Date.UTC(1899, 11, 30) + Math.round(value) * 86400000);
-      if (!isNaN(d.getTime())) return String(d.getUTCFullYear());
+      if (!isNaN(d.getTime())) {
+        year = d.getUTCFullYear();
+        month = d.getUTCMonth() + 1;
+      }
     }
-    return '';
+  } else {
+    const s = String(value).trim();
+    // A pure 4-digit year string carries no month info — treat as bare year so
+    // we don't misread "2023" as January 2023 via new Date().
+    const bareYear = s.match(/^(19|20)\d{2}$/);
+    if (bareYear) {
+      year = parseInt(s, 10);
+    } else {
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        year = parsed.getFullYear();
+        month = parsed.getMonth() + 1;
+      } else {
+        const m = s.match(/\b(19|20)\d{2}\b/);
+        if (m) year = parseInt(m[0], 10);
+      }
+    }
   }
-  const s = String(value).trim();
-  const yearMatch = s.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) return yearMatch[0];
-  const parsed = new Date(s);
-  return isNaN(parsed.getTime()) ? '' : String(parsed.getFullYear());
+
+  if (!year) return '';
+  if (month && month !== 12) return 'Interim';
+  return String(year);
 }
 
 /**
@@ -286,19 +313,20 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     }
 
     // ── DSCR from period data ──
-    // Each period column maps to one DSCR slot. The period label is the YEAR of
-    // that period's Statement Date (sheet row 38 / C38, D38, …) — a cell that
-    // may show a full date like "12/31/2023" but should reduce to "2023". The
-    // DSCR value is the Debt Coverage Ratio (sheet row 68 / C68, D68, …).
+    // Each period column maps to one DSCR slot. The period label comes from
+    // that period's Statement Date (sheet row 38 / C38, D38, …): if it lands
+    // on December, use the 4-digit year (e.g. 12/31/2023 → "2023"); any other
+    // month is a mid-year stub and shows as "Interim". The DSCR value is the
+    // Debt Coverage Ratio (sheet row 68 / C68, D68, …).
     const periods = spreadData.periodData;
     if (Array.isArray(periods) && periods.length > 0) {
       const dscrUpdate: Record<string, any> = {};
       periods.slice(0, 4).forEach((period: any, i: number) => {
         const idx = i + 1;
 
-        const year = extractYear(period.statementDate);
-        if (year) {
-          dscrUpdate[`period${idx}`] = year;
+        const label = extractYear(period.statementDate);
+        if (label) {
+          dscrUpdate[`period${idx}`] = label;
         } else if (period.periodLabel) {
           dscrUpdate[`period${idx}`] = period.periodLabel;
         }
