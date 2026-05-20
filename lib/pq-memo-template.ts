@@ -59,6 +59,104 @@ const esc = (s: unknown): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+/**
+ * Currency formatter for the Loan Structure block — matches the in-app PQ Memo
+ * Overview (`components/PQMemoForm.tsx`): no fractional cents, and an empty
+ * zero is rendered as "-" rather than "$0".
+ */
+const formatLoanCurrency = (value: number | string | undefined | null): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
+  if (!Number.isFinite(num) || num === 0) return '-';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+// ─── Loan Structure grouping ─────────────────────────────────────────────────
+// Kept in sync with `components/PQMemoForm.tsx` so the PDF Overview matches the
+// in-app Overview pixel-for-pixel: financing sources become columns under a
+// "T Bank" / "Other" group banner; Amount / Rate / Term / Guarantee are rows.
+
+type LoanGroupColumn = { key: string; label: string; source: any };
+type LoanGroup = { key: 'tBank' | 'other'; label: string; columns: LoanGroupColumn[] };
+
+function isTBankSource(source: any): boolean {
+  const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
+  if (!ft) return false;
+  if (ft.includes('equity') || ft.includes('seller') || ft.includes('3rd') || ft.includes('third') || ft.includes('borrower')) {
+    return false;
+  }
+  return true;
+}
+
+function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
+  const valid = (sources || []).filter((s) => s && (Number(s.amount) > 0 || s.financingType || s.financingSource));
+  const tBank = valid.filter(isTBankSource);
+  const other = valid.filter((s) => !isTBankSource(s));
+  const groups: LoanGroup[] = [];
+  if (tBank.length > 0) {
+    groups.push({
+      key: 'tBank',
+      label: 'T Bank',
+      columns: tBank.map((s, i) => ({
+        key: `tbank-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  if (other.length > 0) {
+    groups.push({
+      key: 'other',
+      label: 'Other',
+      columns: other.map((s, i) => ({
+        key: `other-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  return groups;
+}
+
+function sumGroupAmount(group: LoanGroup): number {
+  return group.columns.reduce((s, c) => s + (Number(c.source?.amount) || 0), 0);
+}
+
+function sumGroupNetExposure(group: LoanGroup): number {
+  return group.columns.reduce((s, c) => {
+    const amt = Number(c.source?.amount) || 0;
+    const guaranteeRaw = c.source?.guaranteePercent;
+    const guaranteeNum = typeof guaranteeRaw === 'string' ? parseFloat(guaranteeRaw) : Number(guaranteeRaw) || 0;
+    const guaranteePct = guaranteeNum > 1 ? guaranteeNum / 100 : guaranteeNum;
+    return s + amt * (1 - guaranteePct);
+  }, 0);
+}
+
+function sumAllAmounts(groups: LoanGroup[]): number {
+  return groups.reduce((sum, g) => sum + sumGroupAmount(g), 0);
+}
+
+function formatLoanRate(source: any): string {
+  const raw = source?.totalRate;
+  if (raw == null || raw === '' || (typeof raw === 'number' && raw === 0)) return '-';
+  const n = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+  if (isNaN(n)) return '-';
+  const pct = n < 1 ? n * 100 : n;
+  return `${pct.toFixed(2)}%`;
+}
+
+function formatGuaranteePct(source: any): string {
+  const raw = source?.guaranteePercent;
+  const n = typeof raw === 'string' ? parseFloat(raw) : Number(raw) || 0;
+  if (!Number.isFinite(n) || n <= 0) return '-';
+  const pct = n > 1 ? n : n * 100;
+  return `${pct.toFixed(0)}%`;
+}
+
 export function generatePQMemoHTML(input: PQMemoInput): string {
   const loanApp = input.loanApplication || {};
   const projectOverview = loanApp.projectOverview || {};
@@ -249,6 +347,19 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .scores-table thead th { padding: 9px 14px; text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; }
         .scores-table tbody tr { background: #ffffff; }
         .scores-table tbody td { padding: 9px 14px; border-bottom: 1px solid #e1e8ed; vertical-align: middle; }
+        /* Loan Structure matrix — mirrors the in-app Overview tab. */
+        .loan-structure-table { width: 100%; border-collapse: collapse; font-size: 12.5px; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .loan-structure-table thead th { color: #ffffff; font-weight: 600; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; padding: 8px 10px; border-right: 1px solid #4b5563; }
+        .loan-structure-table thead th:last-child { border-right: 0; }
+        .loan-structure-table thead tr.group-row th { background: #374151; text-align: center; }
+        .loan-structure-table thead tr.col-row th { background: #4b5563; text-align: right; padding: 7px 10px; }
+        .loan-structure-table thead tr.col-row th:first-child { text-align: left; }
+        .loan-structure-table tbody td { padding: 8px 10px; font-size: 12.5px; color: #374151; border-bottom: 1px solid #e5e7eb; text-align: right; font-variant-numeric: tabular-nums; }
+        .loan-structure-table tbody td.row-label { background: #f9fafb; color: #374151; font-weight: 500; text-align: left; }
+        .loan-structure-table tr.group-total-row td { background: #f3f4f6; border-top: 2px solid #9ca3af; font-weight: 600; color: #1f2937; }
+        .loan-structure-table tr.net-exposure-row td { background: #f3f4f6; border-top: 1px solid #d1d5db; font-weight: 600; color: #1f2937; }
+        .loan-structure-table tr.total-project-row td { background: #e5e7eb; border-top: 1px solid #9ca3af; font-weight: 700; color: #111827; }
+        .loan-structure-empty { padding: 14px; text-align: center; color: #6b7280; font-style: italic; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 12.5px; }
         .score-cell { text-align: center; }
         .badge { display: inline-block; min-width: 34px; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px; text-align: center; }
         .badge-score { background: #e8f2fb; color: #2563a8; border: 1px solid #b8d4ef; }
@@ -303,26 +414,81 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const financialPeriods = input.financialPeriods || [];
   const spreadFileName = input.spreadFileName;
 
-  const loanStructureRows = financingSources.length > 0
-    ? financingSources
-        .map((source: any) => {
-          const label = esc(source.financingType || 'Unnamed Source');
-          const amount = formatCurrency(Number(source.amount));
-          const guarantee = Number(source.guaranteePercent) > 0 ? `${esc(source.guaranteePercent)}%` : '-';
-          const rateType = source.rateType ? esc(source.rateType) : '-';
-          const rate = source.totalRate ? `${Number(source.totalRate).toFixed(2)}%` : '-';
-          const term = source.termYears ? `${esc(source.termYears)} years` : '-';
-          return `<tr>
-            <td style="text-align:left; font-weight:600;">${label}</td>
-            <td style="text-align:right;">${amount}</td>
-            <td>${guarantee}</td>
-            <td>${rateType}</td>
-            <td>${rate}</td>
-            <td>${term}</td>
-          </tr>`;
-        })
-        .join('')
-    : `<tr><td colspan="6" style="text-align:center; color:#9ca3af; font-style:italic; padding:14px;">No financing sources added yet</td></tr>`;
+  const loanStructureTable = (() => {
+    const groups = buildLoanStructureGroups(financingSources);
+    const totalColCount = groups.reduce((sum, g) => sum + g.columns.length, 0);
+    if (totalColCount === 0) {
+      return `<div class="loan-structure-empty">No financing sources have been added yet.</div>`;
+    }
+    const grandTotal = sumAllAmounts(groups);
+    const hasTBank = groups.some((g) => g.key === 'tBank');
+
+    const groupHeaders = groups
+      .map((g) => `<th colspan="${g.columns.length}">${esc(g.label)}</th>`)
+      .join('');
+    const colHeaders = groups
+      .flatMap((g) => g.columns.map((col) => `<th>${esc(col.label)}</th>`))
+      .join('');
+
+    const rowCells = (rowLabel: 'Amount' | 'Rate' | 'Term' | 'Guarantee') =>
+      groups
+        .flatMap((g) =>
+          g.columns.map((col) => {
+            const source = col.source;
+            if (rowLabel === 'Amount') return `<td>${formatLoanCurrency(source.amount)}</td>`;
+            if (rowLabel === 'Rate') return `<td>${formatLoanRate(source)}</td>`;
+            if (rowLabel === 'Term') return `<td>${source.termYears ? `${esc(source.termYears)} years` : '-'}</td>`;
+            return `<td>${formatGuaranteePct(source)}</td>`;
+          })
+        )
+        .join('');
+
+    const dataRows = (['Amount', 'Rate', 'Term', 'Guarantee'] as const)
+      .map((label) => `<tr><td class="row-label">${label}</td>${rowCells(label)}</tr>`)
+      .join('');
+
+    const groupTotalsRow = `<tr class="group-total-row">
+      <td class="row-label">${groups[0]?.key === 'tBank' ? 'T Bank Total' : 'Group Total'}</td>
+      ${groups
+        .map(
+          (g) =>
+            `<td colspan="${g.columns.length}">${formatLoanCurrency(sumGroupAmount(g))}</td>`
+        )
+        .join('')}
+    </tr>`;
+
+    const netExposureRow = hasTBank
+      ? `<tr class="net-exposure-row">
+          <td class="row-label">T Bank Net Exposure</td>
+          ${groups
+            .map(
+              (g) =>
+                `<td colspan="${g.columns.length}">${
+                  g.key === 'tBank' ? formatLoanCurrency(sumGroupNetExposure(g)) : ''
+                }</td>`
+            )
+            .join('')}
+        </tr>`
+      : '';
+
+    const totalProjectRow = `<tr class="total-project-row">
+      <td class="row-label">Total Project</td>
+      <td colspan="${totalColCount}">${formatLoanCurrency(grandTotal)}</td>
+    </tr>`;
+
+    return `<table class="loan-structure-table">
+      <thead>
+        <tr class="group-row"><th></th>${groupHeaders}</tr>
+        <tr class="col-row"><th></th>${colHeaders}</tr>
+      </thead>
+      <tbody>
+        ${dataRows}
+        ${groupTotalsRow}
+        ${netExposureRow}
+        ${totalProjectRow}
+      </tbody>
+    </table>`;
+  })();
 
   const sourcesUsesBlock =
     grandTotal > 0
@@ -539,21 +705,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   <div class="content">
     <div class="section">
       <h2 class="section-title">Loan Structure</h2>
-      <table class="scores-table">
-        <thead>
-          <tr>
-            <th style="text-align:left">Source</th>
-            <th style="text-align:right">Amount</th>
-            <th>Guarantee</th>
-            <th>Rate Type</th>
-            <th>Rate</th>
-            <th>Term</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${loanStructureRows}
-        </tbody>
-      </table>
+      ${loanStructureTable}
     </div>
 
     <div class="section">
