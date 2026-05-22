@@ -155,6 +155,11 @@ export async function pullCreditReport(
   if (response.status === 401 || response.status === 403) {
     throw new CreditPullAuthError();
   }
+  if (response.status === 404) {
+    throw new CreditPullServiceError(
+      'SPS endpoint returned 404 Not Found. The configured SPS_BASE_URL is wrong — it must be the full POST endpoint URL (e.g. https://host/path), not just a host root. Contact SPS support to confirm the exact URL for this account.',
+    );
+  }
   if (response.status === 405) {
     throw new CreditPullServiceError(
       'SPS endpoint returned 405 Method Not Allowed. The configured hostname is not accepting POST. Contact SPS support to confirm the correct API URL for this account.',
