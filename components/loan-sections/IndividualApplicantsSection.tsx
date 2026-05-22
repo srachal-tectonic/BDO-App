@@ -8,6 +8,7 @@ import AddressInput from '@/components/loan-sections/AddressInput';
 import PasswordToggle from '@/components/loan-sections/PasswordToggle';
 import CollapsibleSection from '@/components/loan-sections/CollapsibleSection';
 import LearnMorePanel from '@/components/LearnMorePanel';
+import CreditPullButton from '@/components/loan-sections/CreditPullButton';
 import type { IndividualApplicant } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 
@@ -1089,6 +1090,43 @@ export default function IndividualApplicantsSection() {
                     {isImportingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     {isImportingThis ? 'Importing...' : 'Import Excel'}
                   </button>
+                  {/* Soft Credit Pull (SoftPullSolutions) — opens a confirm-and-pull dialog
+                      keyed to this applicant. Clicks here must not toggle the accordion. */}
+                  <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2">
+                    <CreditPullButton
+                      applicantId={applicant.id}
+                      projectId={projectId}
+                      applicantName={displayName}
+                      index={index}
+                      prefill={{
+                        firstName: applicant.firstName || '',
+                        middleName: applicant.middleName || undefined,
+                        lastName: applicant.lastName || '',
+                        ssn: applicant.ssn || '',
+                        dateOfBirth: applicant.dateOfBirth,
+                        // homeAddress in this codebase uses `street1` / `zipCode`;
+                        // bridge to the API's `address` / `zip` fields here.
+                        address:
+                          (applicant.homeAddress as any)?.street1 ||
+                          (applicant.homeAddress as any)?.street ||
+                          (applicant.address as any)?.street1 ||
+                          '',
+                        city:
+                          (applicant.homeAddress as any)?.city ||
+                          (applicant.address as any)?.city ||
+                          '',
+                        state:
+                          (applicant.homeAddress as any)?.state ||
+                          (applicant.address as any)?.state ||
+                          '',
+                        zip:
+                          (applicant.homeAddress as any)?.zipCode ||
+                          (applicant.homeAddress as any)?.zip ||
+                          (applicant.address as any)?.zipCode ||
+                          '',
+                      }}
+                    />
+                  </div>
                   <ChevronDown className={`w-5 h-5 text-[#7da1d4] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
               </div>

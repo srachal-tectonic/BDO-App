@@ -80,6 +80,12 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       await col.createIndex({ action: 1, timestamp: -1 }).catch(() => {});
       await col.createIndex({ category: 1, timestamp: -1 }).catch(() => {});
       await col.createIndex({ timestamp: -1 }).catch(() => {});
+    } else if (collectionName === 'creditPulls') {
+      // History list keyed by project (+ optional applicant), newest first.
+      await col.createIndex({ projectId: 1, applicantId: 1, pulledAt: -1 }).catch(() => {});
+      await col.createIndex({ projectId: 1, pulledAt: -1 }).catch(() => {});
+      // Single-pull lookup by uuid.
+      await col.createIndex({ id: 1 }, { unique: true }).catch(() => {});
     }
   } catch (e) {
     // Index creation may fail if it already exists — that's fine
@@ -104,4 +110,5 @@ export const COLLECTIONS = {
   AUDIT_LOGS: 'auditLogs',
   DUE_DILIGENCE_REPORTS: 'dueDiligenceReports',
   QUESTIONNAIRE_RESPONSES: 'questionnaireResponses',
+  CREDIT_PULLS: 'creditPulls',
 } as const;
