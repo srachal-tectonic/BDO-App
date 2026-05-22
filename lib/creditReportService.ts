@@ -85,9 +85,12 @@ interface SpsEnv {
 }
 
 function readEnv(): SpsEnv {
-  const baseUrl = process.env.SPS_BASE_URL;
-  const account = process.env.SPS_ACCOUNT;
-  const password = process.env.SPS_PASSWORD;
+  // .trim() defends against trailing whitespace/newlines accidentally copied
+  // into Azure App Service Configuration values — those would change the URL
+  // host and silently cause connection failures or 404s.
+  const baseUrl = process.env.SPS_BASE_URL?.trim();
+  const account = process.env.SPS_ACCOUNT?.trim();
+  const password = process.env.SPS_PASSWORD?.trim();
   if (!baseUrl || !account || !password) {
     throw new CreditPullServiceError(
       'SPS environment is not configured (SPS_BASE_URL, SPS_ACCOUNT, SPS_PASSWORD).',
@@ -142,6 +145,10 @@ export async function pullCreditReport(
         Accept: 'application/json, text/xml, text/html',
       },
       body: body.toString(),
+      // `manual` so we can SEE redirects rather than silently following them
+      // and downgrading POST→GET (Node's default `follow` does that per the
+      // HTTP spec) — a classic cause of "works in Replit, 404s in Azure".
+      redirect: 'manual',
     });
   } catch (e) {
     throw new CreditPullNetworkError(e);
@@ -149,15 +156,61 @@ export async function pullCreditReport(
 
   const rawResponse = await response.text();
 
+  // ── Diagnostic logging on non-2xx (and 3xx redirects) ───────────────────
+  // Logs just enough to debug environment-specific failures: the URL we
+  // actually hit, the status, a few diagnostic headers, and a clipped body
+  // preview. The request body is never logged (FCRA / PII). On a 4xx the
+  // response body is typically an HTML error page from SPS or an upstream
+  // WAF, not credit data.
+  if (response.status < 200 || response.status >= 300) {
+    const diagHeaders: Record<string, string> = {};
+    for (const name of [
+      'content-type',
+      'content-length',
+      'server',
+      'location',
+      'x-cache',
+      'cf-ray',
+      'via',
+    ]) {
+      const v = response.headers.get(name);
+      if (v) diagHeaders[name] = v;
+    }
+    console.warn('[CreditPull] non-2xx SPS response', {
+      requestedUrl: env.baseUrl,
+      finalUrl: response.url,
+      status: response.status,
+      statusText: response.statusText,
+      type: response.type,
+      headers: diagHeaders,
+      bodyPreview: rawResponse.slice(0, 800),
+    });
+  }
+
   if (response.status === 400) {
     throw new CreditPullValidationError('SPS rejected the request as malformed');
   }
   if (response.status === 401 || response.status === 403) {
     throw new CreditPullAuthError();
   }
+  // 3xx — surface redirects rather than following silently, because a
+  // POST→302→GET downgrade typically lands on a 404 at the new path.
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('location') || '(no Location header)';
+    throw new CreditPullServiceError(
+      `SPS returned HTTP ${response.status} redirect to ${location}. ` +
+        'Set SPS_BASE_URL to the redirect target (the full POST endpoint URL) and retry.',
+    );
+  }
   if (response.status === 404) {
     throw new CreditPullServiceError(
-      'SPS endpoint returned 404 Not Found. The configured SPS_BASE_URL is wrong — it must be the full POST endpoint URL (e.g. https://host/path), not just a host root. Contact SPS support to confirm the exact URL for this account.',
+      `SPS endpoint returned 404 Not Found at ${response.url || env.baseUrl}. ` +
+        'Same URL + creds working in another environment usually means the App ' +
+        'Service outbound IPs are not on the SPS allow-list (many bureaus return ' +
+        '404 for non-whitelisted callers rather than 403). Send Azure App Service ' +
+        '→ Properties → Outbound IP addresses to SPS support for whitelisting, ' +
+        'then retry. Server log line `[CreditPull] non-2xx SPS response` has the ' +
+        'final URL and response body preview.',
     );
   }
   if (response.status === 405) {
