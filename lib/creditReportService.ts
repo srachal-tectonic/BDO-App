@@ -1,30 +1,27 @@
 /**
- * Credit pull service for Soft Pull Solutions (SPS) — ported from the
- * Replit `server/lib/creditReportService.ts`.
+ * Credit pull service for Soft Pull Solutions (SPS).
  *
- * Legacy URL-encoded API: a single POST to `SPS_BASE_URL` with credentials
- * (ACCOUNT, PASSWD) in the body. No bearer token, no path. Response is XML
- * (per SPS confirmation); a JSON parser is kept as defensive fallback in
- * case the account is later switched to JSON output.
+ * Bearer-token REST API. Two endpoints, both on the same host:
  *
- * Codebase deltas vs. the Replit source:
- *   - No Zod here. Env vars are checked at call time with an inline assert;
- *     request re-validation is skipped because `app/api/credit-pull/route.ts`
- *     already runs `validateCreditPullRequest()` before calling in.
- *   - Identity hash recipe matches Replit exactly (`firstName|lastName|ssn`).
+ *   POST {SPS_BASE_URL}/api/Authentication/AuthenticationToken
+ *     - Headers: Content-Type: application/json
+ *     - Body:    {"userName": "...", "password": "..."}
+ *     - Returns: bearer token (defensively parsed — see `parseAuthResponse`)
+ *
+ *   POST {SPS_BASE_URL}/api/CreditReport/standardInquiry
+ *     - Headers: Authorization: Bearer <token>,
+ *                Content-Type: application/x-www-form-urlencoded
+ *     - Body:    Pass=2&Product=CREDIT&Bureau=...&NameFirst=...&... (PascalCase)
+ *     - Returns: XML (we request `Rbp_Output=XML` explicitly)
+ *
+ * `SPS_BASE_URL` is the host root (e.g. https://reports.softpullsolutions.com).
+ * Path segments are appended here, not in env.
  *
  * Compliance reminders:
  *   - Caller MUST have collected consumer authorization before calling.
  *   - `permissiblePurpose` must be valid under FCRA section 604.
  *   - Never log the request body or the raw response (contains SSN, PII,
- *     financial data). Only the size in bytes is persisted.
- *
- * Required env vars (already set in Azure App Service per slot; see
- * `.env.local.example` for local-dev placeholders):
- *   SPS_BASE_URL    SoftPullSolutions endpoint URL (the legacy API POSTs
- *                   straight to the base URL — no resource path appended)
- *   SPS_ACCOUNT     account credential (sent as `ACCOUNT` form field)
- *   SPS_PASSWORD    paired secret (sent as `PASSWD` form field)
+ *     financial data). Only response size in bytes is persisted.
  */
 
 import { createHash } from 'crypto';
@@ -36,8 +33,6 @@ import type {
 } from '@/lib/creditPullTypes';
 
 // ─── Exception classes ─────────────────────────────────────────────────────
-// Shared base so callers can `instanceof CreditPullError` for a catch-all,
-// then narrow to the specific subclass for HTTP-code mapping.
 
 export class CreditPullError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -75,8 +70,6 @@ export class CreditPullServiceError extends CreditPullError {
 }
 
 // ─── Env resolution ────────────────────────────────────────────────────────
-// Resolved lazily so a misconfigured slot surfaces as a clear service error
-// at call time, not at module-import time (which would crash the route).
 
 interface SpsEnv {
   baseUrl: string;
@@ -85,10 +78,10 @@ interface SpsEnv {
 }
 
 function readEnv(): SpsEnv {
-  // .trim() defends against trailing whitespace/newlines accidentally copied
-  // into Azure App Service Configuration values — those would change the URL
-  // host and silently cause connection failures or 404s.
-  const baseUrl = process.env.SPS_BASE_URL?.trim();
+  // .trim() defends against trailing whitespace/newlines accidentally pasted
+  // into Azure App Service Configuration values. Trailing slashes are stripped
+  // so callers can safely concat `${baseUrl}/api/...`.
+  const baseUrl = process.env.SPS_BASE_URL?.trim().replace(/\/+$/, '');
   const account = process.env.SPS_ACCOUNT?.trim();
   const password = process.env.SPS_PASSWORD?.trim();
   if (!baseUrl || !account || !password) {
@@ -97,6 +90,122 @@ function readEnv(): SpsEnv {
     );
   }
   return { baseUrl, account, password };
+}
+
+// ─── Token cache ───────────────────────────────────────────────────────────
+// Module-scoped, per-process. Concurrent first-callers may each fetch a token;
+// the last write wins. That's wasteful but not incorrect — coalescing is a
+// future optimization, not a correctness fix.
+
+const REFRESH_SAFETY_MS = 60_000;
+const DEFAULT_TOKEN_LIFETIME_MS = 50 * 60_000;
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getToken(env: SpsEnv, force = false): Promise<string> {
+  const now = Date.now();
+  if (!force && cachedToken && cachedToken.expiresAt - REFRESH_SAFETY_MS > now) {
+    return cachedToken.token;
+  }
+
+  const url = `${env.baseUrl}/api/Authentication/AuthenticationToken`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+      },
+      body: JSON.stringify({ userName: env.account, password: env.password }),
+      redirect: 'manual',
+    });
+  } catch (e) {
+    throw new CreditPullNetworkError(e);
+  }
+
+  const rawAuth = await response.text();
+
+  if (response.status < 200 || response.status >= 300) {
+    logNon2xx(url, response, rawAuth);
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    throw new CreditPullAuthError();
+  }
+  if (response.status === 404) {
+    throw new CreditPullServiceError(
+      `SPS auth endpoint not found at ${response.url || url}. ` +
+        'Confirm SPS_BASE_URL is the host root (e.g. https://reports.softpullsolutions.com).',
+    );
+  }
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('location') || '(no Location header)';
+    throw new CreditPullServiceError(
+      `SPS auth returned HTTP ${response.status} redirect to ${location}.`,
+    );
+  }
+  if (response.status >= 500) {
+    throw new CreditPullServiceError(`SPS auth server error: ${response.status}`);
+  }
+  if (response.status !== 200) {
+    throw new CreditPullServiceError(`SPS auth unexpected HTTP status: ${response.status}`);
+  }
+
+  const { token, expiresInSec } = parseAuthResponse(rawAuth);
+  const lifetimeMs = expiresInSec != null ? expiresInSec * 1000 : DEFAULT_TOKEN_LIFETIME_MS;
+  cachedToken = { token, expiresAt: now + lifetimeMs };
+  return token;
+}
+
+/**
+ * Tolerant of three response shapes since the Postman collection didn't
+ * pin the response down:
+ *   1. JSON object — read `token | accessToken | access_token | Token`,
+ *      optionally nested under `data`. Expiry: `expiresIn | expires_in`.
+ *   2. JSON-string-quoted token: `"eyJ..."`.
+ *   3. Plain string token: `eyJ...`.
+ * Throws CreditPullServiceError if none of those yields a non-empty token.
+ */
+function parseAuthResponse(raw: string): { token: string; expiresInSec: number | null } {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      throw new CreditPullServiceError('SPS auth response was malformed JSON');
+    }
+    const token =
+      parsed?.token ??
+      parsed?.accessToken ??
+      parsed?.access_token ??
+      parsed?.Token ??
+      parsed?.data?.token ??
+      parsed?.data?.accessToken;
+    if (typeof token !== 'string' || token.length === 0) {
+      throw new CreditPullServiceError(
+        'SPS auth response did not include a recognisable token field',
+      );
+    }
+    const expiry =
+      parsed?.expiresIn ??
+      parsed?.expires_in ??
+      parsed?.data?.expiresIn ??
+      parsed?.data?.expires_in;
+    let expiresInSec: number | null = null;
+    if (typeof expiry === 'number' && Number.isFinite(expiry)) {
+      expiresInSec = expiry;
+    } else if (typeof expiry === 'string' && Number.isFinite(Number(expiry))) {
+      expiresInSec = Number(expiry);
+    }
+    return { token, expiresInSec };
+  }
+  const unquoted = trimmed.replace(/^"|"$/g, '');
+  if (unquoted.length === 0) {
+    throw new CreditPullServiceError('SPS auth response was empty');
+  }
+  return { token: unquoted, expiresInSec: null };
 }
 
 // ─── Identity hash ─────────────────────────────────────────────────────────
@@ -134,57 +243,21 @@ export async function pullCreditReport(
 ): Promise<PullCreditReportOutput> {
   const env = readEnv();
   const consumerIdentityHash = computeConsumerIdentityHash(input);
-  const body = buildLegacyInquiryBody(input, env);
 
-  let response: Response;
-  try {
-    response = await fetch(env.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json, text/xml, text/html',
-      },
-      body: body.toString(),
-      // `manual` so we can SEE redirects rather than silently following them
-      // and downgrading POST→GET (Node's default `follow` does that per the
-      // HTTP spec) — a classic cause of "works in Replit, 404s in Azure".
-      redirect: 'manual',
-    });
-  } catch (e) {
-    throw new CreditPullNetworkError(e);
+  // First attempt with cached/fresh token. On 401, invalidate and retry once
+  // with a freshly minted token — covers the case where SPS rotated keys or
+  // our cached token expired earlier than DEFAULT_TOKEN_LIFETIME_MS estimated.
+  let attempt = await postInquiry(env, input, await getToken(env));
+  if (attempt.response.status === 401) {
+    cachedToken = null;
+    attempt = await postInquiry(env, input, await getToken(env, true));
   }
 
-  const rawResponse = await response.text();
+  const { response, rawResponse } = attempt;
+  const inquiryUrl = `${env.baseUrl}/api/CreditReport/standardInquiry`;
 
-  // ── Diagnostic logging on non-2xx (and 3xx redirects) ───────────────────
-  // Logs just enough to debug environment-specific failures: the URL we
-  // actually hit, the status, a few diagnostic headers, and a clipped body
-  // preview. The request body is never logged (FCRA / PII). On a 4xx the
-  // response body is typically an HTML error page from SPS or an upstream
-  // WAF, not credit data.
   if (response.status < 200 || response.status >= 300) {
-    const diagHeaders: Record<string, string> = {};
-    for (const name of [
-      'content-type',
-      'content-length',
-      'server',
-      'location',
-      'x-cache',
-      'cf-ray',
-      'via',
-    ]) {
-      const v = response.headers.get(name);
-      if (v) diagHeaders[name] = v;
-    }
-    console.warn('[CreditPull] non-2xx SPS response', {
-      requestedUrl: env.baseUrl,
-      finalUrl: response.url,
-      status: response.status,
-      statusText: response.statusText,
-      type: response.type,
-      headers: diagHeaders,
-      bodyPreview: rawResponse.slice(0, 800),
-    });
+    logNon2xx(inquiryUrl, response, rawResponse);
   }
 
   if (response.status === 400) {
@@ -193,29 +266,21 @@ export async function pullCreditReport(
   if (response.status === 401 || response.status === 403) {
     throw new CreditPullAuthError();
   }
-  // 3xx — surface redirects rather than following silently, because a
-  // POST→302→GET downgrade typically lands on a 404 at the new path.
   if (response.status >= 300 && response.status < 400) {
     const location = response.headers.get('location') || '(no Location header)';
     throw new CreditPullServiceError(
-      `SPS returned HTTP ${response.status} redirect to ${location}. ` +
-        'Set SPS_BASE_URL to the redirect target (the full POST endpoint URL) and retry.',
+      `SPS returned HTTP ${response.status} redirect to ${location} on the inquiry call.`,
     );
   }
   if (response.status === 404) {
     throw new CreditPullServiceError(
-      `SPS endpoint returned 404 Not Found at ${response.url || env.baseUrl}. ` +
-        'Same URL + creds working in another environment usually means the App ' +
-        'Service outbound IPs are not on the SPS allow-list (many bureaus return ' +
-        '404 for non-whitelisted callers rather than 403). Send Azure App Service ' +
-        '→ Properties → Outbound IP addresses to SPS support for whitelisting, ' +
-        'then retry. Server log line `[CreditPull] non-2xx SPS response` has the ' +
-        'final URL and response body preview.',
+      `SPS endpoint returned 404 at ${response.url || inquiryUrl}. ` +
+        'Confirm SPS_BASE_URL is the host root and the account has standardInquiry access.',
     );
   }
   if (response.status === 405) {
     throw new CreditPullServiceError(
-      'SPS endpoint returned 405 Method Not Allowed. The configured hostname is not accepting POST. Contact SPS support to confirm the correct API URL for this account.',
+      'SPS endpoint returned 405 Method Not Allowed on standardInquiry. Contact SPS support.',
     );
   }
   if (response.status >= 500) {
@@ -235,33 +300,89 @@ export async function pullCreditReport(
   };
 }
 
+async function postInquiry(
+  env: SpsEnv,
+  input: PullCreditReportInput,
+  token: string,
+): Promise<{ response: Response; rawResponse: string }> {
+  const url = `${env.baseUrl}/api/CreditReport/standardInquiry`;
+  const body = buildInquiryBody(input);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json, text/xml, text/html',
+        Authorization: `Bearer ${token}`,
+      },
+      body: body.toString(),
+      redirect: 'manual',
+    });
+  } catch (e) {
+    throw new CreditPullNetworkError(e);
+  }
+  const rawResponse = await response.text();
+  return { response, rawResponse };
+}
+
 /**
- * Legacy URL-encoded body per SPS User Guide. Field names are UPPERCASE.
- * Credentials (ACCOUNT, PASSWD) live in the body, not in an Authorization header.
+ * PascalCase form body per the SPS Postman collection's `standardInquiry`
+ * request. Credentials are NOT in the body — they go through the bearer token.
  */
-function buildLegacyInquiryBody(req: CreditPullRequest, env: SpsEnv): URLSearchParams {
+function buildInquiryBody(req: CreditPullRequest): URLSearchParams {
   const body = new URLSearchParams({
-    ACCOUNT: env.account,
-    PASSWD: env.password,
-    PASS: '2',
-    PROCESS: 'PCCREDIT',
-    PRODUCT: 'CREDIT',
-    BUREAU: req.bureau,
-    SPLITNAME: '1',
-    NAMEFIRST: req.firstName.toUpperCase(),
-    NAMELAST: req.lastName.toUpperCase(),
-    ADDRESS: req.address.toUpperCase(),
-    CITY: req.city.toUpperCase(),
-    STATE: req.state,
-    ZIP: req.zip,
+    Pass: '2',
+    Product: 'CREDIT',
+    Bureau: req.bureau,
+    SplitName: '1',
+    NameFirst: req.firstName.toUpperCase(),
+    NameLast: req.lastName.toUpperCase(),
+    Address: req.address.toUpperCase(),
+    City: req.city.toUpperCase(),
+    State: req.state,
+    Zip: req.zip,
     SSN: req.ssn,
+    Rbp_Output: 'XML',
   });
 
-  if (req.middleName) body.set('NAMEMIDDLE', req.middleName.toUpperCase());
-  if (req.generation) body.set('NAMEGEN', req.generation.toUpperCase());
+  if (req.middleName) body.set('NameMiddle', req.middleName.toUpperCase());
+  if (req.generation) body.set('NameGen', req.generation.toUpperCase());
   if (req.dob) body.set('DOB', req.dob);
 
   return body;
+}
+
+// ─── Diagnostic logging ────────────────────────────────────────────────────
+// Logs just enough to debug environment-specific failures: the URL we hit,
+// the status, a few diagnostic headers, and a clipped body preview. The
+// request body is never logged (FCRA / PII). On a 4xx the response body is
+// typically an HTML error page from SPS or an upstream WAF, not credit data.
+
+function logNon2xx(requestedUrl: string, response: Response, rawResponse: string) {
+  const diagHeaders: Record<string, string> = {};
+  for (const name of [
+    'content-type',
+    'content-length',
+    'server',
+    'location',
+    'x-cache',
+    'cf-ray',
+    'via',
+    'www-authenticate',
+  ]) {
+    const v = response.headers.get(name);
+    if (v) diagHeaders[name] = v;
+  }
+  console.warn('[CreditPull] non-2xx SPS response', {
+    requestedUrl,
+    finalUrl: response.url,
+    status: response.status,
+    statusText: response.statusText,
+    type: response.type,
+    headers: diagHeaders,
+    bodyPreview: rawResponse.slice(0, 800),
+  });
 }
 
 // ─── Response parsing ──────────────────────────────────────────────────────
@@ -323,8 +444,7 @@ function asArray<T = any>(v: unknown): T[] {
 
 /**
  * Detect whether the response is XML or JSON and route to the appropriate parser.
- * Per SPS confirmation, the legacy PCCREDIT API returns XML; JSON parsing is
- * kept as a defensive fallback in case the account is switched to JSON output.
+ * We request XML via `Rbp_Output=XML`; JSON parsing stays as a defensive fallback.
  */
 function parseSpsResponse(rawResponse: string, bureau: Bureau): CreditPullResult {
   const trimmed = rawResponse.trimStart();
@@ -369,7 +489,6 @@ function parseSpsXmlResponse(rawResponse: string, bureau: Bureau): CreditPullRes
     );
   }
 
-  // Root element name is unknown — unwrap whatever single top-level element exists.
   const rootKey = Object.keys(parsed).find((k) => !k.startsWith('@_'));
   const root = rootKey ? parsed[rootKey] : parsed;
   if (!root || typeof root !== 'object') {
@@ -380,12 +499,10 @@ function parseSpsXmlResponse(rawResponse: string, bureau: Bureau): CreditPullRes
   const transactionId = str(root.hctTransactionId ?? root['@_hctTransactionId']);
   const reportDate = str(root.reportDate ?? root['@_reportDate']);
 
-  // `subjects` may be wrapped as <subjects><subject>...</subject></subjects>
   const subjectsContainer = root.subjects ?? null;
   const subjects = asArray<any>(subjectsContainer?.subject ?? subjectsContainer ?? []);
   const subject = subjects[0] ?? null;
 
-  // hitIndicator: either <hitIndicator code="Y"/> or <hitIndicator><code>Y</code></hitIndicator>
   const header = subject?.subjectHeader ?? null;
   const hitCode = str(header?.hitIndicator?.code ?? header?.hitIndicator?.['@_code']);
   const isHit = hitCode === 'Y';
