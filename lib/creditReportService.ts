@@ -30,6 +30,8 @@ import type {
   Bureau,
   CreditPullRequest,
   CreditPullResult,
+  CreditPullScoreModel,
+  CreditPullSummaryByType,
 } from '@/lib/creditPullTypes';
 
 // ─── Exception classes ─────────────────────────────────────────────────────
@@ -680,6 +682,82 @@ function parseHx5Response(hx5: any, bureau: Bureau): CreditPullResult {
     isHit = true;
   }
 
+  // ── HX5-only extended fields ──────────────────────────────────────────
+  // All optional on CreditPullResult — older Cosmos rows won't have them.
+
+  // Subject identity (name_information + personal_information + address_information).
+  const nameInfo = subjectSegments.name_information ?? null;
+  const subjectName = buildSubjectName(nameInfo);
+  const personal = subjectSegments.personal_information ?? null;
+  const subjectSsnMasked = personal?.ssn != null ? maskSsn(String(personal.ssn)) : null;
+  const subjectDob = str(personal?.dob);
+  const addrInfo = subjectSegments.address_information ?? null;
+  const subjectAddress = buildSubjectAddress(addrInfo);
+  const infileSince = formatHx5DateTime(subjectSegments.subject_header?.infile_since_date);
+
+  // Descriptive text from <file_hit code="N">…text…</file_hit>.
+  const fileHitText = elementText(fileHit);
+
+  // All scoring models — same iteration as above but collected, not first-only.
+  const allScores: CreditPullScoreModel[] = [];
+  for (const seg of scoringSegments) {
+    const scoring = seg?.scoring ?? {};
+    const modelName =
+      elementText(seg.product_information?.product) ??
+      str(scoring.product_code) ??
+      'Unknown model';
+    const segScore = num(scoring.score);
+    const segScoreRaw = scoring.score != null ? String(scoring.score) : null;
+    const factors = [scoring.factor1, scoring.factor2, scoring.factor3, scoring.factor4]
+      .map((f) => elementText(f))
+      .filter((t): t is string => !!t);
+    allScores.push({ model: modelName, score: segScore, scoreRaw: segScoreRaw, factors });
+  }
+  // DTI estimator is in its own block — surface it alongside the credit scores
+  // because BDOs treat the DTI estimate as another decision input.
+  const dtiSeg = subjectSegments.dti_estimator_3_segments ?? null;
+  if (dtiSeg?.scoring) {
+    const modelName =
+      elementText(dtiSeg.product_information?.product) ??
+      str(dtiSeg.scoring.product_code) ??
+      'DTI Estimator';
+    allScores.push({
+      model: modelName,
+      score: num(dtiSeg.scoring.score),
+      scoreRaw: dtiSeg.scoring.score != null ? String(dtiSeg.scoring.score) : null,
+      factors: [],
+    });
+  }
+
+  // Additional summary counts.
+  const mortgages = num(summary.mortgages);
+  const openAccounts = num(summary.open_accounts);
+  const revolvingAccounts = num(summary.revolving_and_check_credit_trades);
+  const installmentAccounts = num(summary.installments);
+  const histNegTrades = num(summary.trades_with_any_historical_negative);
+  const histNegOccurrences = num(summary.occurrence_of_historical_negative);
+
+  // Per-account-type $ rows. The bureau emits one credit_summary_description
+  // element per type (R/I/T); fast-xml-parser hands it back as a single object
+  // when there's exactly one, hence asArray() — and the amounts are returned
+  // as zero-padded fixed-point strings ("000020100" → $201.00 / 1c units).
+  const summaryByType: CreditPullSummaryByType[] = asArray<any>(
+    subjectSegments.credit_summary_description,
+  ).map((row: any) => ({
+    type: elementText(row.summary_type) ?? 'Unknown',
+    highCredit: hx5Money(row.high_credit),
+    creditLimit: hx5Money(row.credit_limit),
+    balance: hx5Money(row.balance),
+    amountPastDue: hx5Money(row.amount_past_due),
+    monthlyPayment: hx5Money(row.monthly_payment),
+    percentAvailable: hx5Percent(row.percent_credit_available),
+  }));
+
+  // Military Lending Act search status — separate segment, mirrors OFAC's shape.
+  const mlaStatus = elementText(
+    subjectSegments.military_lending_act_search?.product_information?.search_status,
+  );
+
   return {
     success: true,
     isHit,
@@ -699,7 +777,84 @@ function parseHx5Response(hx5: any, bureau: Bureau): CreditPullResult {
     ofacStatus,
     errorCode: null,
     errorMessage: null,
+    // Extended HX5-only fields
+    subjectName,
+    subjectAddress,
+    subjectSsnMasked,
+    subjectDob,
+    infileSince,
+    fileHitText,
+    allScores,
+    mortgages,
+    openAccounts,
+    revolvingAccounts,
+    installmentAccounts,
+    histNegTrades,
+    histNegOccurrences,
+    summaryByType,
+    mlaStatus,
   };
+}
+
+// ─── HX5 subject helpers ───────────────────────────────────────────────────
+
+function buildSubjectName(nameInfo: any): string | null {
+  if (!nameInfo || typeof nameInfo !== 'object') return null;
+  const last = str(nameInfo.lname);
+  const first = str(nameInfo.fname);
+  const middle = str(nameInfo.mname);
+  const suffix = str(nameInfo.suffix);
+  if (!last && !first) return null;
+  const fm = [first, middle].filter(Boolean).join(' ');
+  return [last, fm].filter(Boolean).join(', ') + (suffix ? ' ' + suffix : '');
+}
+
+function buildSubjectAddress(addr: any): string | null {
+  if (!addr || typeof addr !== 'object') return null;
+  const parts = [
+    addr.house_number,
+    addr.predirectional,
+    addr.street_name,
+    addr.street_type,
+    addr.postdirectional,
+    addr.apt_unit_number,
+  ]
+    .map((p) => str(p))
+    .filter((p): p is string => !!p);
+  const street = parts.join(' ');
+  const city = str(addr.city);
+  const state = str(addr.state);
+  const zip = str(addr.zip);
+  if (!street && !city) return null;
+  const tail = [city, state].filter(Boolean).join(', ');
+  return [street, tail, zip].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function maskSsn(ssn: string): string | null {
+  const digits = ssn.replace(/\D/g, '');
+  if (digits.length < 4) return null;
+  return `***-**-${digits.slice(-4)}`;
+}
+
+/**
+ * Hart HX5 money fields are zero-padded fixed-point integers in cents
+ * ("000026000" → 26000 → $260.00) … no wait — Hart actually emits the
+ * value as whole dollars right-aligned ("000026000" → $26,000 per the
+ * sample HTML report). Treat the value as a plain integer in dollars.
+ */
+function hx5Money(v: any): number | null {
+  const s = elementText(v) ?? (typeof v === 'number' ? String(v) : null);
+  if (!s) return null;
+  const n = Number(s.replace(/^0+/, '') || '0');
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Hart's percent_credit_available is a 0–100 integer string. */
+function hx5Percent(v: any): number | null {
+  const s = elementText(v) ?? (typeof v === 'number' ? String(v) : null);
+  if (!s) return null;
+  const n = Number(s.replace(/^0+/, '') || '0');
+  return Number.isFinite(n) ? n : null;
 }
 
 /**

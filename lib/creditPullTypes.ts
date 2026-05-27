@@ -62,9 +62,38 @@ export interface CreditPullRequest {
   consumerAuthorizationRef?: string;
 }
 
+/** One scoring model from the bureau response (FICO, VantageScore, DTI…). */
+export interface CreditPullScoreModel {
+  /** Human-readable model name, e.g. "FICO CLASSIC 08". */
+  model: string;
+  /** Numeric score. Some models (DTI / income tier) emit non-integer or coded values; null when unparseable. */
+  score: number | null;
+  /** Raw score string when `score` is null — preserves things like "60 C" for income tier. */
+  scoreRaw?: string | null;
+  /** Reason-code descriptions for this model (factor1..factor4). */
+  factors: string[];
+}
+
+/** One row of the bureau's $-by-type summary (Revolving / Installment / Totals). */
+export interface CreditPullSummaryByType {
+  /** "Revolving" | "Installment" | "Totals" | "Open" | "Closed" — whatever the bureau returned. */
+  type: string;
+  highCredit: number | null;
+  creditLimit: number | null;
+  balance: number | null;
+  amountPastDue: number | null;
+  monthlyPayment: number | null;
+  /** Percentage 0–100, or null. */
+  percentAvailable: number | null;
+}
+
 /**
  * Normalized result returned by the SoftPullSolutions adapter.  Sent down to
  * the front-end and also written verbatim into `parsedSummary` on the pull row.
+ *
+ * Fields above the divider are required and populated for every pull.
+ * Fields below are optional and added by the Hart HX5 parser only — they're
+ * absent from older Cosmos rows, so the UI must render defensively.
  */
 export interface CreditPullResult {
   success: boolean;
@@ -85,6 +114,35 @@ export interface CreditPullResult {
   ofacStatus: string | null;
   errorCode: string | null;
   errorMessage: string | null;
+
+  // ─── Optional, HX5-only ─────────────────────────────────────────────────
+
+  /** Bureau-reported subject identity — useful for verifying we got the right person back. */
+  subjectName?: string | null;          // "ICE, ROBERT R"
+  subjectAddress?: string | null;       // "111 W 8TH ST, FANTASY ISLAND, IL 60750"
+  subjectSsnMasked?: string | null;     // "***-**-3221"
+  subjectDob?: string | null;
+  /** Earliest date this consumer appears in the bureau's file (YYYY-MM-DD). */
+  infileSince?: string | null;
+  /** Descriptive text from the file_hit element, e.g. "Regular hit on file -- all files are returned". */
+  fileHitText?: string | null;
+
+  /** Every score model the bureau returned. `score`/`scoreModel`/`scoreReasons` mirror `allScores[0]` for back-compat. */
+  allScores?: CreditPullScoreModel[];
+
+  /** Additional summary counts not in the legacy 5-tile set. */
+  mortgages?: number | null;
+  openAccounts?: number | null;
+  revolvingAccounts?: number | null;
+  installmentAccounts?: number | null;
+  histNegTrades?: number | null;
+  histNegOccurrences?: number | null;
+
+  /** Per-account-type $ summary rows. */
+  summaryByType?: CreditPullSummaryByType[];
+
+  /** MLA (Military Lending Act) database search status, e.g. "No-match to MLA database". */
+  mlaStatus?: string | null;
 }
 
 /**

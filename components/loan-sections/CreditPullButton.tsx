@@ -43,6 +43,7 @@ import {
   type Bureau,
   type CreditPullResult,
   type CreditPullRow,
+  type CreditPullScoreModel,
 } from '@/lib/creditPullTypes';
 
 interface CreditPullButtonProps {
@@ -269,7 +270,10 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
-        <DialogContent className="max-w-lg" data-testid={`dialog-credit-pull-${index + 1}`}>
+        <DialogContent
+          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          data-testid={`dialog-credit-pull-${index + 1}`}
+        >
           <DialogHeader>
             <DialogTitle>Soft Credit Pull — {applicantName}</DialogTitle>
           </DialogHeader>
@@ -396,54 +400,91 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
           )}
 
           {view === 'result' && result && (
-            <div className="space-y-4" data-testid="state-credit-pull-result">
-              <div className="flex flex-col items-center py-2">
-                <div
-                  className={`text-6xl font-bold ${scoreColorClass(result.score)}`}
-                  data-testid="text-credit-score"
-                >
-                  {result.score ?? '—'}
-                </div>
-                <div className="text-xs text-[#4a6fa5] mt-1">
-                  {result.scoreModel || 'Unknown model'}
+            <div className="space-y-5" data-testid="state-credit-pull-result">
+              {/* ── Scores row — one card per model returned by the bureau ── */}
+              <ScoreRow result={result} />
+
+              {/* ── Subject identity ── */}
+              <SubjectInfoCard result={result} />
+
+              {/* ── Summary counts (up to 8 tiles) ── */}
+              <div>
+                <SectionLabel>Summary Counts</SectionLabel>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <SummaryTile label="Total Trades" value={String(result.totalTrades ?? '—')} />
+                  <SummaryTile label="Open Trades" value={fmtNum(result.openAccounts)} />
+                  <SummaryTile label="Revolving" value={fmtNum(result.revolvingAccounts)} />
+                  <SummaryTile label="Installment" value={fmtNum(result.installmentAccounts)} />
+                  <SummaryTile label="Mortgages" value={fmtNum(result.mortgages)} />
+                  <SummaryTile label="Hist Neg Trades" value={fmtNum(result.histNegTrades)} />
+                  <SummaryTile label="Negative Trades" value={String(result.negativeTrades ?? '—')} />
+                  <SummaryTile label="Open Inquiries" value={String(result.inquiries ?? '—')} />
+                  <SummaryTile label="Collections" value={String(result.collections ?? '—')} />
+                  <SummaryTile label="Public Records" value={String(result.publicRecords ?? '—')} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <SummaryTile
-                  label="SSN Match"
-                  status={result.ssnMatchValue?.toLowerCase().includes('exact') ? 'ok' : 'warn'}
-                  value={result.ssnMatchValue || '—'}
-                />
-                <SummaryTile
-                  label="OFAC"
-                  status={
-                    result.ofacStatus && /clear|no/i.test(result.ofacStatus)
-                      ? 'ok'
-                      : result.ofacStatus
-                        ? 'bad'
-                        : 'warn'
-                  }
-                  value={result.ofacStatus || '—'}
-                />
-                <SummaryTile label="Total Trades" value={String(result.totalTrades ?? '—')} />
-                <SummaryTile label="Open Inquiries" value={String(result.inquiries ?? '—')} />
-                <SummaryTile label="Collections" value={String(result.collections ?? '—')} />
-                <SummaryTile label="Public Records" value={String(result.publicRecords ?? '—')} />
-                <SummaryTile label="Negative Trades" value={String(result.negativeTrades ?? '—')} />
-              </div>
-
-              {result.scoreReasons.length > 0 && (
+              {/* ── Balances by type (Revolving / Installment / Totals) ── */}
+              {(result.summaryByType?.length ?? 0) > 0 && (
                 <div>
-                  <div className="text-xs font-semibold text-[#4a6fa5] uppercase mb-1">
-                    Score Factors
-                  </div>
-                  <ul className="list-disc pl-5 text-sm space-y-0.5" data-testid="list-score-factors">
-                    {result.scoreReasons.map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
+                  <SectionLabel>Balances by Account Type</SectionLabel>
+                  <BalancesTable rows={result.summaryByType!} />
                 </div>
+              )}
+
+              {/* ── Compliance tiles (OFAC + MLA + SSN match) ── */}
+              <div>
+                <SectionLabel>Compliance &amp; Identity</SectionLabel>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <SummaryTile
+                    label="SSN Match"
+                    status={result.ssnMatchValue?.toLowerCase().includes('exact') ? 'ok' : 'warn'}
+                    value={result.ssnMatchValue || '—'}
+                  />
+                  <SummaryTile
+                    label="OFAC"
+                    status={
+                      result.ofacStatus && /clear|no/i.test(result.ofacStatus)
+                        ? 'ok'
+                        : result.ofacStatus
+                          ? 'bad'
+                          : 'warn'
+                    }
+                    value={result.ofacStatus || '—'}
+                  />
+                  <SummaryTile
+                    label="MLA"
+                    status={
+                      result.mlaStatus && /no.?match|clear/i.test(result.mlaStatus)
+                        ? 'ok'
+                        : result.mlaStatus
+                          ? 'bad'
+                          : 'warn'
+                    }
+                    value={result.mlaStatus || '—'}
+                  />
+                </div>
+              </div>
+
+              {/* ── Score factors per model. Falls back to legacy single-model
+                   `scoreReasons` when the bureau hasn't been re-pulled since
+                   we started capturing `allScores`. ── */}
+              {(result.allScores && result.allScores.length > 0) ? (
+                <ScoreFactorsByModel allScores={result.allScores} />
+              ) : (
+                result.scoreReasons.length > 0 && (
+                  <div>
+                    <SectionLabel>Score Factors</SectionLabel>
+                    <ul
+                      className="list-disc pl-5 text-sm space-y-0.5"
+                      data-testid="list-score-factors"
+                    >
+                      {result.scoreReasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )
               )}
 
               <div className="text-[11px] text-[#7da1d4] pt-2 border-t">
@@ -588,6 +629,207 @@ function SummaryTile({
         {label}
       </div>
       <div className="text-sm font-medium mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+// ─── Expanded-result helpers ───────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs font-semibold text-[#4a6fa5] uppercase tracking-wide mb-1.5">
+      {children}
+    </div>
+  );
+}
+
+function fmtNum(n: number | null | undefined): string {
+  return n == null ? '—' : String(n);
+}
+
+function fmtCurrency(n: number | null | undefined): string {
+  if (n == null) return '—';
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
+/**
+ * Top-of-dialog score strip. Falls back to the legacy single-score block when
+ * the result was captured before we started emitting `allScores` (older Cosmos
+ * rows, viewed from the history badge).
+ */
+function ScoreRow({ result }: { result: CreditPullResult }) {
+  const allScores = result.allScores ?? [];
+  if (allScores.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-2">
+        <div
+          className={`text-6xl font-bold ${scoreColorClass(result.score)}`}
+          data-testid="text-credit-score"
+        >
+          {result.score ?? '—'}
+        </div>
+        <div className="text-xs text-[#4a6fa5] mt-1">
+          {result.scoreModel || 'Unknown model'}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="credit-pull-scores-row">
+      {allScores.map((s, i) => (
+        <div
+          key={i}
+          className="rounded-md border bg-[#fafbfd] px-3 py-3 text-center"
+          data-testid={`credit-pull-score-${i}`}
+        >
+          <div className="text-[10px] uppercase tracking-wide text-[#7da1d4] mb-1">
+            {s.model}
+          </div>
+          <div className={`text-3xl font-bold ${scoreColorClass(s.score)}`}>
+            {s.score ?? s.scoreRaw ?? '—'}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Subject identity block — name + address + DOB + file-hit text + infile-since.
+ * Quietly renders nothing when none of the fields came back (older rows).
+ */
+function SubjectInfoCard({ result }: { result: CreditPullResult }) {
+  const anything =
+    result.subjectName ||
+    result.subjectAddress ||
+    result.subjectSsnMasked ||
+    result.subjectDob ||
+    result.infileSince ||
+    result.fileHitText;
+  if (!anything) return null;
+  return (
+    <div>
+      <SectionLabel>Subject Identity</SectionLabel>
+      <div className="rounded-md border bg-[#fafbfd] p-3 text-sm space-y-1">
+        {result.subjectName && (
+          <Row label="Name" value={result.subjectName} testId="text-subject-name" />
+        )}
+        {result.subjectAddress && (
+          <Row label="Address" value={result.subjectAddress} testId="text-subject-address" />
+        )}
+        {(result.subjectSsnMasked || result.subjectDob) && (
+          <div className="flex gap-6">
+            {result.subjectSsnMasked && (
+              <Row label="SSN" value={result.subjectSsnMasked} mono />
+            )}
+            {result.subjectDob && <Row label="DOB" value={result.subjectDob} />}
+          </div>
+        )}
+        {result.fileHitText && (
+          <Row label="File Hit" value={result.fileHitText} testId="text-file-hit" />
+        )}
+        {result.infileSince && (
+          <Row label="Infile Since" value={result.infileSince} testId="text-infile-since" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  mono,
+  testId,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  testId?: string;
+}) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-[#4a6fa5] min-w-[88px]">{label}:</span>
+      <span
+        className={`font-medium ${mono ? 'font-mono' : ''}`}
+        data-testid={testId}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function BalancesTable({ rows }: { rows: CreditPullResult['summaryByType'] }) {
+  if (!rows) return null;
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <table className="w-full text-[13px]">
+        <thead className="bg-[#f0f4f9] text-[#4a6fa5]">
+          <tr>
+            <th className="text-left py-2 px-3 font-medium">Type</th>
+            <th className="text-right py-2 px-3 font-medium">High</th>
+            <th className="text-right py-2 px-3 font-medium">Limit</th>
+            <th className="text-right py-2 px-3 font-medium">Balance</th>
+            <th className="text-right py-2 px-3 font-medium">Past Due</th>
+            <th className="text-right py-2 px-3 font-medium">Payment</th>
+            <th className="text-right py-2 px-3 font-medium">% Avail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t" data-testid={`balances-row-${i}`}>
+              <td className="py-2 px-3 font-medium">{r.type}</td>
+              <td className="py-2 px-3 text-right tabular-nums">{fmtCurrency(r.highCredit)}</td>
+              <td className="py-2 px-3 text-right tabular-nums">{fmtCurrency(r.creditLimit)}</td>
+              <td className="py-2 px-3 text-right tabular-nums">{fmtCurrency(r.balance)}</td>
+              <td className="py-2 px-3 text-right tabular-nums">
+                {fmtCurrency(r.amountPastDue)}
+              </td>
+              <td className="py-2 px-3 text-right tabular-nums">
+                {fmtCurrency(r.monthlyPayment)}
+              </td>
+              <td className="py-2 px-3 text-right tabular-nums">
+                {r.percentAvailable == null ? '—' : `${r.percentAvailable}%`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ScoreFactorsByModel({ allScores }: { allScores: CreditPullScoreModel[] }) {
+  const withFactors = allScores.filter((s) => s.factors.length > 0);
+  if (withFactors.length === 0) return null;
+  return (
+    <div>
+      <SectionLabel>Score Factors</SectionLabel>
+      <div className="space-y-3">
+        {withFactors.map((s, i) => (
+          <div key={i} data-testid={`score-factors-${i}`}>
+            <div className="text-[11px] font-semibold text-[#1a1a1a]">
+              {s.model}
+              {s.score != null && (
+                <span className={`ml-2 ${scoreColorClass(s.score)}`}>
+                  {s.score}
+                </span>
+              )}
+            </div>
+            <ul className="list-disc pl-5 text-sm space-y-0.5 mt-0.5">
+              {s.factors.map((f, j) => (
+                <li key={j}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
