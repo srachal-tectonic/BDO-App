@@ -130,11 +130,26 @@ export async function GET(
     const ddCol = await getCollection(COLLECTIONS.DUE_DILIGENCE_REPORTS);
     const ddDoc = (await ddCol.findOne({ projectId })) as any;
 
+    // Per-category risk-score explanations — persisted on projectOverview
+    // (see handleExplanationChange in components/PQMemoForm.tsx). The
+    // template renders them under each risk-score card; missing fields
+    // degrade to the "No explanation provided" placeholder.
+    const po = projectOverviewForRules as any;
+    const scoreExplanations: Record<string, string> = {
+      repayment: po.riskRepaymentExplanation || '',
+      management: po.riskManagementExplanation || '',
+      equity: po.riskEquityExplanation || '',
+      collateral: po.riskCollateralExplanation || '',
+      credit: po.riskCreditExplanation || '',
+      liquidity: po.riskLiquidityExplanation || '',
+    };
+
     const html = generatePQMemoHTML({
       projectName: project.projectName || project.businessName || 'Draft',
       loanApplication: loanApp,
       financialPeriods: periods,
       spreadFileName,
+      scoreExplanations,
       questionnaireRules: applicableRules,
       questionnaireResponses: responses,
       diligenceReport: ddDoc

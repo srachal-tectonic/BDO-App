@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle, FileQuestion } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
+import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
 import { useApplication } from '@/lib/applicationStore';
 import { Button } from '@/components/ui/button';
 
@@ -181,14 +182,6 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
 
   const [spreadFinancingSources, setSpreadFinancingSources] = useState<any[]>([]);
   const [goodFitHelpExpanded, setGoodFitHelpExpanded] = useState(false);
-  const [scoreExplanations, setScoreExplanations] = useState({
-    repayment: '',
-    management: '',
-    equity: '',
-    collateral: '',
-    credit: '',
-    liquidity: '',
-  });
 
   const projectOverview = applicationData.projectOverview;
   const loan1 = applicationData.loan1;
@@ -209,6 +202,19 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
     liquidity: projectOverview.riskLiquidity ?? 0,
   };
 
+  // Score explanations are derived directly from projectOverview so they
+  // persist across reloads (via the loan-application auto-save) and reach
+  // the PQ Memo PDF generator — which previously couldn't see them because
+  // they only lived in PQMemoForm's local React state.
+  const scoreExplanations = {
+    repayment: (projectOverview as any).riskRepaymentExplanation ?? '',
+    management: (projectOverview as any).riskManagementExplanation ?? '',
+    equity: (projectOverview as any).riskEquityExplanation ?? '',
+    collateral: (projectOverview as any).riskCollateralExplanation ?? '',
+    credit: (projectOverview as any).riskCreditExplanation ?? '',
+    liquidity: (projectOverview as any).riskLiquidityExplanation ?? '',
+  };
+
   const handleScoreChange = (category: string, score: number) => {
     const fieldMap: Record<string, string> = {
       repayment: 'riskRepayment',
@@ -225,7 +231,18 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   };
 
   const handleExplanationChange = (category: string, explanation: string) => {
-    setScoreExplanations(prev => ({ ...prev, [category]: explanation }));
+    const fieldMap: Record<string, string> = {
+      repayment: 'riskRepaymentExplanation',
+      management: 'riskManagementExplanation',
+      equity: 'riskEquityExplanation',
+      collateral: 'riskCollateralExplanation',
+      credit: 'riskCreditExplanation',
+      liquidity: 'riskLiquidityExplanation',
+    };
+    const field = fieldMap[category];
+    if (field) {
+      updateProjectOverview({ [field]: explanation } as any);
+    }
   };
 
   const formatCurrency = (value: number | string | undefined | null) => {
@@ -444,6 +461,14 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             >
               <TrendingUp className="w-4 h-4" />
               Financials
+            </TabsTrigger>
+            <TabsTrigger
+              value="business-questionnaire"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
+              data-testid="tab-business-questionnaire"
+            >
+              <FileQuestion className="w-4 h-4" />
+              Business Questionnaire
             </TabsTrigger>
           </TabsList>
 
@@ -837,6 +862,15 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
 
           <TabsContent value="financials" className="mt-0">
             <PQMemoFinancials projectId={projectId} />
+          </TabsContent>
+
+          {/* Business Questionnaire — read-only view of the same component used
+              in the Loan Application tab (omit `editable` → defaults to false).
+              Reads its data from useApplication() and the questionnaire API,
+              so no extra props are needed beyond the projectId already on
+              applicationStore. */}
+          <TabsContent value="business-questionnaire" className="mt-0">
+            <BusinessQuestionnaireSection />
           </TabsContent>
         </Tabs>
       </div>
