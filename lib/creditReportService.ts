@@ -465,10 +465,46 @@ const xmlParser = new XMLParser({
   parseAttributeValue: true,
   parseTagValue: true,
   trimValues: true,
+  // Normalize first letter to lowercase so a PascalCase REST response
+  // (e.g. <Subjects><Subject><SubjectHeader>) feeds the same access paths
+  // as the legacy camelCase XML (<subjects><subject><subjectHeader>) the
+  // extractors below were originally written against. fast-xml-parser
+  // invokes `isArray` with the transformed name, so the list below stays
+  // lowercase.
+  transformTagName: (name: string) => name.charAt(0).toLowerCase() + name.slice(1),
+  transformAttributeName: (name: string) => name.charAt(0).toLowerCase() + name.slice(1),
   // Treat these tags as arrays even when only one occurs, so iteration is uniform.
   isArray: (name) =>
     ['subject', 'score', 'factor', 'publicRecord', 'collection', 'trade', 'inquiry'].includes(name),
 });
+
+/**
+ * PII-safe tree printer: emits the key/type structure of a parsed XML
+ * document without exposing any text content (names, SSN, scores, etc.).
+ * Used to debug parser-vs-response schema drift on a 200/no-hit response.
+ */
+function describeStructure(obj: unknown, depth = 0, maxDepth = 6): string {
+  if (depth > maxDepth) return '...';
+  if (obj === null || obj === undefined) return String(obj);
+  if (typeof obj === 'string') return 'string';
+  if (typeof obj === 'number') return 'number';
+  if (typeof obj === 'boolean') return 'boolean';
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    return `[${describeStructure(obj[0], depth + 1, maxDepth)} ×${obj.length}]`;
+  }
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>).slice(0, 40);
+    return (
+      '{ ' +
+      entries
+        .map(([k, v]) => `${k}: ${describeStructure(v, depth + 1, maxDepth)}`)
+        .join(', ') +
+      ' }'
+    );
+  }
+  return typeof obj;
+}
 
 /**
  * Map the SPS XML response to CreditPullResult.
@@ -506,6 +542,26 @@ function parseSpsXmlResponse(rawResponse: string, bureau: Bureau): CreditPullRes
   const header = subject?.subjectHeader ?? null;
   const hitCode = str(header?.hitIndicator?.code ?? header?.hitIndicator?.['@_code']);
   const isHit = hitCode === 'Y';
+
+  // Diagnostic — fires when SPS returns 200 but our parser reads no hit. Logs
+  // the PII-safe key/type tree so we can confirm normalization worked or see
+  // schema drift (e.g. <Subjects> nested under a different root than expected,
+  // <hitIndicator> renamed, etc.). Remove or gate behind an env flag once the
+  // happy-path is verified.
+  if (!isError && !isHit) {
+    console.warn('[CreditPull] standardInquiry 200 with isHit=false', {
+      rootKey,
+      topLevelKeys:
+        root && typeof root === 'object' ? Object.keys(root).slice(0, 30) : null,
+      hitCodeRead: hitCode,
+      headerKeys:
+        header && typeof header === 'object' ? Object.keys(header).slice(0, 30) : null,
+      hitIndicatorShape: header?.hitIndicator
+        ? describeStructure(header.hitIndicator)
+        : null,
+      structure: describeStructure(parsed),
+    });
+  }
 
   const ssnMatchCode = str(
     header?.ssnMatchIndicator?.code ?? header?.ssnMatchIndicator?.['@_code'],

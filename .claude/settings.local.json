@@ -87,7 +87,8 @@
       "Bash(tee /tmp/tsc.out)",
       "Bash(echo \"EXIT $?\")",
       "Bash(node --experimental-strip-types --no-warnings -e ' *)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "WebFetch(domain:developer.softpullsolutions.com)"
     ],
     "deny": [],
     "ask": []
