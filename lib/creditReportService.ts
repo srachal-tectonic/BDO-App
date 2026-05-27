@@ -516,12 +516,196 @@ function describeStructure(obj: unknown, depth = 0, maxDepth = 6): string {
   return typeof obj;
 }
 
+/** Bureau code → Hart HX5 bureau-report container key (post tag normalization). */
+const HX5_BUREAU_REPORT_KEY: Record<Bureau, string> = {
+  TU: 'tU_Report',
+  EFX: 'eFX_Report',
+  XPN: 'xPN_Report',
+};
+
 /**
- * Map the SPS XML response to CreditPullResult.
+ * Format a Hart HX5 trans_date / trans_time element into a readable string.
+ *   <trans_date fmt="YYYYMMDD">20260527</trans_date>  →  "2026-05-27"
+ *   <trans_time fmt="HHMMSS">151312</trans_time>      →  "15:13:12"
+ * Falls back to the raw stringified value when the format isn't an 8-digit
+ * date or 6-digit time.
+ */
+function formatHx5DateTime(value: any): string | null {
+  const raw = num(value?.['#text']) ?? num(value);
+  if (raw === null) return null;
+  const s = String(raw).padStart(8, '0');
+  if (s.length === 8) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  if (s.length === 6) return `${s.slice(0, 2)}:${s.slice(2, 4)}:${s.slice(4, 6)}`;
+  return s;
+}
+
+/**
+ * Extract `#text` value from a Hart element that may be either a primitive
+ * or a `{ '#text': ..., '@_code': ... }` object (tags with attributes parse
+ * to objects).
+ */
+function elementText(value: any): string | null {
+  if (value && typeof value === 'object') return str(value['#text']);
+  return str(value);
+}
+
+/**
+ * Map a Hart HX5 credit-report response to CreditPullResult.
  *
- * SPS XML mirrors the documented JSON schema. The structure may use either
- * child elements (`<code>Y</code>`) or attributes (`code="Y"`) for the same
- * datum depending on the bureau / account configuration, so we read both.
+ * HX5 envelope shape (post tag-case normalization):
+ *   hX5
+ *     hX5_transaction_information { transid, token }
+ *     bureau_xml_data
+ *       tU_Report | eFX_Report | xPN_Report
+ *         transaction_control { trans_date, trans_time, ... }
+ *         subject_segments
+ *           subject_header { file_hit{#text,@_code}, ssn_match_ind, ... }
+ *           credit_summary { public_records, collections, trades, ... }
+ *           scoring_segments [{ product_information, scoring{ score, factor1..4 } }]
+ *           ofac_name_screen_segments { product_information { search_status } }
+ */
+function parseHx5Response(hx5: any, bureau: Bureau): CreditPullResult {
+  const txInfo = hx5?.hX5_transaction_information ?? null;
+  const transid = txInfo?.transid != null ? String(txInfo.transid) : null;
+  // reviewReport's Ref param wants `${transid}-${account}`; we store transid
+  // alone and the caller can re-concatenate with SPS_ACCOUNT when reviewing.
+  const transactionId = transid;
+
+  const bureauData = hx5?.bureau_xml_data ?? null;
+  const report = bureauData?.[HX5_BUREAU_REPORT_KEY[bureau]] ?? null;
+
+  if (!report || typeof report !== 'object') {
+    return {
+      success: true,
+      isHit: false,
+      bureau,
+      transactionId,
+      reportDate: null,
+      ssnMatchCode: null,
+      ssnMatchValue: null,
+      score: null,
+      scoreModel: null,
+      scoreReasons: [],
+      publicRecords: null,
+      collections: null,
+      negativeTrades: null,
+      totalTrades: null,
+      inquiries: null,
+      ofacStatus: null,
+      errorCode: 'NO_BUREAU_REPORT',
+      errorMessage: `Response did not contain a ${bureau} report block.`,
+    };
+  }
+
+  const reportDate = formatHx5DateTime(report.transaction_control?.trans_date);
+
+  // `subject_segments` is a single object for a one-subject inquiry; wrap
+  // defensively in case future co-applicant inquiries surface it as an array.
+  const subjectSegments = asArray<any>(report.subject_segments)[0] ?? report.subject_segments;
+  if (!subjectSegments || typeof subjectSegments !== 'object') {
+    return {
+      success: true,
+      isHit: false,
+      bureau,
+      transactionId,
+      reportDate,
+      ssnMatchCode: null,
+      ssnMatchValue: null,
+      score: null,
+      scoreModel: null,
+      scoreReasons: [],
+      publicRecords: null,
+      collections: null,
+      negativeTrades: null,
+      totalTrades: null,
+      inquiries: null,
+      ofacStatus: null,
+      errorCode: 'NO_SUBJECT_SEGMENTS',
+      errorMessage: 'Response did not contain subject_segments.',
+    };
+  }
+
+  // ── Hit indicator ──
+  // <file_hit code="N">…</file_hit>  →  { '#text': ..., '@_code': N }
+  // Hart conventions: 0 = no file / no match, non-zero = hit.
+  const fileHit = subjectSegments.subject_header?.file_hit ?? null;
+  const fileHitCode = num(fileHit?.['@_code']);
+  let isHit = fileHitCode !== null && fileHitCode !== 0;
+
+  // ── SSN match ──
+  const ssnMatch = subjectSegments.subject_header?.ssn_match_ind ?? null;
+  const ssnMatchCode = ssnMatch?.['@_code'] != null ? String(ssnMatch['@_code']) : null;
+  const ssnMatchValue = elementText(ssnMatch);
+
+  // ── Credit summary counts ──
+  const summary = subjectSegments.credit_summary ?? {};
+  const publicRecords = num(summary.public_records);
+  const collections = num(summary.collections);
+  const negativeTrades = num(summary.negative_trades);
+  const totalTrades = num(summary.trades);
+  const inquiries = num(summary.inquiries);
+
+  // ── OFAC ──
+  const ofacStatus = elementText(
+    subjectSegments.ofac_name_screen_segments?.product_information?.search_status,
+  );
+
+  // ── Score selection ──
+  // Multiple scoring_segments come back (FICO / VantageScore / custom). Pick
+  // the first with a real positive score; surface its product name + factor1–4
+  // as the reason codes for display.
+  const scoringSegments = asArray<any>(subjectSegments.scoring_segments);
+  let score: number | null = null;
+  let scoreModel: string | null = null;
+  let scoreReasons: string[] = [];
+  for (const seg of scoringSegments) {
+    const scoring = seg?.scoring ?? {};
+    const segScore = num(scoring.score);
+    if (segScore !== null && segScore > 0) {
+      score = segScore;
+      scoreModel =
+        elementText(seg.product_information?.product) ??
+        str(scoring.product_code);
+      scoreReasons = [scoring.factor1, scoring.factor2, scoring.factor3, scoring.factor4]
+        .map((f) => elementText(f))
+        .filter((t): t is string => !!t);
+      break;
+    }
+  }
+
+  // Belt-and-braces: if file_hit was missing/0 but we recovered a real score
+  // and trade counts, the consumer was found — treat as a hit. Avoids the
+  // ProminentZero false-negative if a bureau ever omits file_hit on a match.
+  if (!isHit && (score !== null || (totalTrades ?? 0) > 0)) {
+    isHit = true;
+  }
+
+  return {
+    success: true,
+    isHit,
+    bureau,
+    transactionId,
+    reportDate,
+    ssnMatchCode,
+    ssnMatchValue,
+    score,
+    scoreModel,
+    scoreReasons,
+    publicRecords,
+    collections,
+    negativeTrades,
+    totalTrades,
+    inquiries,
+    ofacStatus,
+    errorCode: null,
+    errorMessage: null,
+  };
+}
+
+/**
+ * Top-level XML response router. Hart HX5 (live SPS REST) lands on
+ * `parseHx5Response`. We keep an `else` branch with a structure diagnostic
+ * to surface any future schema drift we don't yet have a parser for.
  */
 function parseSpsXmlResponse(rawResponse: string, bureau: Bureau): CreditPullResult {
   let parsed: any;
@@ -535,94 +719,35 @@ function parseSpsXmlResponse(rawResponse: string, bureau: Bureau): CreditPullRes
     );
   }
 
-  const rootKey = Object.keys(parsed).find((k) => !k.startsWith('@_'));
-  const root = rootKey ? parsed[rootKey] : parsed;
-  if (!root || typeof root !== 'object') {
-    return emptyResult(bureau, 'XML_EMPTY_RESPONSE', 'SPS XML response had no usable root element.');
+  // tag-case normalization lowers the first char, so <HX5> → hX5.
+  const hx5 = parsed?.hX5 ?? parsed?.hx5;
+  if (hx5 && typeof hx5 === 'object') {
+    const result = parseHx5Response(hx5, bureau);
+    // Keep the PII-safe diagnostic for a beat: if HX5 was present but we
+    // still couldn't pull a hit out, log the structure so we can adjust paths
+    // without another deploy.
+    if (!result.errorCode && !result.isHit) {
+      console.warn('[CreditPull] standardInquiry 200 HX5 with isHit=false', {
+        bureauReportKey: HX5_BUREAU_REPORT_KEY[bureau],
+        topLevelKeys: Object.keys(hx5).slice(0, 30),
+        structure: describeStructure(hx5),
+      });
+    }
+    return result;
   }
 
-  const isError = bool(root.isError ?? root['@_isError']);
-  const transactionId = str(root.hctTransactionId ?? root['@_hctTransactionId']);
-  const reportDate = str(root.reportDate ?? root['@_reportDate']);
-
-  const subjectsContainer = root.subjects ?? null;
-  const subjects = asArray<any>(subjectsContainer?.subject ?? subjectsContainer ?? []);
-  const subject = subjects[0] ?? null;
-
-  const header = subject?.subjectHeader ?? null;
-  const hitCode = str(header?.hitIndicator?.code ?? header?.hitIndicator?.['@_code']);
-  const isHit = hitCode === 'Y';
-
-  // Diagnostic — fires when SPS returns 200 but our parser reads no hit. Logs
-  // the PII-safe key/type tree so we can confirm normalization worked or see
-  // schema drift (e.g. <Subjects> nested under a different root than expected,
-  // <hitIndicator> renamed, etc.). Remove or gate behind an env flag once the
-  // happy-path is verified.
-  if (!isError && !isHit) {
-    console.warn('[CreditPull] standardInquiry 200 with isHit=false', {
-      rootKey,
-      topLevelKeys:
-        root && typeof root === 'object' ? Object.keys(root).slice(0, 30) : null,
-      hitCodeRead: hitCode,
-      headerKeys:
-        header && typeof header === 'object' ? Object.keys(header).slice(0, 30) : null,
-      hitIndicatorShape: header?.hitIndicator
-        ? describeStructure(header.hitIndicator)
-        : null,
-      structure: describeStructure(parsed),
-    });
-  }
-
-  const ssnMatchCode = str(
-    header?.ssnMatchIndicator?.code ?? header?.ssnMatchIndicator?.['@_code'],
-  );
-  const ssnMatchValue = str(
-    header?.ssnMatchIndicator?.value ?? header?.ssnMatchIndicator?.['@_value'],
-  );
-
-  const scoresContainer = subject?.scores ?? null;
-  const scores = asArray<any>(scoresContainer?.score ?? scoresContainer ?? []);
-  const firstScored = scores.find((s) => bool(s?.notScored) === false) ?? scores[0];
-  const score = num(firstScored?.score ?? firstScored?.['@_score']);
-  const scoreModel = str(
-    firstScored?.model?.text ??
-      firstScored?.model?.code ??
-      firstScored?.model?.['@_text'] ??
-      firstScored?.model?.['@_code'],
-  );
-  const factorsContainer = firstScored?.factors ?? null;
-  const factors = asArray<any>(factorsContainer?.factor ?? factorsContainer ?? []);
-  const scoreReasons: string[] = factors
-    .map((f) => str(f?.text ?? f?.['@_text'] ?? f))
-    .filter((t): t is string => !!t);
-
-  const summary = subject?.bureauCreditSummary ?? {};
-  const ofacStatus = str(
-    subject?.ofacSearch?.searchStatus?.value ?? subject?.ofacSearch?.searchStatus?.['@_value'],
-  );
-
-  return {
-    success: !isError,
-    isHit,
+  // Non-HX5 200 — log structure and stamp a clear error so this surfaces as
+  // a bureau_service_error rather than a silent no-hit.
+  console.warn('[CreditPull] standardInquiry 200 with no HX5 envelope', {
+    topLevelKeys:
+      parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 30) : null,
+    structure: describeStructure(parsed),
+  });
+  return emptyResult(
     bureau,
-    transactionId,
-    reportDate,
-    ssnMatchCode,
-    ssnMatchValue,
-    score,
-    scoreModel,
-    scoreReasons,
-    publicRecords: num(summary?.publicRecords),
-    collections: num(summary?.collections),
-    negativeTrades: num(summary?.negativeTrades),
-    totalTrades: num(summary?.trades),
-    inquiries: num(summary?.inquiries),
-    ofacStatus,
-    errorCode: isError ? 'BUREAU_ERROR' : null,
-    errorMessage: isError
-      ? 'Bureau returned an error response. Inspect raw response for details.'
-      : null,
-  };
+    'UNRECOGNIZED_XML_SCHEMA',
+    'SPS returned XML with no recognisable HX5 envelope. Paste the [CreditPull] standardInquiry 200 log line to adjust the parser.',
+  );
 }
 
 function parseSpsJsonResponse(rawResponse: string, bureau: Bureau): CreditPullResult {
