@@ -1,0 +1,801 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SoftPull Solutions Credit Report API",
+    "description": "Customer-facing OpenAPI specification for authentication and credit report endpoints.",
+    "version": "1.0.0"
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ],
+  "paths": {
+    "/api/Authentication/AuthenticationToken": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuperAdminLoginDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuperAdminLoginDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuperAdminLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/RefreshToken": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CreditReport/standardInquiry": {
+      "post": {
+        "tags": [
+          "CreditReport"
+        ],
+        "summary": "Submit a standard inquiry for credit bureau, alternative data or other services",
+        "description": "Submit a standard inquiry with the required fields",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "required": [
+                  "Pass",
+                  "Product"
+                ],
+                "type": "object",
+                "properties": {
+                  "Pass": {
+                    "$ref": "#/components/schemas/PassType"
+                  },
+                  "Product": {
+                    "$ref": "#/components/schemas/ProductType"
+                  },
+                  "Perm": {
+                    "type": "string",
+                    "description": "The permissible purpose assigned by the Credit Bureau for the requested report type. Applicable to resellers."
+                  },
+                  "Enduser": {
+                    "type": "string",
+                    "description": "For permissible purpose users, this is the name of the user or company who will actually be using the credit data retrieved. Applicable to resellers."
+                  },
+                  "Bureau": {
+                    "$ref": "#/components/schemas/BureauType"
+                  },
+                  "MultiBur": {
+                    "type": "string",
+                    "description": "Credit bureaus being requested. Use this field when requesting multiple bureaus. Separate bureaus by colon (e.g., \"TU:EFX\"). Do not use together with Bureau."
+                  },
+                  "SSN": {
+                    "pattern": "^\\d{9}$",
+                    "type": "string",
+                    "description": "9 digit SSN"
+                  },
+                  "DOB": {
+                    "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12]\\d|3[01])/\\d{4}$",
+                    "type": "string",
+                    "description": "mm/dd/yyyy"
+                  },
+                  "Name": {
+                    "type": "string",
+                    "description": "Unparsed full name. Hart will attempt to parse the name into first, middle, last and generation. Do not use together with name parts (NameFirst, NameMiddle, NameLast, NameGen) and SplitName=1."
+                  },
+                  "SplitName": {
+                    "$ref": "#/components/schemas/SplitNameType"
+                  },
+                  "NameFirst": {
+                    "type": "string",
+                    "description": "First name. Use only when SplitName=1. Do not use together with Name."
+                  },
+                  "NameMiddle": {
+                    "type": "string",
+                    "description": "Middle name. Use only when SplitName=1. Do not use together with Name."
+                  },
+                  "NameLast": {
+                    "type": "string",
+                    "description": "Last name. Use only when SplitName=1. Do not use together with Name."
+                  },
+                  "NameGen": {
+                    "type": "string",
+                    "description": "Generational suffix (for example, Jr or Sr). Use only when SplitName=1. Do not use together with Name."
+                  },
+                  "Address": {
+                    "type": "string",
+                    "description": "Unparsed address"
+                  },
+                  "City": {
+                    "type": "string",
+                    "description": "City"
+                  },
+                  "State": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string",
+                    "description": "Two-letter state abbreviation (for example, MT or FL)"
+                  },
+                  "Zip": {
+                    "pattern": "^\\d{5}$",
+                    "type": "string",
+                    "description": "Five-digit ZIP Code"
+                  },
+                  "PrevAddress": {
+                    "type": "string",
+                    "description": "Unparsed previous address"
+                  },
+                  "PrevCity": {
+                    "type": "string",
+                    "description": "Previous City"
+                  },
+                  "PrevState": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string",
+                    "description": "Two-letter state abbreviation for previous address (for example, MT or FL)"
+                  },
+                  "PrevZip": {
+                    "pattern": "^\\d{5}$",
+                    "type": "string",
+                    "description": "Five-digit ZIP Code for previous address"
+                  },
+                  "Employer": {
+                    "type": "string",
+                    "description": "Current employer name"
+                  },
+                  "EmployerOcc": {
+                    "type": "string",
+                    "description": "Occupation at the current employer"
+                  },
+                  "CoApplicant": {
+                    "$ref": "#/components/schemas/CoApplicantType"
+                  },
+                  "CoAppSSN": {
+                    "pattern": "^\\d{9}$",
+                    "type": "string",
+                    "description": "9 digit SSN"
+                  },
+                  "CoAppDOB": {
+                    "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12]\\d|3[01])/\\d{4}$",
+                    "type": "string",
+                    "description": "mm/dd/yyyy"
+                  },
+                  "CoAppName": {
+                    "type": "string",
+                    "description": "Unparsed full name. Hart will attempt to parse the name into first, middle, last and generation. Do not use together with name parts (CoAppNameFirst, CoAppNameMiddle, CoAppNameLast, CoAppNameGen) and SplitName=1."
+                  },
+                  "CoAppNameFirst": {
+                    "type": "string",
+                    "description": "First name for co-applicant"
+                  },
+                  "CoAppNameMiddle": {
+                    "type": "string",
+                    "description": "Middle name for co-applicant"
+                  },
+                  "CoAppNameLast": {
+                    "type": "string",
+                    "description": "Last name for co-applicant"
+                  },
+                  "CoAppNameGen": {
+                    "type": "string",
+                    "description": "Generational suffix (for example, Jr or Sr)"
+                  },
+                  "CoAppAddress": {
+                    "type": "string",
+                    "description": "Unparsed co-applicant address"
+                  },
+                  "CoAppCity": {
+                    "type": "string",
+                    "description": "Co-applicant address city"
+                  },
+                  "CoAppState": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string",
+                    "description": "Co-applicant address two-letter state abbreviation (for example, MT or FL)"
+                  },
+                  "CoAppZip": {
+                    "pattern": "^\\d{5}$",
+                    "type": "string",
+                    "description": "Co-applicant five-digit ZIP Code"
+                  },
+                  "CoAppPrevAddress": {
+                    "type": "string",
+                    "description": "Unparsed co-applicant previous address"
+                  },
+                  "CoAppPrevCity": {
+                    "type": "string",
+                    "description": "Co-applicant previous address city"
+                  },
+                  "CoAppPrevState": {
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string",
+                    "description": "Co-applicant previous address two-letter state abbreviation (for example, MT or FL)"
+                  },
+                  "CoAppPrevZip": {
+                    "pattern": "^\\d{5}$",
+                    "type": "string",
+                    "description": "Co-applicant previous address five-digit ZIP Code"
+                  },
+                  "CoAppEmployer": {
+                    "type": "string",
+                    "description": "Co-applicant current employer name"
+                  },
+                  "CoAppEmployerOcc": {
+                    "type": "string",
+                    "description": "Co-applicant occupation at the current employer"
+                  },
+                  "Rbp_Print": {
+                    "$ref": "#/components/schemas/Rbp_PrintType"
+                  },
+                  "Rbp_Letter": {
+                    "$ref": "#/components/schemas/Rbp_LetterType"
+                  },
+                  "Rbp_Form": {
+                    "$ref": "#/components/schemas/RbpFormType"
+                  },
+                  "Rbp_Model": {
+                    "type": "string",
+                    "description": "Indicates the credit bureau and score model that your company uses in determining risk based pricing. The format is \"Bureau/Model\" where bureau values may be \"TU\", \"EFX\", \"XPN\". The model value is the score model code specific to each credit bureau. Consult with Hart to determine the correct model for your use case."
+                  },
+                  "Rbp_Loan_Maker": {
+                    "type": "string",
+                    "description": "Indicates the entity name to be printed at the top of the RBP letter."
+                  },
+                  "Rbp_Output": {
+                    "$ref": "#/components/schemas/RbpOutputType"
+                  }
+                }
+              },
+              "encoding": {
+                "Pass": {
+                  "style": "form"
+                },
+                "Product": {
+                  "style": "form"
+                },
+                "Perm": {
+                  "style": "form"
+                },
+                "Enduser": {
+                  "style": "form"
+                },
+                "Bureau": {
+                  "style": "form"
+                },
+                "MultiBur": {
+                  "style": "form"
+                },
+                "SSN": {
+                  "style": "form"
+                },
+                "DOB": {
+                  "style": "form"
+                },
+                "Name": {
+                  "style": "form"
+                },
+                "SplitName": {
+                  "style": "form"
+                },
+                "NameFirst": {
+                  "style": "form"
+                },
+                "NameMiddle": {
+                  "style": "form"
+                },
+                "NameLast": {
+                  "style": "form"
+                },
+                "NameGen": {
+                  "style": "form"
+                },
+                "Address": {
+                  "style": "form"
+                },
+                "City": {
+                  "style": "form"
+                },
+                "State": {
+                  "style": "form"
+                },
+                "Zip": {
+                  "style": "form"
+                },
+                "PrevAddress": {
+                  "style": "form"
+                },
+                "PrevCity": {
+                  "style": "form"
+                },
+                "PrevState": {
+                  "style": "form"
+                },
+                "PrevZip": {
+                  "style": "form"
+                },
+                "Employer": {
+                  "style": "form"
+                },
+                "EmployerOcc": {
+                  "style": "form"
+                },
+                "CoApplicant": {
+                  "style": "form"
+                },
+                "CoAppSSN": {
+                  "style": "form"
+                },
+                "CoAppDOB": {
+                  "style": "form"
+                },
+                "CoAppName": {
+                  "style": "form"
+                },
+                "CoAppNameFirst": {
+                  "style": "form"
+                },
+                "CoAppNameMiddle": {
+                  "style": "form"
+                },
+                "CoAppNameLast": {
+                  "style": "form"
+                },
+                "CoAppNameGen": {
+                  "style": "form"
+                },
+                "CoAppAddress": {
+                  "style": "form"
+                },
+                "CoAppCity": {
+                  "style": "form"
+                },
+                "CoAppState": {
+                  "style": "form"
+                },
+                "CoAppZip": {
+                  "style": "form"
+                },
+                "CoAppPrevAddress": {
+                  "style": "form"
+                },
+                "CoAppPrevCity": {
+                  "style": "form"
+                },
+                "CoAppPrevState": {
+                  "style": "form"
+                },
+                "CoAppPrevZip": {
+                  "style": "form"
+                },
+                "CoAppEmployer": {
+                  "style": "form"
+                },
+                "CoAppEmployerOcc": {
+                  "style": "form"
+                },
+                "Rbp_Print": {
+                  "style": "form"
+                },
+                "Rbp_Letter": {
+                  "style": "form"
+                },
+                "Rbp_Form": {
+                  "style": "form"
+                },
+                "Rbp_Model": {
+                  "style": "form"
+                },
+                "Rbp_Loan_Maker": {
+                  "style": "form"
+                },
+                "Rbp_Output": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful request. The structure of the response body (XML, JSON, HTML) depends on account configuration.",
+            "content": {
+              "text/xml": {
+                "schema": {}
+              },
+              "application/json": {
+                "schema": {}
+              },
+              "text/html": {
+                "schema": {}
+              },
+              "text/plain": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input parameters"
+          },
+          "401": {
+            "description": "Unauthorized - authentication failed"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "502": {
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "description": "Temporarily Unavailable"
+          }
+        }
+      }
+    },
+    "/api/CreditReport/reviewReport": {
+      "post": {
+        "tags": [
+          "CreditReport"
+        ],
+        "summary": "Submit a request to review a previously pulled report",
+        "description": "Submit a request to review a previously pulled report with the required fields",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "required": [
+                  "Pass",
+                  "Ref"
+                ],
+                "type": "object",
+                "properties": {
+                  "Pass": {
+                    "$ref": "#/components/schemas/PassReviewType"
+                  },
+                  "Ref": {
+                    "type": "string",
+                    "description": "Report identifier. Combination of the transaction ID of the report to be reviewed and the original account that pulled the report. The transid and account are separated by a dash."
+                  }
+                }
+              },
+              "encoding": {
+                "Pass": {
+                  "style": "form"
+                },
+                "Ref": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful request. The structure of the response body (XML, JSON, HTML, plain text) depends on account configuration.",
+            "content": {
+              "text/xml": {
+                "schema": {}
+              },
+              "application/json": {
+                "schema": {}
+              },
+              "text/html": {
+                "schema": {}
+              },
+              "text/plain": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input parameters"
+          },
+          "401": {
+            "description": "Unauthorized - authentication failed"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "502": {
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "description": "Temporarily Unavailable"
+          }
+        }
+      }
+    },
+    "/api/CreditReport/retrieveRbpLetter": {
+      "post": {
+        "tags": [
+          "CreditReport"
+        ],
+        "summary": "Submit a request to retrieve an RBP letter",
+        "description": "Submit a request to retrieve an RBP letter with the required fields",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "required": [
+                  "Rbp_Token"
+                ],
+                "type": "object",
+                "properties": {
+                  "Rbp_Token": {
+                    "type": "string",
+                    "description": "The unique token returned when the RBP letter was created."
+                  }
+                }
+              },
+              "encoding": {
+                "Rbp_Token": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful request - returns the RBP letter as a direct binary PDF stream or plain text response.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input parameters"
+          },
+          "401": {
+            "description": "Unauthorized - authentication failed"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "502": {
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "description": "Temporarily Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BureauType": {
+        "enum": [
+          "TU",
+          "EFX",
+          "XPN"
+        ],
+        "type": "string",
+        "description": "Credit bureau being requested. Use this field when requesting a single bureau. Do not use together with MultiBur.",
+        "x-enum-descriptions": {
+          "TU": "TransUnion",
+          "EFX": "Equifax",
+          "XPN": "Experian"
+        }
+      },
+      "CoApplicantType": {
+        "enum": [
+          1
+        ],
+        "type": "integer",
+        "description": "The co-applicant parameters are only necessary if a co-applicant is being requested. Needs to be set to 1 when accessing joint reports.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "1": "Value must be 1."
+        }
+      },
+      "PassReviewType": {
+        "enum": [
+          109
+        ],
+        "type": "integer",
+        "description": "Control parameter. Value must be 109.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "109": "Value must be 109."
+        }
+      },
+      "PassType": {
+        "enum": [
+          2
+        ],
+        "type": "integer",
+        "description": "Control parameter. Value must be 2.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "2": "Control parameter. Value must be 2."
+        }
+      },
+      "ProductType": {
+        "enum": [
+          "CREDIT",
+          "SCOREREPORT",
+          "EMPLOYMENT",
+          "SOFTPULL",
+          "HARDPULL"
+        ],
+        "type": "string",
+        "description": "Credit bureau product. Other bureau products are available. Consult with Hart Credit Tech if other products are required.",
+        "x-enum-descriptions": {
+          "CREDIT": "Credit report - Provides detailed credit information including accounts, inquiries, and public records",
+          "SCOREREPORT": "Score report - Provides credit score and key factors affecting the score",
+          "EMPLOYMENT": "Employment report - Provides employment verification and history information",
+          "SOFTPULL": "Soft pull product",
+          "HARDPULL": "Hard pull product"
+        }
+      },
+      "RbpFormType": {
+        "enum": [
+          "H1",
+          "H2",
+          "H3",
+          "H4",
+          "H5",
+          "H6",
+          "H7"
+        ],
+        "type": "string",
+        "description": "Indicates the form type for the RBP letter. Hart has developed its standard letter templates based on the Federal Reserve System's Fair Credit Reporting Risk-Based Pricing Regulations (FAIR CREDIT REPORTING - Regulation V). While we cannot advise you concerning your own company's regulatory compliance, we do believe that the standard forms that we have provided follow closely the government's guidelines on the creation of risk-based pricing notification letters. We realize that our standard forms may not suit your company's needs and we are willing to work with you to develop custom version of any of the above letter types. H-1: Model form for risk-based pricing notice H-6: Model form for risk-based pricing notice with credit score information H-2: Model form for account review risk-based pricing notice H-7: Model form for account review risk-based pricing notice with credit score information H-3: Model form for credit score disclosure exception for credit secured by one to four units of residential real property H-4: Model form for credit score disclosure exception for loans not secured by residential real property H-5: Model form for credit score disclosure exception for loans where credit score is not available.",
+        "x-enum-descriptions": {
+          "H1": "Model form for risk-based pricing notice",
+          "H2": "Model form for account review risk-based pricing notice",
+          "H3": "Model form for credit score disclosure exception for credit secured by one to four units of residential real property",
+          "H4": "Model form for credit score disclosure exception for loans not secured by residential real property",
+          "H5": "Model form for credit score disclosure exception for loans where credit score is not available",
+          "H6": "Model form for risk-based pricing notice with credit score information",
+          "H7": "Model form for account review risk-based pricing notice with credit score information"
+        }
+      },
+      "RbpOutputType": {
+        "enum": [
+          "XML",
+          "LINK"
+        ],
+        "type": "string",
+        "description": "Indicates the output format for the RBP letter. XML: (Recommended) Returns a token to retrieve the RBP PDF letter. rbp_token is returned in the response and should be captured for use in the retrieveRbpLetter request. LINK: (Default) Returns an HTML link to the RBP letter. Should be used on in conjunction with an HTML response. If LINK is selected as the output, then HTML code containing an anchor tag will be returned. The code will contain the full URL needed to access. Please note that the returned link will expire after 15 minutes.",
+        "x-enum-descriptions": {
+          "XML": "Returns a token to retrieve the RBP PDF letter",
+          "LINK": "Returns an HTML link to the RBP letter"
+        }
+      },
+      "Rbp_LetterType": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "description": "Indicates that Hart should create an RBP letter for return within the response stream. Use in conjunction with Rbp_Form, Rbp_Model, Rbp_Loan_Maker fields. Note: Hart will need to be notified to activate this feature before using. This field is mutually exclusive with Rbp_Print - use only one of these options. All the fields below are required when Rbp_Letter is set to 1.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "0": "Value 0.",
+          "1": "Value 1."
+        }
+      },
+      "Rbp_PrintType": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "description": "Indicates that Hart should create an RBP letter for the Hart Print and Mail solution. Use in conjunction with Rbp_Form, Rbp_Model, Rbp_Loan_Maker fields. Note: Hart will need to be notified to activate this feature before using. This field is mutually exclusive with Rbp_Letter - use only one of these options. All the fields below are required when Rbp_Print is set to 1.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "0": "Value 0.",
+          "1": "Value 1."
+        }
+      },
+      "RefreshTokenDto": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SplitNameType": {
+        "enum": [
+          1
+        ],
+        "type": "integer",
+        "description": "Set to \"1\" when providing name parts (NameFirst, NameMiddle, NameLast, NameGen) instead of the unparsed Name field. Do not use together with Name.",
+        "format": "int32",
+        "x-enum-descriptions": {
+          "1": "Value must be 1."
+        }
+      },
+      "SuperAdminLoginDto": {
+        "required": [
+          "password",
+          "userName"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string",
+            "format": "password"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Enter your JWT token in the format: Bearer {token}",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://reports.softpullsolutions.com",
+      "description": "Production"
+    }
+  ]
+}

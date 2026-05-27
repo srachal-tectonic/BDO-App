@@ -327,10 +327,20 @@ async function postInquiry(
 }
 
 /**
- * PascalCase form body per the SPS Postman collection's `standardInquiry`
- * request. Credentials are NOT in the body — they go through the bearer token.
+ * PascalCase form body per `pdfs/credit-report-openapi.json`:
+ * `/api/CreditReport/standardInquiry` request body. Credentials are NOT in
+ * the body — they go through the bearer token.
+ *
+ * `Rbp_Output=XML` is kept for forward-compatibility with the RBP-letter
+ * flow (it pairs with `Rbp_Letter=1` / `Rbp_Print=1`). It does NOT control
+ * the credit-report response format — that's set per-account by SPS support.
  */
 function buildInquiryBody(req: CreditPullRequest): URLSearchParams {
+  // Spec requires Zip = exactly 5 digits. Our request-level validator
+  // accepts 5 or 9 (borrowers often type ZIP+4) so we truncate here on the
+  // wire to satisfy SPS without rejecting valid borrower-portal input.
+  const zip5 = req.zip.replace(/\D/g, '').slice(0, 5);
+
   const body = new URLSearchParams({
     Pass: '2',
     Product: 'CREDIT',
@@ -341,7 +351,7 @@ function buildInquiryBody(req: CreditPullRequest): URLSearchParams {
     Address: req.address.toUpperCase(),
     City: req.city.toUpperCase(),
     State: req.state,
-    Zip: req.zip,
+    Zip: zip5,
     SSN: req.ssn,
     Rbp_Output: 'XML',
   });
@@ -633,6 +643,17 @@ function parseSpsJsonResponse(rawResponse: string, bureau: Bureau): CreditPullRe
 
   const subject = Array.isArray(parsed?.subjects) ? parsed.subjects[0] : null;
   const isHit = subject?.subjectHeader?.hitIndicator?.code === 'Y';
+
+  // Same PII-safe diagnostic as the XML path: when SPS returns 200 + no
+  // error but our extractor reads no-hit, log the structure so we can see
+  // where the hit indicator actually lives in the account's response.
+  if (!isError && !isHit) {
+    console.warn('[CreditPull] standardInquiry 200 JSON with isHit=false', {
+      topLevelKeys:
+        parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 30) : null,
+      structure: describeStructure(parsed),
+    });
+  }
 
   const scores: any[] = Array.isArray(subject?.scores) ? subject.scores : [];
   const firstScored = scores.find((s) => s?.notScored === false) ?? scores[0];
