@@ -16,6 +16,32 @@
 // PDF route, not inlined as data: URIs. Sparticuz's Chromium build refuses
 // to decode data:-scheme fonts (document.fonts reports status "error" with
 // no console log); http:// from the same page origin works normally.
+/** Subset of QuestionnaireRule fields we need to render. Kept loose-typed so
+ * this template doesn't reach into the questionnairePdf module. */
+export interface PQMemoQuestionnaireRule {
+  id: string;
+  name?: string;
+  questionText?: string;
+  mainCategory?: string;
+  purposeKey?: string;
+  questionOrder?: number;
+}
+
+export interface PQMemoQuestionnaireResponse {
+  ruleId: string;
+  content?: string;
+  updatedAt?: Date | string;
+}
+
+export interface PQMemoDiligenceReport {
+  /** Markdown body from the LLM. */
+  reportText: string;
+  /** ISO timestamp string. */
+  generatedAt?: string;
+  /** Model id, e.g. "claude-sonnet-4-6". */
+  model?: string;
+}
+
 export interface PQMemoInput {
   projectName: string;
   loanApplication: Record<string, any>;
@@ -29,6 +55,12 @@ export interface PQMemoInput {
   executiveSummary?: string;
   /** Optional general memo notes. */
   memoNotes?: string;
+  /** Applicable questionnaire rules — already filtered project-side. */
+  questionnaireRules?: PQMemoQuestionnaireRule[];
+  /** Stored questionnaire responses keyed off `ruleId`. */
+  questionnaireResponses?: PQMemoQuestionnaireResponse[];
+  /** Latest due-diligence report for the project, or null if not generated. */
+  diligenceReport?: PQMemoDiligenceReport | null;
 }
 
 const formatCurrency = (value: number | undefined | null): string => {
@@ -58,6 +90,128 @@ const esc = (s: unknown): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+/**
+ * Minimal Markdown → HTML for the Due Diligence Report body. Handles:
+ *   # / ## / ### headings, bullet lists (- or *), numbered lists (1.),
+ *   blank-line paragraph separation, **bold**, *italic*, `code`, > blockquotes.
+ * Not a full CommonMark implementation — but the DD LLM only emits this
+ * subset, and pulling in a real markdown lib would be a new runtime dep.
+ *
+ * Order of operations matters:
+ *   1. Escape HTML on the raw input so user/LLM-supplied angle brackets
+ *      don't inject tags.
+ *   2. Apply block-level transforms (headings / lists / blockquotes).
+ *   3. Apply inline transforms (bold / italic / code) — these run on
+ *      already-escaped text so they're safe to write as `<strong>` etc.
+ */
+function markdownToHtml(md: string): string {
+  const escaped = esc(md);
+  const lines = escaped.split(/\r?\n/);
+  const out: string[] = [];
+
+  type ListState = { kind: 'ul' | 'ol' } | null;
+  let list: ListState = null;
+  let inBlockquote = false;
+  let paragraph: string[] = [];
+
+  const closeList = () => {
+    if (list) {
+      out.push(`</${list.kind}>`);
+      list = null;
+    }
+  };
+  const closeQuote = () => {
+    if (inBlockquote) {
+      out.push('</blockquote>');
+      inBlockquote = false;
+    }
+  };
+  const flushParagraph = () => {
+    if (paragraph.length > 0) {
+      out.push(`<p>${inline(paragraph.join(' '))}</p>`);
+      paragraph = [];
+    }
+  };
+
+  const inline = (s: string): string =>
+    s
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+$/, '');
+
+    // Blank line — terminate any open paragraph / list / blockquote.
+    if (line.trim() === '') {
+      flushParagraph();
+      closeList();
+      closeQuote();
+      continue;
+    }
+
+    // Headings (#, ##, ###). h4+ folded into h3 since the DD report rarely goes deeper.
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      closeList();
+      closeQuote();
+      const level = Math.min(headingMatch[1].length, 3);
+      out.push(`<h${level}>${inline(headingMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    // Blockquote.
+    const quoteMatch = line.match(/^>\s?(.*)$/);
+    if (quoteMatch) {
+      flushParagraph();
+      closeList();
+      if (!inBlockquote) {
+        out.push('<blockquote>');
+        inBlockquote = true;
+      }
+      out.push(`<p>${inline(quoteMatch[1])}</p>`);
+      continue;
+    }
+    closeQuote();
+
+    // Unordered list item.
+    const ulMatch = line.match(/^\s*[-*]\s+(.*)$/);
+    if (ulMatch) {
+      flushParagraph();
+      if (!list || list.kind !== 'ul') {
+        closeList();
+        out.push('<ul>');
+        list = { kind: 'ul' };
+      }
+      out.push(`<li>${inline(ulMatch[1])}</li>`);
+      continue;
+    }
+
+    // Ordered list item.
+    const olMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (olMatch) {
+      flushParagraph();
+      if (!list || list.kind !== 'ol') {
+        closeList();
+        out.push('<ol>');
+        list = { kind: 'ol' };
+      }
+      out.push(`<li>${inline(olMatch[1])}</li>`);
+      continue;
+    }
+    closeList();
+
+    // Plain text — accumulate into the current paragraph.
+    paragraph.push(line.trim());
+  }
+
+  flushParagraph();
+  closeList();
+  closeQuote();
+  return out.join('\n');
+}
 
 /**
  * Currency formatter for the Loan Structure block — matches the in-app PQ Memo
@@ -198,6 +352,58 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const executiveSummary = input.executiveSummary || '';
   const memoNotes = input.memoNotes || '';
   const bdoSummaryNotes = projectOverview.bdoComments || '';
+
+  // ── Business Questionnaire block ──────────────────────────────────────
+  // Pair each applicable rule with its stored response by ruleId. Rules
+  // come pre-filtered by the route (project-applicable, non-hidden).
+  // Sort by questionOrder so the printed order matches the in-app view.
+  const questionnaireRules = (input.questionnaireRules || [])
+    .slice()
+    .sort((a, b) => (a.questionOrder ?? 0) - (b.questionOrder ?? 0));
+  const responseByRuleId = new Map<string, string>();
+  for (const r of input.questionnaireResponses || []) {
+    if (r?.ruleId) responseByRuleId.set(r.ruleId, String(r.content ?? ''));
+  }
+  const questionnaireBlock = (() => {
+    if (questionnaireRules.length === 0) return '';
+    const rows = questionnaireRules
+      .map((rule, idx) => {
+        const q = rule.questionText || rule.name || 'Question';
+        const answer = (responseByRuleId.get(rule.id) || '').trim();
+        const answerHtml = answer
+          ? `<div class="qna-answer">${esc(answer)}</div>`
+          : `<div class="qna-answer qna-empty">— No response provided —</div>`;
+        return `<div class="qna-item">
+          <div class="qna-question"><span class="qna-index">${idx + 1}.</span> ${esc(q)}</div>
+          ${answerHtml}
+        </div>`;
+      })
+      .join('');
+    return `<div class="page-break"></div>
+    <div class="section">
+      <h2 class="section-title">Business Questionnaire</h2>
+      <div class="qna-list">${rows}</div>
+    </div>`;
+  })();
+
+  // ── Due Diligence Report block ────────────────────────────────────────
+  // `reportText` is Markdown from the Claude DD prompt. We render via a
+  // small inline converter (no extra deps) — handles headings, bold/italic,
+  // bullet/numbered lists, paragraphs, inline code, and blockquotes.
+  const dd = input.diligenceReport;
+  const diligenceBlock = (() => {
+    if (!dd || !dd.reportText?.trim()) return '';
+    const generated = dd.generatedAt ? new Date(dd.generatedAt).toLocaleString() : '';
+    const footer = generated
+      ? `<div class="dd-meta">Generated ${esc(generated)}${dd.model ? ` · ${esc(dd.model)}` : ''}</div>`
+      : '';
+    return `<div class="page-break"></div>
+    <div class="section">
+      <h2 class="section-title">Due Diligence Report</h2>
+      ${footer}
+      <div class="dd-body">${markdownToHtml(dd.reportText)}</div>
+    </div>`;
+  })();
 
   const projectDescription = projectOverview.projectDescription || '';
   const businessDescription = businessApplicant.description || '';
@@ -408,6 +614,26 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .spread-section-row td { background: #f0f4ff !important; font-weight: 600; font-size: 11px; color: #2563a8; padding: 5px 8px; }
         .spread-negative { color: #dc2626; font-weight: 600; }
         .spread-subtitle { font-size: 12px; color: #6c757d; margin-top: 2px; }
+        /* Business Questionnaire (read-only) */
+        .qna-list { display: flex; flex-direction: column; gap: 10px; }
+        .qna-item { border: 1px solid #e1e8ed; border-radius: 6px; background: #fafbfc; padding: 8px 10px; page-break-inside: avoid; }
+        .qna-question { font-weight: 600; color: #2c3e50; font-size: 13px; margin-bottom: 4px; }
+        .qna-index { color: #6c757d; font-weight: 500; margin-right: 4px; }
+        .qna-answer { font-size: 12.5px; color: #495057; line-height: 1.5; white-space: pre-wrap; }
+        .qna-answer.qna-empty { color: #adb5bd; font-style: italic; }
+        /* Due Diligence Report (rendered Markdown) */
+        .dd-meta { font-size: 11px; color: #6c757d; margin-bottom: 8px; }
+        .dd-body { font-size: 13px; color: #2c3e50; line-height: 1.55; }
+        .dd-body h1 { font-size: 16px; margin: 14px 0 6px; font-weight: 700; color: #2c3e50; }
+        .dd-body h2 { font-size: 14px; margin: 12px 0 5px; font-weight: 700; color: #2c3e50; border-bottom: 1px solid #e1e8ed; padding-bottom: 2px; }
+        .dd-body h3 { font-size: 13px; margin: 10px 0 4px; font-weight: 700; color: #34495e; }
+        .dd-body p { margin: 4px 0; }
+        .dd-body ul, .dd-body ol { margin: 4px 0 4px 20px; padding-left: 4px; }
+        .dd-body li { margin: 2px 0; }
+        .dd-body code { background: #f1f3f5; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; }
+        .dd-body blockquote { border-left: 3px solid #c5d4e8; margin: 6px 0; padding: 2px 10px; color: #495057; background: #f8f9fa; }
+        .dd-body strong { font-weight: 700; }
+        .dd-body em { font-style: italic; }
         @media print { body { background: white; padding: 0; } .container { box-shadow: none; border-radius: 0; } @page { size: letter; margin: 0.4in; } }
   `;
 
@@ -768,6 +994,9 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
       <h2 class="section-title">BDO Summary</h2>
       ${bdoSummaryNotes ? `<div class="description-text">${bdoSummaryNotes}</div>` : '<div class="description-text" style="color: #adb5bd; font-style: italic;">No BDO summary notes provided</div>'}
     </div>
+
+    ${questionnaireBlock}
+    ${diligenceBlock}
   </div>
 </div>
 </body>

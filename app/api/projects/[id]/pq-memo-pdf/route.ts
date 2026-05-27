@@ -4,6 +4,11 @@ import type { AddressInfo } from 'net';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { generatePQMemoHTML } from '@/lib/pq-memo-template';
 import {
+  filterRuleByProject,
+  type QuestionnaireRule,
+  type QuestionnaireResponse,
+} from '@/lib/questionnairePdf';
+import {
   ROBOTO_400_WOFF2_BASE64,
   ROBOTO_400_WOFF_BASE64,
   ROBOTO_700_WOFF2_BASE64,
@@ -97,11 +102,48 @@ export async function GET(
     const periods: any[] = (latestSpread?.periodData as any[]) || [];
     const spreadFileName: string | undefined = latestSpread?.fileName;
 
+    // ── Business Questionnaire (read-only) ──────────────────────────────
+    // Mirrors the in-app Business Questionnaire tab: pull every configured
+    // rule, filter to those applicable to *this* project (purpose / NAICS /
+    // hidden-by-BDO), pair with stored responses by ruleId. Missing rule
+    // set, empty filter set, or absent responses doc all degrade silently.
+    const adminCol = await getCollection(COLLECTIONS.ADMIN_SETTINGS);
+    const adminDoc = (await adminCol.findOne({ id: 'config' })) as any;
+    const allRules: QuestionnaireRule[] = Array.isArray(adminDoc?.questionnaireRules)
+      ? (adminDoc.questionnaireRules as QuestionnaireRule[])
+      : [];
+    const hiddenIds: string[] = Array.isArray(project?.hiddenQuestionnaireRuleIds)
+      ? (project.hiddenQuestionnaireRuleIds as string[])
+      : [];
+    const projectOverviewForRules = (loanApp as any)?.projectOverview ?? {};
+    const applicableRules =
+      allRules.length > 0
+        ? allRules.filter((rule) => filterRuleByProject(rule, projectOverviewForRules, hiddenIds))
+        : [];
+
+    const responsesCol = await getCollection(COLLECTIONS.QUESTIONNAIRE_RESPONSES);
+    const responses = (await responsesCol.find({ projectId }).toArray()) as Array<
+      QuestionnaireResponse & { _id?: unknown }
+    >;
+
+    // ── Due Diligence report ────────────────────────────────────────────
+    const ddCol = await getCollection(COLLECTIONS.DUE_DILIGENCE_REPORTS);
+    const ddDoc = (await ddCol.findOne({ projectId })) as any;
+
     const html = generatePQMemoHTML({
       projectName: project.projectName || project.businessName || 'Draft',
       loanApplication: loanApp,
       financialPeriods: periods,
       spreadFileName,
+      questionnaireRules: applicableRules,
+      questionnaireResponses: responses,
+      diligenceReport: ddDoc
+        ? {
+            reportText: String(ddDoc.reportText ?? ''),
+            generatedAt: String(ddDoc.generatedAt ?? ''),
+            model: ddDoc.model ? String(ddDoc.model) : undefined,
+          }
+        : null,
     });
 
     // Load a Chromium launcher. Preference order:
@@ -356,7 +398,7 @@ export async function GET(
       project.businessName ||
       'Draft';
     const safeName = borrowerName.replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `PQ_Memo_${safeName}.pdf`;
+    const filename = `Pre_Qual_${safeName}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,

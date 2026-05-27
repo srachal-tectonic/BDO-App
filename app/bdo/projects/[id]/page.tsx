@@ -405,7 +405,7 @@ export default function BDOToolsPage() {
               Spreads
             </TabsTrigger>
             <TabsTrigger value="pq-memo" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
-              PQ Memo
+              Pre-Qual
             </TabsTrigger>
             <TabsTrigger value="proposal-letter" className="px-4 py-2.5 text-[length:var(--t-font-size-base)] font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-b-[var(--t-color-primary)] data-[state=active]:text-[color:var(--t-color-primary)] data-[state=active]:bg-[var(--t-color-primary-palest)] data-[state=active]:shadow-none text-[color:var(--t-color-text-secondary)] data-[state=active]:font-semibold">
               Proposal Letter

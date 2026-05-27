@@ -168,7 +168,7 @@ function BDOSummaryEditor({ value, onChange }: { value: string; onChange: (html:
         contentEditable
         onInput={handleInput}
         style={{ fontFamily: 'var(--font-poppins), sans-serif' }}
-        className="min-h-[400px] px-4 py-3 text-[15px] text-[#1a1a1a] outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-[#9ca3af] [&:empty]:before:pointer-events-none prose prose-sm max-w-none"
+        className="min-h-[400px] px-4 py-3 text-sm text-[#1a1a1a] outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-[#9ca3af] [&:empty]:before:pointer-events-none prose prose-sm max-w-none"
         data-placeholder="Write your thoughts on this deal..."
         data-testid="editor-bdo-summary"
       />
@@ -296,7 +296,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `PQ_Memo_${applicationData.projectOverview.projectName || 'Draft'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `Pre_Qual_${applicationData.projectOverview.projectName || 'Draft'}_${new Date().toISOString().split('T')[0]}.pdf`;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
