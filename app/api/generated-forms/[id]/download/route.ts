@@ -175,6 +175,12 @@ async function generateBusinessQuestionnairePdf(
 
   const rawPurpose = projectOverview?.primaryProjectPurpose;
   const primaryPurposeStr = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+  const primaryPurposeArr: string[] = Array.isArray(rawPurpose)
+    ? rawPurpose.filter(Boolean)
+    : (rawPurpose ? [rawPurpose] : []);
+  const secondaryPurposes: string[] = Array.isArray(projectOverview?.secondaryProjectPurposes)
+    ? projectOverview.secondaryProjectPurposes.filter(Boolean)
+    : [];
 
   let logoBytes: Buffer | null = null;
   try {
@@ -188,7 +194,10 @@ async function generateBusinessQuestionnairePdf(
     exportRules,
     [],
     primaryPurposeStr,
-    { logoBytes: logoBytes ? new Uint8Array(logoBytes) : null },
+    {
+      logoBytes: logoBytes ? new Uint8Array(logoBytes) : null,
+      projectPurposes: { primary: primaryPurposeArr, secondary: secondaryPurposes },
+    },
   );
 
   const safeName = (projectName || 'Project').replace(/[^a-zA-Z0-9]/g, '_');

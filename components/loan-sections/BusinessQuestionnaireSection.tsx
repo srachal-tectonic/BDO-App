@@ -125,9 +125,10 @@ function stripHtml(html: string): string {
 
 interface BusinessQuestionnaireSectionProps {
   editable?: boolean;
+  showExport?: boolean;
 }
 
-export default function BusinessQuestionnaireSection({ editable = false }: BusinessQuestionnaireSectionProps = {}) {
+export default function BusinessQuestionnaireSection({ editable = false, showExport = false }: BusinessQuestionnaireSectionProps = {}) {
   const { data: appData } = useApplication();
   const projectId = appData.projectId;
   const po = appData.projectOverview;
@@ -231,13 +232,22 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
 
       const rawPurpose = po?.primaryProjectPurpose;
       const primaryPurposeStr = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+      const primaryPurposeArr: string[] = Array.isArray(rawPurpose)
+        ? rawPurpose.filter(Boolean)
+        : (rawPurpose ? [rawPurpose] : []);
+      const secondaryPurposes: string[] = Array.isArray(po?.secondaryProjectPurposes)
+        ? po!.secondaryProjectPurposes!.filter(Boolean)
+        : [];
       const logoBytes = await fetchLogoBytes();
       const pdfBytes = await generateQuestionnairePdf(
         projectName,
         exportRules,
         responses,
         primaryPurposeStr,
-        { logoBytes },
+        {
+          logoBytes,
+          projectPurposes: { primary: primaryPurposeArr, secondary: secondaryPurposes },
+        },
       );
       const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -315,46 +325,51 @@ export default function BusinessQuestionnaireSection({ editable = false }: Busin
     responseMap.set(r.ruleId, r.content || '');
   }
 
-  const headerControls = editable ? (
+  const showExportButton = editable || showExport;
+  const headerControls = (editable || showExportButton) ? (
     <div className="flex items-center gap-2 flex-shrink-0">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleRegenerate}
-        disabled={isRegenerating || !projectId}
-        data-testid="button-regenerate-questions"
-      >
-        {isRegenerating ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Regenerating...
-          </>
-        ) : (
-          <>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Regenerate Questions
-          </>
-        )}
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExportPdf}
-        disabled={isExporting || applicableRules.length === 0 || !projectId}
-        data-testid="button-export-questionnaire-pdf"
-      >
-        {isExporting ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Exporting...
-          </>
-        ) : (
-          <>
-            <FileDown className="w-4 h-4 mr-2" />
-            Export to PDF
-          </>
-        )}
-      </Button>
+      {editable && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRegenerate}
+          disabled={isRegenerating || !projectId}
+          data-testid="button-regenerate-questions"
+        >
+          {isRegenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Regenerating...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Regenerate Questions
+            </>
+          )}
+        </Button>
+      )}
+      {showExportButton && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportPdf}
+          disabled={isExporting || applicableRules.length === 0 || !projectId}
+          data-testid="button-export-questionnaire-pdf"
+        >
+          {isExporting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <FileDown className="w-4 h-4 mr-2" />
+              Export to PDF
+            </>
+          )}
+        </Button>
+      )}
     </div>
   ) : null;
 

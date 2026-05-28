@@ -443,6 +443,12 @@ export default function QuestionnairePage() {
 
       const rawPurpose = applicationData?.projectOverview?.primaryProjectPurpose;
       const primaryProjectPurpose = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
+      const primaryPurposeArr: string[] = Array.isArray(rawPurpose)
+        ? rawPurpose.filter(Boolean)
+        : (rawPurpose ? [rawPurpose] : []);
+      const secondaryPurposes: string[] = Array.isArray(applicationData?.projectOverview?.secondaryProjectPurposes)
+        ? applicationData!.projectOverview!.secondaryProjectPurposes!.filter(Boolean)
+        : [];
 
       // Respect the per-project hidden-question list maintained by the
       // BDO Edit Questionnaire tab so the exported PDF only contains
@@ -467,7 +473,10 @@ export default function QuestionnairePage() {
         exportRules,
         latestResponses,
         primaryProjectPurpose,
-        { logoBytes },
+        {
+          logoBytes,
+          projectPurposes: { primary: primaryPurposeArr, secondary: secondaryPurposes },
+        },
       );
 
       // Create blob and download

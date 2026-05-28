@@ -870,7 +870,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               so no extra props are needed beyond the projectId already on
               applicationStore. */}
           <TabsContent value="business-questionnaire" className="mt-0">
-            <BusinessQuestionnaireSection />
+            <BusinessQuestionnaireSection showExport />
           </TabsContent>
         </Tabs>
       </div>

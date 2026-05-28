@@ -153,6 +153,17 @@ export interface QuestionnairePdfOptions {
    * omitted, the header bar still renders without a logo.
    */
   logoBytes?: Uint8Array | ArrayBuffer | null;
+  /**
+   * Structured project purposes. When provided, the "Project Purpose" category
+   * is split into one section per purpose (primary first, then each secondary),
+   * with rules placed under the first matching purpose. Rules tagged for "all
+   * purposes" (no purposeKey/purposeKeys) are collected into a "General"
+   * section that renders above the per-purpose sections.
+   */
+  projectPurposes?: {
+    primary: string[];
+    secondary?: string[];
+  };
 }
 
 export async function generateQuestionnairePdf(
@@ -306,21 +317,86 @@ export async function generateQuestionnairePdf(
     if (arr) arr.push(rule);
   }
 
+  const sortByOrder = (arr: QuestionnaireRule[]) =>
+    arr.slice().sort((a, b) => (a.questionOrder ?? a.order ?? 0) - (b.questionOrder ?? b.order ?? 0));
+
+  // Compose the final list of sections. When `projectPurposes` is supplied,
+  // expand the Project Purpose category into one section per purpose (primary
+  // first, then each secondary) plus a "General" section for rules that apply
+  // to all purposes. Otherwise fall back to the legacy single section.
+  type Section = { title: string; rules: QuestionnaireRule[] };
+  const sections: Section[] = [];
+
+  const overviewRules = sortByOrder(rulesByCategory.get('Business Overview') || []);
+  if (overviewRules.length > 0) {
+    sections.push({ title: 'Business Overview', rules: overviewRules });
+  }
+
+  const purposeRules = sortByOrder(rulesByCategory.get('Project Purpose') || []);
+  if (purposeRules.length > 0) {
+    const primaryPurposes = options?.projectPurposes?.primary ?? [];
+    const secondaryPurposes = options?.projectPurposes?.secondary ?? [];
+    const orderedPurposes: string[] = [];
+    const seen = new Set<string>();
+    for (const p of [...primaryPurposes, ...secondaryPurposes]) {
+      const key = normalizePurpose(p);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      orderedPurposes.push(p);
+    }
+
+    if (orderedPurposes.length === 0) {
+      // Legacy fallback: one combined section labeled with the joined string.
+      const title = primaryProjectPurpose
+        ? `Project Purpose — ${primaryProjectPurpose}`
+        : 'Project Purpose';
+      sections.push({ title, rules: purposeRules });
+    } else {
+      const generalRules: QuestionnaireRule[] = [];
+      const buckets = new Map<string, QuestionnaireRule[]>();
+      for (const p of orderedPurposes) buckets.set(p, []);
+
+      for (const rule of purposeRules) {
+        const keys = (rule.purposeKeys && rule.purposeKeys.length > 0)
+          ? rule.purposeKeys
+          : (rule.purposeKey ? [rule.purposeKey] : []);
+        if (keys.length === 0) {
+          generalRules.push(rule);
+          continue;
+        }
+        const match = orderedPurposes.find((p) =>
+          keys.some((k) => normalizePurpose(k) === normalizePurpose(p)),
+        );
+        if (match) {
+          buckets.get(match)!.push(rule);
+        } else {
+          generalRules.push(rule);
+        }
+      }
+
+      if (generalRules.length > 0) {
+        sections.push({ title: 'General', rules: generalRules });
+      }
+      for (const p of orderedPurposes) {
+        const bucket = buckets.get(p) || [];
+        if (bucket.length > 0) sections.push({ title: p, rules: bucket });
+      }
+    }
+  }
+
+  const industryRules = sortByOrder(rulesByCategory.get('Industry') || []);
+  if (industryRules.length > 0) {
+    sections.push({ title: 'Industry', rules: industryRules });
+  }
+
   let questionNumber = 1;
   const fieldHeight = 54;
   const lineHeight = 11;
   const questionFontSize = 9;
 
-  for (const category of categoryOrder) {
-    const categoryRules = (rulesByCategory.get(category) || [])
-      .slice()
-      .sort((a, b) => (a.questionOrder ?? a.order ?? 0) - (b.questionOrder ?? b.order ?? 0));
-    if (categoryRules.length === 0) continue;
-
-    let categoryTitle: string = category;
-    if (category === 'Project Purpose' && primaryProjectPurpose) {
-      categoryTitle = `${category} — ${primaryProjectPurpose}`;
-    }
+  for (const section of sections) {
+    const categoryRules = section.rules;
+    const categoryTitle = section.title;
 
     // Reserve room for the header plus the first question's box so we don't
     // strand a category header at the bottom of a page.
