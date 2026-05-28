@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServer, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
-import { generatePQMemoHTML } from '@/lib/pq-memo-template';
+import { generatePQMemoHTML, generateBusinessQuestionnaireOnlyHTML } from '@/lib/pq-memo-template';
 import {
   filterRuleByProject,
   type QuestionnaireRule,
@@ -70,7 +70,7 @@ export const maxDuration = 60;
  * Streams a generated PQ Memo PDF for the given project.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   let browser: any = null;
@@ -78,6 +78,11 @@ export async function GET(
   let engine: 'sparticuz' | 'puppeteer-full' | 'unknown' = 'unknown';
   try {
     const { id: projectId } = await params;
+    // `?section=business-questionnaire` strips the output down to just the
+    // Business Questionnaire block (used by the BQ subtab's Export button so
+    // it produces the same read-only styling as the full PreQual PDF).
+    const section = request.nextUrl.searchParams.get('section');
+    const bqOnly = section === 'business-questionnaire';
 
     // Load the project header row.
     const projectsCol = await getCollection(COLLECTIONS.PROJECTS);
@@ -144,7 +149,17 @@ export async function GET(
       liquidity: po.riskLiquidityExplanation || '',
     };
 
-    const html = generatePQMemoHTML({
+    const rawPrimaryPurpose = (projectOverviewForRules as any)?.primaryProjectPurpose;
+    const primaryPurposeArr: string[] = Array.isArray(rawPrimaryPurpose)
+      ? rawPrimaryPurpose.filter(Boolean)
+      : (rawPrimaryPurpose ? [rawPrimaryPurpose] : []);
+    const secondaryPurposes: string[] = Array.isArray(
+      (projectOverviewForRules as any)?.secondaryProjectPurposes,
+    )
+      ? (projectOverviewForRules as any).secondaryProjectPurposes.filter(Boolean)
+      : [];
+
+    const templateInput = {
       projectName: project.projectName || project.businessName || 'Draft',
       loanApplication: loanApp,
       financialPeriods: periods,
@@ -152,6 +167,7 @@ export async function GET(
       scoreExplanations,
       questionnaireRules: applicableRules,
       questionnaireResponses: responses,
+      projectPurposes: { primary: primaryPurposeArr, secondary: secondaryPurposes },
       diligenceReport: ddDoc
         ? {
             reportText: String(ddDoc.reportText ?? ''),
@@ -159,7 +175,10 @@ export async function GET(
             model: ddDoc.model ? String(ddDoc.model) : undefined,
           }
         : null,
-    });
+    };
+    const html = bqOnly
+      ? generateBusinessQuestionnaireOnlyHTML(templateInput)
+      : generatePQMemoHTML(templateInput);
 
     // Load a Chromium launcher. Preference order:
     //   1. @sparticuz/chromium + puppeteer-core  — bundles a Linux-friendly
@@ -413,7 +432,9 @@ export async function GET(
       project.businessName ||
       'Draft';
     const safeName = borrowerName.replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `Pre_Qual_${safeName}.pdf`;
+    const filename = bqOnly
+      ? `${safeName}_Business_Questionnaire.pdf`
+      : `Pre_Qual_${safeName}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,

@@ -126,9 +126,17 @@ function stripHtml(html: string): string {
 interface BusinessQuestionnaireSectionProps {
   editable?: boolean;
   showExport?: boolean;
+  /**
+   * `fillable` (default) — generate the PDF client-side via `pdf-lib` with
+   *   editable form fields. Matches the Loan Application tab's export.
+   * `readonly`  — fetch the read-only PDF rendered by the PQ Memo route
+   *   (`/api/projects/<id>/pq-memo-pdf?section=business-questionnaire`), so the
+   *   output matches the styling of the full Pre-Qual export.
+   */
+  exportMode?: 'fillable' | 'readonly';
 }
 
-export default function BusinessQuestionnaireSection({ editable = false, showExport = false }: BusinessQuestionnaireSectionProps = {}) {
+export default function BusinessQuestionnaireSection({ editable = false, showExport = false, exportMode = 'fillable' }: BusinessQuestionnaireSectionProps = {}) {
   const { data: appData } = useApplication();
   const projectId = appData.projectId;
   const po = appData.projectOverview;
@@ -208,6 +216,30 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
     if (!projectId) return;
     setIsExporting(true);
     try {
+      if (exportMode === 'readonly') {
+        // Defer entirely to the PQ Memo PDF route — same data load, same
+        // styling as the full Pre-Qual export, just trimmed to the BQ block.
+        const res = await fetch(
+          `/api/projects/${encodeURIComponent(projectId)}/pq-memo-pdf?section=business-questionnaire`,
+        );
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({ error: 'Failed to generate PDF' }));
+          throw new Error(errBody?.error || 'Failed to generate PDF');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const projectName =
+          project?.projectName || (po as any)?.projectName || 'Business_Questionnaire';
+        link.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_Business_Questionnaire.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
       // Re-fetch the project so the export uses the persisted hidden-question list,
       // not whatever React state happens to hold. This guards against any stale-state
       // edge case where a pending delete hasn't been reflected in component state yet.

@@ -24,6 +24,7 @@ export interface PQMemoQuestionnaireRule {
   questionText?: string;
   mainCategory?: string;
   purposeKey?: string;
+  purposeKeys?: string[];
   questionOrder?: number;
 }
 
@@ -61,7 +62,17 @@ export interface PQMemoInput {
   questionnaireResponses?: PQMemoQuestionnaireResponse[];
   /** Latest due-diligence report for the project, or null if not generated. */
   diligenceReport?: PQMemoDiligenceReport | null;
+  /** Structured project purposes used to split the Business Questionnaire
+   * into per-purpose subsections (primary first, then each secondary). When
+   * absent the questionnaire renders as a single flat list. */
+  projectPurposes?: {
+    primary: string[];
+    secondary?: string[];
+  };
 }
+
+const normalizePurpose = (value: unknown): string =>
+  String(value ?? '').replace(/\s+/g, '').toLowerCase();
 
 const formatCurrency = (value: number | undefined | null): string => {
   if (value === null || value === undefined || Number.isNaN(value)) return '-';
@@ -277,10 +288,12 @@ const formatLoanCurrency = (value: number | string | undefined | null): string =
 // ─── Loan Structure grouping ─────────────────────────────────────────────────
 // Kept in sync with `components/PQMemoForm.tsx` so the PDF Overview matches the
 // in-app Overview pixel-for-pixel: financing sources become columns under a
-// "T Bank" / "Other" group banner; Amount / Rate / Term / Guarantee are rows.
+// "T Bank" / "Borrower" / "Other" group banner; Amount / Rate / Term / Guarantee
+// are rows. The "Borrower" group sits between T Bank and Other and contains
+// only Equity-typed sources.
 
 type LoanGroupColumn = { key: string; label: string; source: any };
-type LoanGroup = { key: 'tBank' | 'other'; label: string; columns: LoanGroupColumn[] };
+type LoanGroup = { key: 'tBank' | 'borrower' | 'other'; label: string; columns: LoanGroupColumn[] };
 
 function isTBankSource(source: any): boolean {
   const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
@@ -291,10 +304,16 @@ function isTBankSource(source: any): boolean {
   return true;
 }
 
+function isBorrowerSource(source: any): boolean {
+  const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
+  return ft.includes('equity');
+}
+
 function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
   const valid = (sources || []).filter((s) => s && (Number(s.amount) > 0 || s.financingType || s.financingSource));
   const tBank = valid.filter(isTBankSource);
-  const other = valid.filter((s) => !isTBankSource(s));
+  const borrower = valid.filter((s) => !isTBankSource(s) && isBorrowerSource(s));
+  const other = valid.filter((s) => !isTBankSource(s) && !isBorrowerSource(s));
   const groups: LoanGroup[] = [];
   if (tBank.length > 0) {
     groups.push({
@@ -302,6 +321,17 @@ function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
       label: 'T Bank',
       columns: tBank.map((s, i) => ({
         key: `tbank-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  if (borrower.length > 0) {
+    groups.push({
+      key: 'borrower',
+      label: 'Borrower',
+      columns: borrower.map((s, i) => ({
+        key: `borrower-${s.id || i}`,
         label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
         source: s,
       })),
@@ -356,13 +386,223 @@ function formatGuaranteePct(source: any): string {
   return `${pct.toFixed(0)}%`;
 }
 
+/**
+ * Build the Business Questionnaire HTML block used by both the full PQ Memo
+ * PDF and the BQ-only export. Pairs each applicable rule with its stored
+ * response, buckets by mainCategory, and splits Project Purpose rules into
+ * per-purpose subsections (primary first, then each secondary; rules with no
+ * purposeKey collected into a "General" subsection). Numbering is continuous
+ * across all subsections.
+ */
+function buildBusinessQuestionnaireSection(input: PQMemoInput): string {
+  const questionnaireRules = (input.questionnaireRules || [])
+    .slice()
+    .sort((a, b) => (a.questionOrder ?? 0) - (b.questionOrder ?? 0));
+  if (questionnaireRules.length === 0) return '';
+
+  const responseByRuleId = new Map<string, string>();
+  for (const r of input.questionnaireResponses || []) {
+    if (r?.ruleId) responseByRuleId.set(r.ruleId, String(r.content ?? ''));
+  }
+
+  type Subsection = { title: string; rules: PQMemoQuestionnaireRule[] };
+  const subsections: Subsection[] = [];
+
+  const overviewRules = questionnaireRules.filter((r) => r.mainCategory === 'Business Overview');
+  const purposeRules = questionnaireRules.filter((r) => r.mainCategory === 'Project Purpose');
+  const industryRules = questionnaireRules.filter((r) => r.mainCategory === 'Industry');
+  const otherRules = questionnaireRules.filter(
+    (r) =>
+      r.mainCategory !== 'Business Overview' &&
+      r.mainCategory !== 'Project Purpose' &&
+      r.mainCategory !== 'Industry',
+  );
+
+  if (overviewRules.length > 0) {
+    subsections.push({ title: 'Business Overview', rules: overviewRules });
+  }
+
+  if (purposeRules.length > 0) {
+    const primaryPurposes = input.projectPurposes?.primary ?? [];
+    const secondaryPurposes = input.projectPurposes?.secondary ?? [];
+    const orderedPurposes: string[] = [];
+    const seenPurpose = new Set<string>();
+    for (const p of [...primaryPurposes, ...secondaryPurposes]) {
+      const key = normalizePurpose(p);
+      if (!key || seenPurpose.has(key)) continue;
+      seenPurpose.add(key);
+      orderedPurposes.push(p);
+    }
+
+    if (orderedPurposes.length === 0) {
+      subsections.push({ title: 'Project Purpose', rules: purposeRules });
+    } else {
+      const generalRules: PQMemoQuestionnaireRule[] = [];
+      const buckets = new Map<string, PQMemoQuestionnaireRule[]>();
+      for (const p of orderedPurposes) buckets.set(p, []);
+
+      for (const rule of purposeRules) {
+        const keys = rule.purposeKeys && rule.purposeKeys.length > 0
+          ? rule.purposeKeys
+          : (rule.purposeKey ? [rule.purposeKey] : []);
+        if (keys.length === 0) {
+          generalRules.push(rule);
+          continue;
+        }
+        const match = orderedPurposes.find((p) =>
+          keys.some((k) => normalizePurpose(k) === normalizePurpose(p)),
+        );
+        if (match) {
+          buckets.get(match)!.push(rule);
+        } else {
+          generalRules.push(rule);
+        }
+      }
+
+      if (generalRules.length > 0) {
+        subsections.push({ title: 'Project Purpose - General', rules: generalRules });
+      }
+      for (const p of orderedPurposes) {
+        const bucket = buckets.get(p) || [];
+        if (bucket.length > 0) subsections.push({ title: `Project Purpose - ${p}`, rules: bucket });
+      }
+    }
+  }
+
+  if (industryRules.length > 0) {
+    subsections.push({ title: 'Industry', rules: industryRules });
+  }
+  if (otherRules.length > 0) {
+    subsections.push({ title: 'Other', rules: otherRules });
+  }
+
+  let n = 1;
+  const subsectionHtml = subsections
+    .map((sub) => {
+      const rows = sub.rules
+        .map((rule) => {
+          const q = rule.questionText || rule.name || 'Question';
+          const answer = (responseByRuleId.get(rule.id) || '').trim();
+          const answerHtml = answer
+            ? `<div class="qna-answer">${esc(answer)}</div>`
+            : `<div class="qna-answer qna-empty">— No response provided —</div>`;
+          const item = `<div class="qna-item">
+            <div class="qna-question"><span class="qna-index">${n}.</span> ${esc(q)}</div>
+            ${answerHtml}
+          </div>`;
+          n++;
+          return item;
+        })
+        .join('');
+      return `<div class="qna-subsection">
+        <h3 class="qna-subsection-title">${esc(sub.title)}</h3>
+        <div class="qna-list">${rows}</div>
+      </div>`;
+    })
+    .join('');
+
+  return `<div class="page-break"></div>
+  <div class="section">
+    <h2 class="section-title">Business Questionnaire</h2>
+    ${subsectionHtml}
+  </div>`;
+}
+
+/**
+ * Standalone HTML page rendering ONLY the Business Questionnaire section,
+ * using the same read-only styling as the full PQ Memo export. Consumed by
+ * the BQ subtab's Export button so the output matches the PreQual PDF.
+ */
+export function generateBusinessQuestionnaireOnlyHTML(input: PQMemoInput): string {
+  const projectName = input.projectName || 'Business Questionnaire';
+  const exportedAt = new Date().toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  // Strip the leading page-break div the full PQ Memo prepends — there's
+  // nothing to break from in the BQ-only document.
+  const block = buildBusinessQuestionnaireSection(input).replace(
+    /^\s*<div class="page-break"><\/div>\s*/,
+    '',
+  );
+
+  const styleBlock = `
+    @font-face {
+      font-family: 'Roboto';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url('/fonts/roboto-400.woff2') format('woff2'),
+           url('/fonts/roboto-400.woff')  format('woff');
+    }
+    @font-face {
+      font-family: 'Roboto';
+      font-style: normal;
+      font-weight: 700;
+      font-display: block;
+      src: url('/fonts/roboto-700.woff2') format('woff2'),
+           url('/fonts/roboto-700.woff')  format('woff');
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 20px; line-height: 1.6; color: #2c3e50; }
+    .container { max-width: 1200px; margin: 0 auto; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; padding: 24px 28px; }
+    .doc-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 16px; }
+    .doc-title { font-size: 18px; font-weight: 700; color: #133c7f; }
+    .doc-subtitle { font-size: 12px; color: #718bbc; }
+    .section { margin-top: 14px; }
+    .section-title { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #2c3e50; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #3498db; }
+    .qna-list { display: flex; flex-direction: column; gap: 10px; }
+    .qna-item { border: 1px solid #e1e8ed; border-radius: 6px; background: #fafbfc; padding: 8px 10px; page-break-inside: avoid; }
+    .qna-question { font-weight: 600; color: #2c3e50; font-size: 13px; margin-bottom: 4px; }
+    .qna-index { color: #6c757d; font-weight: 500; margin-right: 4px; }
+    .qna-answer { font-size: 12.5px; color: #495057; line-height: 1.5; white-space: pre-wrap; }
+    .qna-answer.qna-empty { color: #adb5bd; font-style: italic; }
+    .qna-subsection { margin-top: 14px; }
+    .qna-subsection:first-child { margin-top: 0; }
+    .qna-subsection-title { font-size: 13px; font-weight: 700; color: #133c7f; margin: 0 0 6px; padding-bottom: 3px; border-bottom: 1px solid #c5d4e8; }
+    @media print { body { background: white; padding: 0; } .container { box-shadow: none; border-radius: 0; } @page { size: letter; margin: 0.4in; } }
+  `;
+
+  const body = block
+    ? block
+    : `<div class="section"><h2 class="section-title">Business Questionnaire</h2>
+        <div style="font-size:13px; color:#adb5bd; font-style:italic;">No questionnaire items apply to this project.</div>
+       </div>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Questionnaire - ${esc(projectName)}</title>
+<style>${styleBlock}</style>
+</head>
+<body>
+<div class="container">
+  <div class="doc-header">
+    <div class="doc-title">${esc(projectName)}</div>
+    <div class="doc-subtitle">Business Questionnaire · Exported ${esc(exportedAt)}</div>
+  </div>
+  ${body}
+</div>
+</body>
+</html>`;
+}
+
 export function generatePQMemoHTML(input: PQMemoInput): string {
   const loanApp = input.loanApplication || {};
   const projectOverview = loanApp.projectOverview || {};
   const businessApplicant = loanApp.businessApplicant || {};
   const individualApplicants: any[] = loanApp.individualApplicants || [];
   const financingSources: any[] = loanApp.financingSources || [];
-  const sourcesUsesData = (loanApp.sourcesUses || {}) as Record<string, Record<string, number> | undefined>;
+  // Prefer the new 7(a) Sources & Uses table (mirrors the in-app PQ Memo
+  // Overview which reads `applicationData.sourcesUses7a`) and fall back to the
+  // legacy `sourcesUses` shape so older projects still render something.
+  const sourcesUsesData = (loanApp.sourcesUses7a || loanApp.sourcesUses || {}) as Record<
+    string,
+    Record<string, number> | undefined
+  >;
 
   const borrowerName =
     businessApplicant.legalName || projectOverview.projectName || input.projectName || 'Draft';
@@ -399,37 +639,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const bdoSummaryNotes = projectOverview.bdoComments || '';
 
   // ── Business Questionnaire block ──────────────────────────────────────
-  // Pair each applicable rule with its stored response by ruleId. Rules
-  // come pre-filtered by the route (project-applicable, non-hidden).
-  // Sort by questionOrder so the printed order matches the in-app view.
-  const questionnaireRules = (input.questionnaireRules || [])
-    .slice()
-    .sort((a, b) => (a.questionOrder ?? 0) - (b.questionOrder ?? 0));
-  const responseByRuleId = new Map<string, string>();
-  for (const r of input.questionnaireResponses || []) {
-    if (r?.ruleId) responseByRuleId.set(r.ruleId, String(r.content ?? ''));
-  }
-  const questionnaireBlock = (() => {
-    if (questionnaireRules.length === 0) return '';
-    const rows = questionnaireRules
-      .map((rule, idx) => {
-        const q = rule.questionText || rule.name || 'Question';
-        const answer = (responseByRuleId.get(rule.id) || '').trim();
-        const answerHtml = answer
-          ? `<div class="qna-answer">${esc(answer)}</div>`
-          : `<div class="qna-answer qna-empty">— No response provided —</div>`;
-        return `<div class="qna-item">
-          <div class="qna-question"><span class="qna-index">${idx + 1}.</span> ${esc(q)}</div>
-          ${answerHtml}
-        </div>`;
-      })
-      .join('');
-    return `<div class="page-break"></div>
-    <div class="section">
-      <h2 class="section-title">Business Questionnaire</h2>
-      <div class="qna-list">${rows}</div>
-    </div>`;
-  })();
+  const questionnaireBlock = buildBusinessQuestionnaireSection(input);
 
   // ── Due Diligence Report block ────────────────────────────────────────
   // `reportText` is Markdown from the Claude DD prompt. We render via a
@@ -453,7 +663,19 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const projectDescription = projectOverview.projectDescription || '';
   const businessDescription = businessApplicant.description || '';
 
-  const sourceIds: string[] = financingSources.map((s) => s?.id).filter(Boolean);
+  // Column derivation mirrors PQMemoForm.tsx: deduped financingType labels
+  // from the loanApp's financingSources, with the legacy SBA column quartet
+  // as the no-financingSources fallback.
+  const suColumns: string[] = financingSources.length > 0
+    ? (() => {
+        const counts: Record<string, number> = {};
+        return financingSources.map((fs: any) => {
+          const base = String(fs?.financingType || fs?.id || '');
+          counts[base] = (counts[base] || 0) + 1;
+          return counts[base] > 1 ? `${base} (${counts[base]})` : base;
+        });
+      })()
+    : ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty'];
 
   const categoryOrder = [
     'realEstate',
@@ -462,51 +684,35 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     'equipment',
     'furnitureFixtures',
     'inventory',
-    'workingCapital',
-    'workingCapitalPreOpening',
     'businessAcquisition',
-    'franchiseFees',
-    'constructionHardCosts',
-    'constructionContingency',
-    'interimInterestReserve',
-    'otherConstructionSoftCosts',
+    'workingCapital',
     'closingCosts',
-    'sbaGtyFee',
-    'usdaGtyFee',
     'other',
   ] as const;
 
   const categoryLabels: Record<string, string> = {
     realEstate: 'Real Estate',
-    debtRefiCRE: 'Debt Refi CRE',
-    debtRefiNonCRE: 'Debt Refi Non-CRE',
+    debtRefiCRE: 'Debt Refi (CRE)',
+    debtRefiNonCRE: 'Debt Refi (Non-CRE)',
     equipment: 'Equipment',
     furnitureFixtures: 'Furniture & Fixtures',
     inventory: 'Inventory',
     businessAcquisition: 'Business Acquisition',
     workingCapital: 'Working Capital',
-    workingCapitalPreOpening: 'Working Capital - Pre Opening',
-    franchiseFees: 'Franchise Fees',
-    constructionHardCosts: 'Construction Hard Costs',
-    constructionContingency: 'Construction Contingency',
-    interimInterestReserve: 'Interest Reserve - 3 Mos',
-    otherConstructionSoftCosts: 'Construction Soft Costs',
     closingCosts: 'Closing Costs',
-    sbaGtyFee: 'SBA Gty Fee',
-    usdaGtyFee: 'USDA Gty Fee',
     other: 'Other',
   };
 
   const totals: Record<string, number> = {};
-  sourceIds.forEach((id) => {
-    totals[id] = 0;
+  suColumns.forEach((col) => {
+    totals[col] = 0;
   });
 
   categoryOrder.forEach((category) => {
     const categoryData = sourcesUsesData[category];
     if (categoryData) {
-      sourceIds.forEach((id) => {
-        totals[id] += Number(categoryData[id]) || 0;
+      suColumns.forEach((col) => {
+        totals[col] += Number(categoryData[col]) || 0;
       });
     }
   });
@@ -514,8 +720,8 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const grandTotal = Object.values(totals).reduce((sum, val) => sum + val, 0);
 
   const percentages: Record<string, number> = {};
-  sourceIds.forEach((id) => {
-    percentages[id] = grandTotal > 0 ? (totals[id] / grandTotal) * 100 : 0;
+  suColumns.forEach((col) => {
+    percentages[col] = grandTotal > 0 ? (totals[col] / grandTotal) * 100 : 0;
   });
 
   const metrics: Record<string, number> = input.metricOverrides || {};
@@ -666,19 +872,27 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .qna-index { color: #6c757d; font-weight: 500; margin-right: 4px; }
         .qna-answer { font-size: 12.5px; color: #495057; line-height: 1.5; white-space: pre-wrap; }
         .qna-answer.qna-empty { color: #adb5bd; font-style: italic; }
-        /* Due Diligence Report (rendered Markdown) */
-        .dd-meta { font-size: 11px; color: #6c757d; margin-bottom: 8px; }
-        .dd-body { font-size: 13px; color: #2c3e50; line-height: 1.55; }
-        .dd-body h1 { font-size: 16px; margin: 14px 0 6px; font-weight: 700; color: #2c3e50; }
-        .dd-body h2 { font-size: 14px; margin: 12px 0 5px; font-weight: 700; color: #2c3e50; border-bottom: 1px solid #e1e8ed; padding-bottom: 2px; }
-        .dd-body h3 { font-size: 13px; margin: 10px 0 4px; font-weight: 700; color: #34495e; }
-        .dd-body p { margin: 4px 0; }
-        .dd-body ul, .dd-body ol { margin: 4px 0 4px 20px; padding-left: 4px; }
-        .dd-body li { margin: 2px 0; }
-        .dd-body code { background: #f1f3f5; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; }
-        .dd-body blockquote { border-left: 3px solid #c5d4e8; margin: 6px 0; padding: 2px 10px; color: #495057; background: #f8f9fa; }
-        .dd-body strong { font-weight: 700; }
+        .qna-subsection { margin-top: 14px; }
+        .qna-subsection:first-child { margin-top: 0; }
+        .qna-subsection-title { font-size: 13px; font-weight: 700; color: #133c7f; margin: 0 0 6px; padding-bottom: 3px; border-bottom: 1px solid #c5d4e8; }
+        /* Due Diligence Report (rendered Markdown) — palette mirrors the in-app
+           DD panel (ProseRenderer in components/diligence/DiligenceReportPanel.tsx)
+           so "Risk to the Bank" and other admin-authored sections render with
+           the same navy heading + soft-blue underline treatment in the PDF. */
+        .dd-meta { font-size: 11px; color: #718bbc; margin-bottom: 8px; }
+        .dd-body { font-size: 13px; color: #1a1a1a; line-height: 1.55; }
+        .dd-body h1 { font-size: 20px; margin: 18px 0 9px; font-weight: 600; color: #133c7f; }
+        .dd-body h2 { font-size: 17px; margin: 18px 0 9px; font-weight: 600; color: #133c7f; border-bottom: 1px solid #e7edf4; padding-bottom: 5px; }
+        .dd-body h3 { font-size: 14px; margin: 15px 0 6px; font-weight: 600; color: #4263a5; }
+        .dd-body p { margin: 0 0 9px; }
+        .dd-body ul, .dd-body ol { margin: 0 0 9px 20px; padding-left: 4px; }
+        .dd-body li { margin: 3px 0; }
+        .dd-body code { background: #e7edf4; color: #133c7f; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; }
+        .dd-body blockquote { border-left: 4px solid #fbbf24; margin: 9px 0; padding: 6px 12px; color: #7a4f00; background: #fffbeb; font-size: 13px; }
+        .dd-body strong { font-weight: 600; color: #133c7f; }
         .dd-body em { font-style: italic; }
+        .dd-body a { color: #2563eb; text-decoration: underline; }
+        .dd-body hr { border: none; border-top: 1px solid #e7edf4; margin: 12px 0; }
         .dd-body table.dd-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; border: 1px solid #c5d4e8; page-break-inside: auto; }
         .dd-body table.dd-table thead { display: table-header-group; }
         .dd-body table.dd-table tr { page-break-inside: avoid; }
@@ -774,32 +988,40 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           <thead>
             <tr>
               <th>Use Category</th>
-              ${financingSources.map((s: any) => `<th>${esc(s.financingType || 'Source')}</th>`).join('')}
+              ${suColumns.map((col) => `<th>${esc(col)}</th>`).join('')}
               <th>Total</th>
             </tr>
           </thead>
           <tbody>
             <tr class="percentage-row">
               <td>%</td>
-              ${sourceIds.map((id) => `<td>${formatPercentage(percentages[id])}</td>`).join('')}
+              ${suColumns.map((col) => `<td>${formatPercentage(percentages[col])}</td>`).join('')}
               <td>100%</td>
             </tr>
             ${categoryOrder
               .map((category) => {
                 const categoryData = sourcesUsesData[category];
                 if (!categoryData) return '';
-                const rowTotal = sourceIds.reduce((sum, id) => sum + (Number(categoryData[id]) || 0), 0);
+                const rowTotal = suColumns.reduce(
+                  (sum, col) => sum + (Number(categoryData[col]) || 0),
+                  0,
+                );
                 if (rowTotal === 0) return '';
                 return `<tr>
                 <td>${categoryLabels[category]}</td>
-                ${sourceIds.map((id) => `<td>${categoryData[id] ? formatCurrency(Number(categoryData[id])) : ''}</td>`).join('')}
+                ${suColumns
+                  .map(
+                    (col) =>
+                      `<td>${categoryData[col] ? formatCurrency(Number(categoryData[col])) : ''}</td>`,
+                  )
+                  .join('')}
                 <td>${formatCurrency(rowTotal)}</td>
               </tr>`;
               })
               .join('')}
             <tr class="total-row">
               <td>Total</td>
-              ${sourceIds.map((id) => `<td>${formatCurrency(totals[id])}</td>`).join('')}
+              ${suColumns.map((col) => `<td>${formatCurrency(totals[col])}</td>`).join('')}
               <td>${formatCurrency(grandTotal)}</td>
             </tr>
           </tbody>

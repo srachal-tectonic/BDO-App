@@ -22,7 +22,7 @@ const SOURCES_USES_ROW_KEYS = [
 ] as const;
 
 type LoanGroupColumn = { key: string; label: string; source: any };
-type LoanGroup = { key: 'tBank' | 'other'; label: string; columns: LoanGroupColumn[] };
+type LoanGroup = { key: 'tBank' | 'borrower' | 'other'; label: string; columns: LoanGroupColumn[] };
 
 function isTBankSource(source: any): boolean {
   const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
@@ -33,10 +33,17 @@ function isTBankSource(source: any): boolean {
   return true;
 }
 
+function isBorrowerSource(source: any): boolean {
+  // "Borrower" group banner sits over Equity-typed sources only.
+  const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
+  return ft.includes('equity');
+}
+
 function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
   const valid = (sources || []).filter((s) => s && (Number(s.amount) > 0 || s.financingType || s.financingSource));
   const tBank = valid.filter(isTBankSource);
-  const other = valid.filter((s) => !isTBankSource(s));
+  const borrower = valid.filter((s) => !isTBankSource(s) && isBorrowerSource(s));
+  const other = valid.filter((s) => !isTBankSource(s) && !isBorrowerSource(s));
   const groups: LoanGroup[] = [];
   if (tBank.length > 0) {
     groups.push({
@@ -44,6 +51,17 @@ function buildLoanStructureGroups(sources: any[]): LoanGroup[] {
       label: 'T Bank',
       columns: tBank.map((s, i) => ({
         key: `tbank-${s.id || i}`,
+        label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
+        source: s,
+      })),
+    });
+  }
+  if (borrower.length > 0) {
+    groups.push({
+      key: 'borrower',
+      label: 'Borrower',
+      columns: borrower.map((s, i) => ({
+        key: `borrower-${s.id || i}`,
         label: s.financingType || s.financingSource || s.label || `Source ${i + 1}`,
         source: s,
       })),
@@ -879,7 +897,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               so no extra props are needed beyond the projectId already on
               applicationStore. */}
           <TabsContent value="business-questionnaire" className="mt-0">
-            <BusinessQuestionnaireSection showExport />
+            <BusinessQuestionnaireSection showExport exportMode="readonly" />
           </TabsContent>
 
           <TabsContent value="due-diligence" className="mt-0">

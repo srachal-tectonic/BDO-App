@@ -375,11 +375,11 @@ export async function generateQuestionnairePdf(
       }
 
       if (generalRules.length > 0) {
-        sections.push({ title: 'General', rules: generalRules });
+        sections.push({ title: 'Project Purpose - General', rules: generalRules });
       }
       for (const p of orderedPurposes) {
         const bucket = buckets.get(p) || [];
-        if (bucket.length > 0) sections.push({ title: p, rules: bucket });
+        if (bucket.length > 0) sections.push({ title: `Project Purpose - ${p}`, rules: bucket });
       }
     }
   }
