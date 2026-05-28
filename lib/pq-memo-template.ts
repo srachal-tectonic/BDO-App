@@ -94,14 +94,15 @@ const esc = (s: unknown): string =>
 /**
  * Minimal Markdown → HTML for the Due Diligence Report body. Handles:
  *   # / ## / ### headings, bullet lists (- or *), numbered lists (1.),
- *   blank-line paragraph separation, **bold**, *italic*, `code`, > blockquotes.
+ *   GFM pipe tables, blank-line paragraph separation, **bold**, *italic*,
+ *   `code`, > blockquotes.
  * Not a full CommonMark implementation — but the DD LLM only emits this
  * subset, and pulling in a real markdown lib would be a new runtime dep.
  *
  * Order of operations matters:
  *   1. Escape HTML on the raw input so user/LLM-supplied angle brackets
  *      don't inject tags.
- *   2. Apply block-level transforms (headings / lists / blockquotes).
+ *   2. Apply block-level transforms (headings / lists / blockquotes / tables).
  *   3. Apply inline transforms (bold / italic / code) — these run on
  *      already-escaped text so they're safe to write as `<strong>` etc.
  */
@@ -140,14 +141,58 @@ function markdownToHtml(md: string): string {
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
 
-  for (const rawLine of lines) {
-    const line = rawLine.replace(/\s+$/, '');
+  // GFM pipe-table helpers. A table is a row of `| cell | cell |` followed
+  // immediately by a delimiter row of `| --- | :-: |` (any mix of colons and
+  // dashes per cell). Subsequent `|`-bounded rows are data until a blank or
+  // non-pipe line.
+  const isTableSeparator = (s: string): boolean => {
+    const t = s.trim();
+    if (!t.startsWith('|') || !t.endsWith('|')) return false;
+    const inner = t.slice(1, -1);
+    if (!inner.includes('|') && !/^\s*:?-+:?\s*$/.test(inner)) return false;
+    return inner.split('|').every((c) => /^\s*:?-+:?\s*$/.test(c));
+  };
+  const parseTableCells = (s: string): string[] => {
+    let t = s.trim();
+    if (t.startsWith('|')) t = t.slice(1);
+    if (t.endsWith('|')) t = t.slice(0, -1);
+    return t.split('|').map((c) => c.trim());
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+$/, '');
 
     // Blank line — terminate any open paragraph / list / blockquote.
     if (line.trim() === '') {
       flushParagraph();
       closeList();
       closeQuote();
+      continue;
+    }
+
+    // GFM pipe table (header row + delimiter row + data rows).
+    if (
+      line.trim().startsWith('|') &&
+      i + 1 < lines.length &&
+      isTableSeparator(lines[i + 1])
+    ) {
+      flushParagraph();
+      closeList();
+      closeQuote();
+      const headerCells = parseTableCells(line);
+      i += 1; // consume delimiter row
+      const dataRows: string[][] = [];
+      while (i + 1 < lines.length) {
+        const next = lines[i + 1];
+        if (next.trim() === '' || !next.trim().startsWith('|')) break;
+        i += 1;
+        dataRows.push(parseTableCells(next));
+      }
+      const thead = `<tr>${headerCells.map((c) => `<th>${inline(c)}</th>`).join('')}</tr>`;
+      const tbody = dataRows
+        .map((row) => `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
+        .join('');
+      out.push(`<table class="dd-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);
       continue;
     }
 
@@ -634,6 +679,11 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .dd-body blockquote { border-left: 3px solid #c5d4e8; margin: 6px 0; padding: 2px 10px; color: #495057; background: #f8f9fa; }
         .dd-body strong { font-weight: 700; }
         .dd-body em { font-style: italic; }
+        .dd-body table.dd-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; border: 1px solid #c5d4e8; page-break-inside: auto; }
+        .dd-body table.dd-table thead { display: table-header-group; }
+        .dd-body table.dd-table tr { page-break-inside: avoid; }
+        .dd-body table.dd-table th { background: #e7edf4; color: #133c7f; font-weight: 700; text-align: left; padding: 4px 6px; border: 1px solid #c5d4e8; vertical-align: top; }
+        .dd-body table.dd-table td { padding: 4px 6px; border: 1px solid #c5d4e8; color: #2c3e50; vertical-align: top; }
         @media print { body { background: white; padding: 0; } .container { box-shadow: none; border-radius: 0; } @page { size: letter; margin: 0.4in; } }
   `;
 

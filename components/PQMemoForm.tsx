@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle, FileQuestion } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle, FileQuestion, ShieldCheck } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
+import DiligenceReportPanel from '@/components/diligence/DiligenceReportPanel';
 import { useApplication } from '@/lib/applicationStore';
 import { Button } from '@/components/ui/button';
 
@@ -470,6 +471,14 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               <FileQuestion className="w-4 h-4" />
               Business Questionnaire
             </TabsTrigger>
+            <TabsTrigger
+              value="due-diligence"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
+              data-testid="tab-due-diligence"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Due Diligence
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-0">
@@ -871,6 +880,20 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               applicationStore. */}
           <TabsContent value="business-questionnaire" className="mt-0">
             <BusinessQuestionnaireSection showExport />
+          </TabsContent>
+
+          <TabsContent value="due-diligence" className="mt-0">
+            <DiligenceReportPanel
+              projectId={projectId}
+              legalName={applicationData.businessApplicant?.legalName}
+              industry={applicationData.projectOverview?.industry}
+              naicsCode={applicationData.projectOverview?.naicsCode}
+              primaryProjectPurpose={
+                Array.isArray(applicationData.projectOverview?.primaryProjectPurpose)
+                  ? applicationData.projectOverview.primaryProjectPurpose.join(', ')
+                  : applicationData.projectOverview?.primaryProjectPurpose
+              }
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -365,7 +365,7 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
           ) : (
             <>
               <FileDown className="w-4 h-4 mr-2" />
-              Export to PDF
+              Export
             </>
           )}
         </Button>
