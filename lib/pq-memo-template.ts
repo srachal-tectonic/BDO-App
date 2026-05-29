@@ -8,8 +8,10 @@
  *             referralSource, bdoComments).  No `pqMemo.*` sub-object.
  *   - Risk scores: projectOverview.risk{Repayment,Management,Equity,Collateral,Credit,Liquidity}
  *   - BDO summary narrative: projectOverview.bdoComments
- *   - `scoreExplanations` and `metricOverrides` aren't persisted here, so the
- *     template gracefully degrades when they're missing.
+ *   - `scoreExplanations` isn't persisted here, so the template gracefully
+ *     degrades when it's missing. DSCR is read straight off
+ *     `loanApplication.dscr` (period1..4 / dscr1..4) and rendered in the
+ *     Cash Flow Analysis section.
  */
 
 // Fonts are served to Chromium over a loopback HTTP server spun up by the
@@ -50,8 +52,6 @@ export interface PQMemoInput {
   spreadFileName?: string;
   /** Optional per-category narrative — keyed by risk category (repayment, management, ...). */
   scoreExplanations?: Record<string, string>;
-  /** Optional metric override map (dscr2022, dscr2023, ...). */
-  metricOverrides?: Record<string, number>;
   /** Optional executive-summary free text. */
   executiveSummary?: string;
   /** Optional general memo notes. */
@@ -87,11 +87,6 @@ const formatCurrency = (value: number | undefined | null): string => {
 const formatPercentage = (value: number | undefined): string => {
   if (!value) return '0%';
   return `${value.toFixed(1)}%`;
-};
-
-const formatDecimal = (value: number | undefined): string => {
-  if (!value) return '0.00';
-  return value.toFixed(2);
 };
 
 const esc = (s: unknown): string =>
@@ -724,8 +719,6 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     percentages[col] = grandTotal > 0 ? (totals[col] / grandTotal) * 100 : 0;
   });
 
-  const metrics: Record<string, number> = input.metricOverrides || {};
-
   const keyIndividualsRows = individualApplicants
     .map((individual: any) => {
       let experienceDisplay = '-';
@@ -804,19 +797,21 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .scores-table thead th { padding: 9px 14px; text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; }
         .scores-table tbody tr { background: #ffffff; }
         .scores-table tbody td { padding: 9px 14px; border-bottom: 1px solid #e1e8ed; vertical-align: middle; }
-        /* Loan Structure matrix — mirrors the in-app Overview tab. */
-        .loan-structure-table { width: 100%; border-collapse: collapse; font-size: 12.5px; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .loan-structure-table thead th { color: #ffffff; font-weight: 600; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; padding: 8px 10px; border-right: 1px solid #4b5563; }
-        .loan-structure-table thead th:last-child { border-right: 0; }
-        .loan-structure-table thead tr.group-row th { background: #374151; text-align: center; }
-        .loan-structure-table thead tr.col-row th { background: #4b5563; text-align: right; padding: 7px 10px; }
-        .loan-structure-table thead tr.col-row th:first-child { text-align: left; }
-        .loan-structure-table tbody td { padding: 8px 10px; font-size: 12.5px; color: #374151; border-bottom: 1px solid #e5e7eb; text-align: right; font-variant-numeric: tabular-nums; }
-        .loan-structure-table tbody td.row-label { background: #f9fafb; color: #374151; font-weight: 500; text-align: left; }
-        .loan-structure-table tr.group-total-row td { background: #f3f4f6; border-top: 2px solid #9ca3af; font-weight: 600; color: #1f2937; }
-        .loan-structure-table tr.net-exposure-row td { background: #f3f4f6; border-top: 1px solid #d1d5db; font-weight: 600; color: #1f2937; }
-        .loan-structure-table tr.total-project-row td { background: #e5e7eb; border-top: 1px solid #9ca3af; font-weight: 700; color: #111827; }
-        .loan-structure-empty { padding: 14px; text-align: center; color: #6b7280; font-style: italic; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 12.5px; }
+        /* Loan Structure matrix — flat solid #2c3e50 header, bordered body
+           cells, no rounded corners or shadow. Copied verbatim from the
+           user-provided reference template. Mapping: the existing HTML
+           uses .row-label for the first column (equivalent to the
+           reference's .loan-col-source) and emits numeric body cells
+           without a class, so :not(.row-label) gives them the reference's
+           .loan-col-num treatment (right-align + tabular-nums). */
+        .loan-structure-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+        .loan-structure-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .loan-structure-table thead tr.group-row th { text-align: center; }
+        .loan-structure-table thead tr.col-row th:not(:first-child) { text-align: right; }
+        .loan-structure-table td { padding: 5px 8px; border: 1px solid #e1e8ed; background: white; font-size: 13px; color: #2c3e50; }
+        .loan-structure-table td.row-label { font-weight: 600; background: #fafbfc; }
+        .loan-structure-table td:not(.row-label) { text-align: right; font-variant-numeric: tabular-nums; }
+        .loan-structure-empty { padding: 14px; text-align: center; color: #6b7280; font-style: italic; background: #ffffff; border: 1px solid #e5e7eb; font-size: 13px; }
         .score-cell { text-align: center; }
         .badge { display: inline-block; min-width: 34px; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px; text-align: center; }
         .badge-score { background: #e8f2fb; color: #2563a8; border: 1px solid #b8d4ef; }
@@ -1029,18 +1024,36 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
       </div>`
       : '';
 
-  const metricsBlock =
-    Object.keys(metrics).length > 0
-      ? `<div class="section">
+  // Cash Flow Analysis — mirrors the in-app PQMemoForm dscrItems exactly
+  // (see components/PQMemoForm.tsx around line 386 + the MetricDisplay
+  // component): always four cards, label is "{period} DSCR" when a period
+  // is set and "Period N DSCR" otherwise, value is the ratio to 2 decimals
+  // or "N/A" when null/undefined. Reads from loanApp.dscr instead of the
+  // dead metricOverrides path that nothing populates.
+  const dscrData = (loanApp.dscr || {}) as {
+    period1?: string; period2?: string; period3?: string; period4?: string;
+    dscr1?: number | null; dscr2?: number | null; dscr3?: number | null; dscr4?: number | null;
+  };
+  const dscrItems: Array<{ label: string; value: number | null | undefined }> = [
+    { label: dscrData.period1 ? `${dscrData.period1} DSCR` : 'Period 1 DSCR', value: dscrData.dscr1 },
+    { label: dscrData.period2 ? `${dscrData.period2} DSCR` : 'Period 2 DSCR', value: dscrData.dscr2 },
+    { label: dscrData.period3 ? `${dscrData.period3} DSCR` : 'Period 3 DSCR', value: dscrData.dscr3 },
+    { label: dscrData.period4 ? `${dscrData.period4} DSCR` : 'Period 4 DSCR', value: dscrData.dscr4 },
+  ];
+  const formatDscr = (v: number | null | undefined): string =>
+    v == null ? 'N/A' : Number(v).toFixed(2);
+
+  const metricsBlock = `<div class="section">
         <h2 class="section-title">Cash Flow Analysis</h2>
         <div class="metrics-grid">
-          ${metrics.dscr2022 !== undefined ? `<div class="metric-card"><div class="metric-label">2022 DSCR</div><div class="metric-value">${formatDecimal(metrics.dscr2022)}</div></div>` : ''}
-          ${metrics.dscr2023 !== undefined ? `<div class="metric-card"><div class="metric-label">2023 DSCR</div><div class="metric-value">${formatDecimal(metrics.dscr2023)}</div></div>` : ''}
-          ${metrics.dscr2024 !== undefined ? `<div class="metric-card"><div class="metric-label">2024 DSCR</div><div class="metric-value">${formatDecimal(metrics.dscr2024)}</div></div>` : ''}
-          ${metrics.interimDscr !== undefined ? `<div class="metric-card"><div class="metric-label">Interim DSCR</div><div class="metric-value">${formatDecimal(metrics.interimDscr)}</div></div>` : ''}
+          ${dscrItems
+            .map(
+              (item) =>
+                `<div class="metric-card"><div class="metric-label">${esc(item.label)}</div><div class="metric-value">${formatDscr(item.value)}</div></div>`,
+            )
+            .join('')}
         </div>
-      </div>`
-      : '';
+      </div>`;
 
   const spreadBlock = (() => {
     if (!financialPeriods || financialPeriods.length === 0) return '';
