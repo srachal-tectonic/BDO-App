@@ -1,8 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
-import { parseFinancialSpreadsheet } from '@/lib/parseSpreadsheet';
+import { parseFinancialSpreadsheet, type GuarantorDraw } from '@/lib/parseSpreadsheet';
 import { ObjectId } from 'mongodb';
 import { logAuditEvent } from '@/lib/auditLog';
+
+/**
+ * Normalise a person's name for fuzzy equality: strip punctuation, collapse
+ * whitespace, lowercase. "John A. Smith" → "john a smith"; "Smith, John" →
+ * "smith john".
+ */
+function normalizeName(s: string): string {
+  return s.replace(/[^a-z0-9\s]/gi, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * Match a name from column B of the Guarantors sheet against the
+ * individualApplicants array. Tolerates: "First Last", "First Middle Last",
+ * "Last First", "Last, First", punctuation differences (periods, hyphens),
+ * and extra whitespace. Returns the matching applicant index or -1.
+ */
+function findIndividualIdxByName(applicants: any[], rawName: string): number {
+  const raw = String(rawName || '').trim();
+  if (!raw) return -1;
+
+  const targets = new Set<string>();
+  targets.add(normalizeName(raw));
+  // "Last, First [Middle]" → also try "First [Middle] Last".
+  if (raw.includes(',')) {
+    const [lastPart, ...rest] = raw.split(',');
+    const firstPart = rest.join(',').trim();
+    if (lastPart.trim() && firstPart) {
+      targets.add(normalizeName(`${firstPart} ${lastPart}`));
+    }
+  }
+
+  return applicants.findIndex((a) => {
+    const fn = String(a?.firstName || '').trim();
+    const mn = String(a?.middleName || '').trim();
+    const ln = String(a?.lastName || '').trim();
+    if (!fn && !ln) return false;
+    const variants = [
+      `${fn} ${ln}`,
+      mn ? `${fn} ${mn} ${ln}` : '',
+      `${ln} ${fn}`,
+      `${ln}, ${fn}`,
+    ]
+      .map(normalizeName)
+      .filter(Boolean);
+    return variants.some((v) => targets.has(v));
+  });
+}
+
+/**
+ * Apply parsed guarantor draws to the individualApplicants array on the
+ * loan-application doc, matched by name. Updates `reqDraw` (stored as a
+ * string per schema.ts:42) only on applicants whose value would actually
+ * change. Returns counts so the route can include them in the response.
+ *
+ * Safe to call with an empty draws array; safe to call when no loan
+ * application exists yet (returns zeros instead of throwing).
+ */
+async function applyGuarantorDrawsToIndividuals(
+  projectId: string,
+  draws: GuarantorDraw[],
+): Promise<{ matched: number; updated: number; unmatchedNames: string[] }> {
+  if (!draws || draws.length === 0) {
+    return { matched: 0, updated: 0, unmatchedNames: [] };
+  }
+  const loanCol = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+  const doc = (await loanCol.findOne({ projectId })) as any;
+  if (!doc) return { matched: 0, updated: 0, unmatchedNames: draws.map((d) => d.name) };
+
+  const applicants: any[] = Array.isArray(doc.individualApplicants) ? doc.individualApplicants : [];
+  if (applicants.length === 0) {
+    return { matched: 0, updated: 0, unmatchedNames: draws.map((d) => d.name) };
+  }
+
+  const updated = applicants.map((a) => ({ ...a }));
+  const unmatchedNames: string[] = [];
+  let matched = 0;
+  let changed = 0;
+
+  for (const draw of draws) {
+    const idx = findIndividualIdxByName(updated, draw.name);
+    if (idx === -1) {
+      unmatchedNames.push(draw.name);
+      continue;
+    }
+    matched++;
+    const newVal = draw.reqDraw == null ? '' : String(draw.reqDraw);
+    if (String(updated[idx].reqDraw ?? '') !== newVal) {
+      updated[idx].reqDraw = newVal;
+      changed++;
+    }
+  }
+
+  if (changed > 0) {
+    await loanCol.updateOne(
+      { projectId },
+      { $set: { individualApplicants: updated, updatedAt: new Date().toISOString() } },
+    );
+  }
+  return { matched, updated: changed, unmatchedNames };
+}
 
 // GET /api/projects/:id/financials
 export async function GET(
@@ -81,9 +181,43 @@ export async function POST(
       metadata: { fileName: file.name, versionLabel: versionLabel.trim() },
     }).catch(() => {});
 
+    // Push per-guarantor "Draw Needed" values from the Guarantors tab
+    // (col B = name, col AB = draw) onto matching individualApplicants.
+    // Failures here don't fail the upload — the spread is already saved.
+    let guarantorDrawSync: { matched: number; updated: number; unmatchedNames: string[] } = {
+      matched: 0,
+      updated: 0,
+      unmatchedNames: [],
+    };
+    try {
+      guarantorDrawSync = await applyGuarantorDrawsToIndividuals(
+        projectId,
+        parsed.guarantorDraws || [],
+      );
+      if (guarantorDrawSync.updated > 0) {
+        logAuditEvent({
+          action: 'loan_application_updated',
+          category: 'loan_application',
+          projectId,
+          resourceType: 'loanApplication',
+          resourceId: projectId,
+          summary: `Synced "Required Income from Business" on ${guarantorDrawSync.updated} individual applicant(s) from spread Guarantors tab`,
+          metadata: {
+            sourceFile: file.name,
+            matched: guarantorDrawSync.matched,
+            updated: guarantorDrawSync.updated,
+            unmatched: guarantorDrawSync.unmatchedNames,
+          },
+        }).catch(() => {});
+      }
+    } catch (applyErr: any) {
+      console.error('[Financials API] guarantor-draw apply failed:', applyErr);
+    }
+
     return NextResponse.json({
       id: result.insertedId.toString(),
       ...doc,
+      guarantorDrawSync,
     });
   } catch (error: any) {
     console.error('[Financials API POST] Error:', error);

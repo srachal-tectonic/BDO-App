@@ -958,6 +958,10 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           .metric-label { font-size: 8px; margin-bottom: 3px; }
           .metric-value { font-size: 14px; }
           .description-text { padding: 6px 8px; font-size: 9px; line-height: 1.3; }
+          /* BDO Summary stays at the pre-conversation baseline (13px /
+             1.5) rather than shrinking with the rest of the narrative
+             sections to 9px. */
+          .description-text.bdo-summary { font-size: 13px; line-height: 1.5; }
           .sources-uses-table th, .key-individuals-table th { padding: 5px 4px; font-size: 7px; }
           .sources-uses-table td, .key-individuals-table td { padding: 4px; font-size: 8px; }
           .spread-table th { padding: 5px 4px; font-size: 7px; }
@@ -1368,7 +1372,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     <div class="page-break"></div>
     <div class="section">
       <h2 class="section-title">BDO Summary</h2>
-      ${bdoSummaryNotes ? `<div class="description-text">${bdoSummaryNotes}</div>` : '<div class="description-text" style="color: #adb5bd; font-style: italic;">No BDO summary notes provided</div>'}
+      ${bdoSummaryNotes ? `<div class="description-text bdo-summary">${bdoSummaryNotes}</div>` : '<div class="description-text bdo-summary" style="color: #adb5bd; font-style: italic;">No BDO summary notes provided</div>'}
     </div>
 
     ${questionnaireBlock}
