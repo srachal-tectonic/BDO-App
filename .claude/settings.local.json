@@ -95,7 +95,11 @@
       "Bash(mkdir -p /tmp/pq-screens)",
       "Bash(pdftoppm -png -r 130 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/page)",
       "Bash(pdftoppm -png -r 280 -f 1 -l 1 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/hi)",
-      "Bash(pdftoppm -png -r 220 -f 1 -l 1 -x 0 -y 100 -W 2200 -H 950 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/loan)"
+      "Bash(pdftoppm -png -r 220 -f 1 -l 1 -x 0 -y 100 -W 2200 -H 950 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/loan)",
+      "Bash(pdftotext -layout \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" -)",
+      "Bash(pdftotext -layout -f 1 -l 18 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" -)",
+      "Bash(awk 'BEGIN{p=1} /^\\\\x0c/{p++} /Lease dependency/{print p; exit}')",
+      "Bash(pdftoppm -png -r 180 -f 14 -l 14 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/dd)"
     ],
     "deny": [],
     "ask": []

@@ -797,20 +797,23 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .scores-table thead th { padding: 9px 14px; text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; }
         .scores-table tbody tr { background: #ffffff; }
         .scores-table tbody td { padding: 9px 14px; border-bottom: 1px solid #e1e8ed; vertical-align: middle; }
-        /* Loan Structure matrix — styling matched to the user-provided
-           reference PDF (pdfs/PQ_Memo_Little Dental Repair Shop LLC_
-           2026-05-29.pdf). Both header rows share a solid #2c3e50
-           background with subtle #3e5570 vertical dividers between cells;
-           body uses a 1px #e1e8ed grid; the first column has a light
-           #fafbfc tint and bold labels. Totals rows (group-total /
-           net-exposure / total-project) have a light gray background and
-           bold weight but no double bottom border. */
-        .loan-structure-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
-        .loan-structure-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; border-right: 1px solid #3e5570; }
+        /* Loan Structure matrix — base rules copied from the
+           user-provided reference CSS (joined .loan-structure-table /
+           .project-info-table selectors). Additions for visual parity
+           with the example PDF (pdfs/PQ_Memo_Little Dental Repair Shop
+           LLC_2026-05-29.pdf): thin #3e5570 vertical dividers between
+           header cells, and light-gray totals-row backgrounds with bold
+           weight on group-total / net-exposure / total-project rows.
+           The reference's .loan-col-num / .loan-col-source classes
+           aren't in our HTML; the visual effect is reproduced via
+           td.row-label and td:not(.row-label). */
+        .loan-structure-table, .project-info-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+        .loan-structure-table th, .project-info-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .loan-structure-table th { border-right: 1px solid #3e5570; }
         .loan-structure-table thead th:last-child { border-right: 0; }
         .loan-structure-table thead tr.group-row th { text-align: center; }
         .loan-structure-table thead tr.col-row th:not(:first-child) { text-align: right; }
-        .loan-structure-table td { padding: 5px 8px; border: 1px solid #e1e8ed; background: white; font-size: 13px; color: #2c3e50; }
+        .loan-structure-table td, .project-info-table td { padding: 5px 8px; border: 1px solid #e1e8ed; background: white; font-size: 13px; color: #2c3e50; }
         .loan-structure-table td.row-label { font-weight: 600; background: #fafbfc; }
         .loan-structure-table td:not(.row-label) { text-align: right; font-variant-numeric: tabular-nums; }
         .loan-structure-table tr.group-total-row td { background: #f3f4f6; font-weight: 700; }
@@ -855,6 +858,15 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .risk-total-bar { margin-top: 8px; padding: 10px 12px; background: #2c3e50; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
         .risk-total-label { color: white; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         .risk-total-value { color: white; font-size: 18px; font-weight: 700; }
+        /* Summary cards — copied verbatim from the user-provided
+           reference CSS. No HTML currently uses these classes; the rules
+           are here so .summary-* renders correctly if added later. */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .summary-card { border: 1px solid #e1e8ed; border-radius: 6px; padding: 10px; background: #fafbfc; }
+        .summary-card h3 { font-size: 13px; font-weight: 700; color: #2c3e50; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e1e8ed; }
+        .summary-detail { display: flex; justify-content: space-between; align-items: center; font-size: 12px; gap: 8px; margin-bottom: 4px; }
+        .summary-detail span { color: #6c757d; }
+        .summary-detail strong { color: #2c3e50; font-weight: 600; }
         .spread-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
         .spread-table th { background: #2c3e50; color: white; padding: 6px 8px; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
         .spread-table th:first-child { text-align: left; }
@@ -875,38 +887,92 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .qna-subsection { margin-top: 14px; }
         .qna-subsection:first-child { margin-top: 0; }
         .qna-subsection-title { font-size: 13px; font-weight: 700; color: #133c7f; margin: 0 0 6px; padding-bottom: 3px; border-bottom: 1px solid #c5d4e8; }
-        /* Due Diligence Report (rendered Markdown) — palette mirrors the in-app
-           DD panel (ProseRenderer in components/diligence/DiligenceReportPanel.tsx)
-           so "Risk to the Bank" and other admin-authored sections render with
-           the same navy heading + soft-blue underline treatment in the PDF. */
-        .dd-meta { font-size: 11px; color: #718bbc; margin-bottom: 8px; }
-        .dd-body { font-size: 13px; color: #1a1a1a; line-height: 1.55; }
-        .dd-body h1 { font-size: 20px; margin: 18px 0 9px; font-weight: 600; color: #133c7f; }
-        .dd-body h2 { font-size: 17px; margin: 18px 0 9px; font-weight: 600; color: #133c7f; border-bottom: 1px solid #e7edf4; padding-bottom: 5px; }
-        .dd-body h3 { font-size: 14px; margin: 15px 0 6px; font-weight: 600; color: #4263a5; }
-        .dd-body p { margin: 0 0 9px; }
-        .dd-body ul, .dd-body ol { margin: 0 0 9px 20px; padding-left: 4px; }
-        .dd-body li { margin: 3px 0; }
-        .dd-body code { background: #e7edf4; color: #133c7f; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; }
-        .dd-body blockquote { border-left: 4px solid #fbbf24; margin: 9px 0; padding: 6px 12px; color: #7a4f00; background: #fffbeb; font-size: 13px; }
-        .dd-body strong { font-weight: 600; color: #133c7f; }
+        /* Due Diligence Report — copied verbatim from the user-provided
+           reference CSS. The .dd-body table.dd-table sub-rules below
+           aren't in the reference but are kept because the Markdown
+           renderer emits <table class="dd-table"> for admin-authored
+           DD tables and they'd render unstyled otherwise. */
+        .dd-meta { font-size: 10px; color: #6c757d; margin-bottom: 8px; }
+        .dd-body { font-size: 11px; color: #2c3e50; line-height: 1.5; }
+        .dd-body h1 { font-size: 15px; font-weight: 700; color: #2c3e50; margin: 12px 0 6px; }
+        .dd-body h2 { font-size: 13px; font-weight: 700; color: #2c3e50; margin: 10px 0 5px; padding-bottom: 3px; border-bottom: 1px solid #e1e8ed; }
+        .dd-body h3 { font-size: 12px; font-weight: 600; color: #2563a8; margin: 8px 0 4px; }
+        .dd-body h4, .dd-body h5, .dd-body h6 { font-size: 11px; font-weight: 600; color: #2563a8; margin: 6px 0 3px; }
+        .dd-body p { margin: 0 0 6px; }
+        .dd-body ul, .dd-body ol { margin: 0 0 6px; padding-left: 18px; }
+        .dd-body li { margin-bottom: 2px; }
+        .dd-body a { color: #2563a8; text-decoration: underline; }
+        .dd-body strong { font-weight: 700; color: #2c3e50; }
         .dd-body em { font-style: italic; }
-        .dd-body a { color: #2563eb; text-decoration: underline; }
-        .dd-body hr { border: none; border-top: 1px solid #e7edf4; margin: 12px 0; }
+        .dd-body code { background: #f0f4ff; color: #2563a8; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 10px; }
+        .dd-body blockquote { border-left: 3px solid #fbbf24; background: #fffbeb; padding: 4px 8px; margin: 6px 0; color: #7a4f00; }
+        .dd-body hr { border: none; border-top: 1px solid #e1e8ed; margin: 8px 0; }
         .dd-body table.dd-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; border: 1px solid #c5d4e8; page-break-inside: auto; }
         .dd-body table.dd-table thead { display: table-header-group; }
         .dd-body table.dd-table tr { page-break-inside: avoid; }
         .dd-body table.dd-table th { background: #e7edf4; color: #133c7f; font-weight: 700; text-align: left; padding: 4px 6px; border: 1px solid #c5d4e8; vertical-align: top; }
         .dd-body table.dd-table td { padding: 4px 6px; border: 1px solid #c5d4e8; color: #2c3e50; vertical-align: top; }
+        /* .qn-* — copied verbatim from the user-provided reference CSS.
+           Our Business Questionnaire HTML uses .qna-* classes (defined
+           above), so .qn-* rules are inert today; included here so the
+           reference's selectors render correctly if any HTML is later
+           switched to the .qn-* family. */
+        .qn-category { font-size: 13px; font-weight: 700; color: #2c3e50; margin-top: 12px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e1e8ed; }
+        .qn-subcategory { font-size: 12px; font-weight: 600; color: #2563a8; margin-top: 10px; margin-bottom: 6px; }
+        .qn-item { margin-bottom: 10px; padding: 8px 10px; border: 1px solid #e1e8ed; border-radius: 4px; background: #fafbfc; }
+        .qn-question { font-size: 11px; font-weight: 600; color: #2c3e50; margin-bottom: 4px; line-height: 1.4; }
+        .qn-answer { font-size: 11px; color: #2c3e50; line-height: 1.5; white-space: pre-wrap; }
+        .qn-no-response { color: #adb5bd; font-style: italic; }
+        /* Mobile breakpoint — from the user-provided reference CSS. PDF
+           rendering ignores viewport media queries, but kept for parity
+           with the reference. */
+        @media (max-width: 768px) { .content { padding: 24px; } }
+        /* @media print — copied verbatim from the user-provided
+           reference CSS. Puppeteer activates print media when rendering
+           the PDF, so every rule in here applies to the exported PDF. */
         @media print {
           body { background: white; padding: 0; }
           .container { box-shadow: none; border-radius: 0; }
           @page { size: letter; margin: 0.4in; }
-          /* Loan Structure print overrides — copied verbatim from the
-             user-provided reference template. */
-          .loan-structure-table th { padding: 5px 4px; font-size: 7px; }
-          .loan-structure-table td { padding: 4px; font-size: 8px; }
-          .loan-structure-table { page-break-inside: avoid; margin-bottom: 6px; }
+          .header { padding: 10px 12px; }
+          .header-grid { display: grid !important; grid-template-columns: 1fr auto !important; gap: 20px !important; }
+          .borrower-info h1 { font-size: 16px; margin-bottom: 3px; }
+          .bdo-names { font-size: 11px; margin-bottom: 2px; }
+          .team-info-item { font-size: 10px; margin-bottom: 2px; }
+          .team-info-item strong { font-size: 10px; }
+          .scores-table thead th { font-size: 9px; padding: 6px 8px; }
+          .scores-table tbody td { padding: 6px 8px; }
+          .badge { font-size: 11px; padding: 2px 8px; min-width: 28px; }
+          .badge-total { font-size: 12px; }
+          .content { padding: 10px 12px; }
+          .section { margin-bottom: 10px; }
+          .section-title { font-size: 11px; margin-bottom: 5px; padding-bottom: 3px; }
+          .loan-structure-table th, .project-info-table th { padding: 5px 4px; font-size: 7px; }
+          .loan-structure-table td, .project-info-table td { padding: 4px; font-size: 8px; }
+          .loan-structure-table, .project-info-table { page-break-inside: avoid; margin-bottom: 6px; }
+          .metrics-grid { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+          .metric-card { padding: 6px 4px; page-break-inside: avoid; }
+          .metric-label { font-size: 8px; margin-bottom: 3px; }
+          .metric-value { font-size: 14px; }
+          .description-text { padding: 6px 8px; font-size: 9px; line-height: 1.3; }
+          .sources-uses-table th, .key-individuals-table th { padding: 5px 4px; font-size: 7px; }
+          .sources-uses-table td, .key-individuals-table td { padding: 4px; font-size: 8px; }
+          .page-break { page-break-before: always; }
+          .risk-scores-grid { display: block !important; }
+          .risk-scores-grid > * { margin-bottom: 8px; }
+          .risk-score-card { padding: 10px; page-break-inside: avoid; }
+          .risk-score-header { margin-bottom: 4px; padding-bottom: 4px; }
+          .risk-score-header h4 { font-size: 13px; }
+          .risk-score-badge { font-size: 14px; width: 26px; height: 26px; }
+          .risk-score-explanation { font-size: 12px; line-height: 1.5; }
+          .risk-total-bar { margin-top: 6px; padding: 8px 10px; page-break-before: avoid; }
+          .risk-total-label { font-size: 12px; }
+          .risk-total-value { font-size: 15px; }
+          .summary-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+          .summary-card { padding: 8px; page-break-inside: avoid; }
+          .summary-card h3 { font-size: 10px; }
+          .summary-detail { font-size: 9px; }
+          .qn-item, .qn-category, .qn-subcategory { page-break-inside: avoid; }
         }
   `;
 
