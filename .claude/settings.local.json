@@ -88,7 +88,14 @@
       "Bash(echo \"EXIT $?\")",
       "Bash(node --experimental-strip-types --no-warnings -e ' *)",
       "Bash(echo \"EXIT=$?\")",
-      "WebFetch(domain:developer.softpullsolutions.com)"
+      "WebFetch(domain:developer.softpullsolutions.com)",
+      "Bash(dpkg -l)",
+      "Bash(sudo -n apt-get install -y poppler-utils)",
+      "Bash(pdfinfo \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\")",
+      "Bash(mkdir -p /tmp/pq-screens)",
+      "Bash(pdftoppm -png -r 130 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/page)",
+      "Bash(pdftoppm -png -r 280 -f 1 -l 1 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/hi)",
+      "Bash(pdftoppm -png -r 220 -f 1 -l 1 -x 0 -y 100 -W 2200 -H 950 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/loan)"
     ],
     "deny": [],
     "ask": []

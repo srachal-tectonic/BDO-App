@@ -797,20 +797,25 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .scores-table thead th { padding: 9px 14px; text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; }
         .scores-table tbody tr { background: #ffffff; }
         .scores-table tbody td { padding: 9px 14px; border-bottom: 1px solid #e1e8ed; vertical-align: middle; }
-        /* Loan Structure matrix — flat solid #2c3e50 header, bordered body
-           cells, no rounded corners or shadow. Copied verbatim from the
-           user-provided reference template. Mapping: the existing HTML
-           uses .row-label for the first column (equivalent to the
-           reference's .loan-col-source) and emits numeric body cells
-           without a class, so :not(.row-label) gives them the reference's
-           .loan-col-num treatment (right-align + tabular-nums). */
+        /* Loan Structure matrix — styling matched to the user-provided
+           reference PDF (pdfs/PQ_Memo_Little Dental Repair Shop LLC_
+           2026-05-29.pdf). Both header rows share a solid #2c3e50
+           background with subtle #3e5570 vertical dividers between cells;
+           body uses a 1px #e1e8ed grid; the first column has a light
+           #fafbfc tint and bold labels. Totals rows (group-total /
+           net-exposure / total-project) have a light gray background and
+           bold weight but no double bottom border. */
         .loan-structure-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
-        .loan-structure-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .loan-structure-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; border-right: 1px solid #3e5570; }
+        .loan-structure-table thead th:last-child { border-right: 0; }
         .loan-structure-table thead tr.group-row th { text-align: center; }
         .loan-structure-table thead tr.col-row th:not(:first-child) { text-align: right; }
         .loan-structure-table td { padding: 5px 8px; border: 1px solid #e1e8ed; background: white; font-size: 13px; color: #2c3e50; }
         .loan-structure-table td.row-label { font-weight: 600; background: #fafbfc; }
         .loan-structure-table td:not(.row-label) { text-align: right; font-variant-numeric: tabular-nums; }
+        .loan-structure-table tr.group-total-row td { background: #f3f4f6; font-weight: 700; }
+        .loan-structure-table tr.net-exposure-row td { background: #f3f4f6; font-weight: 700; }
+        .loan-structure-table tr.total-project-row td { background: #e5e7eb; font-weight: 700; }
         .loan-structure-empty { padding: 14px; text-align: center; color: #6b7280; font-style: italic; background: #ffffff; border: 1px solid #e5e7eb; font-size: 13px; }
         .score-cell { text-align: center; }
         .badge { display: inline-block; min-width: 34px; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px; text-align: center; }
@@ -893,7 +898,16 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .dd-body table.dd-table tr { page-break-inside: avoid; }
         .dd-body table.dd-table th { background: #e7edf4; color: #133c7f; font-weight: 700; text-align: left; padding: 4px 6px; border: 1px solid #c5d4e8; vertical-align: top; }
         .dd-body table.dd-table td { padding: 4px 6px; border: 1px solid #c5d4e8; color: #2c3e50; vertical-align: top; }
-        @media print { body { background: white; padding: 0; } .container { box-shadow: none; border-radius: 0; } @page { size: letter; margin: 0.4in; } }
+        @media print {
+          body { background: white; padding: 0; }
+          .container { box-shadow: none; border-radius: 0; }
+          @page { size: letter; margin: 0.4in; }
+          /* Loan Structure print overrides — copied verbatim from the
+             user-provided reference template. */
+          .loan-structure-table th { padding: 5px 4px; font-size: 7px; }
+          .loan-structure-table td { padding: 4px; font-size: 8px; }
+          .loan-structure-table { page-break-inside: avoid; margin-bottom: 6px; }
+        }
   `;
 
   const financialPeriods = input.financialPeriods || [];
