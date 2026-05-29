@@ -809,16 +809,19 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
            td.row-label and td:not(.row-label). */
         .loan-structure-table, .project-info-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
         .loan-structure-table th, .project-info-table th { background: #2c3e50; color: white; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .loan-structure-table th { border-right: 1px solid #3e5570; }
-        .loan-structure-table thead th:last-child { border-right: 0; }
         .loan-structure-table thead tr.group-row th { text-align: center; }
         .loan-structure-table thead tr.col-row th:not(:first-child) { text-align: right; }
         .loan-structure-table td, .project-info-table td { padding: 5px 8px; border: 1px solid #e1e8ed; background: white; font-size: 13px; color: #2c3e50; }
         .loan-structure-table td.row-label { font-weight: 600; background: #fafbfc; }
         .loan-structure-table td:not(.row-label) { text-align: right; font-variant-numeric: tabular-nums; }
-        .loan-structure-table tr.group-total-row td { background: #f3f4f6; font-weight: 700; }
-        .loan-structure-table tr.net-exposure-row td { background: #f3f4f6; font-weight: 700; }
-        .loan-structure-table tr.total-project-row td { background: #e5e7eb; font-weight: 700; }
+        /* Bottom borders for the divider rows. The last data row
+           (Guarantee) gets a thick 4px solid #2c3e50; the three totals
+           rows that follow get a thinner 3px double #2c3e50 — distinctly
+           thinner than the solid above per the user's spec. */
+        .loan-structure-table tr.last-data-row td { border-bottom: 4px solid #2c3e50; }
+        .loan-structure-table tr.group-total-row td { background: #f3f4f6; font-weight: 700; border-bottom: 3px double #2c3e50; }
+        .loan-structure-table tr.net-exposure-row td { background: #f3f4f6; font-weight: 700; border-bottom: 3px double #2c3e50; }
+        .loan-structure-table tr.total-project-row td { background: #e5e7eb; font-weight: 700; border-bottom: 3px double #2c3e50; }
         .loan-structure-empty { padding: 14px; text-align: center; color: #6b7280; font-style: italic; background: #ffffff; border: 1px solid #e5e7eb; font-size: 13px; }
         .score-cell { text-align: center; }
         .badge { display: inline-block; min-width: 34px; padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px; text-align: center; }
@@ -940,10 +943,10 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           .bdo-names { font-size: 11px; margin-bottom: 2px; }
           .team-info-item { font-size: 10px; margin-bottom: 2px; }
           .team-info-item strong { font-size: 10px; }
-          .scores-table thead th { font-size: 9px; padding: 6px 8px; }
-          .scores-table tbody td { padding: 6px 8px; }
-          .badge { font-size: 11px; padding: 2px 8px; min-width: 28px; }
-          .badge-total { font-size: 12px; }
+          .scores-table thead th { font-size: 7px; padding: 5px 4px; }
+          .scores-table tbody td { font-size: 8px; padding: 4px; }
+          .badge { font-size: 9px; padding: 1px 6px; min-width: 22px; }
+          .badge-total { font-size: 10px; }
           .content { padding: 10px 12px; }
           .section { margin-bottom: 10px; }
           .section-title { font-size: 11px; margin-bottom: 5px; padding-bottom: 3px; }
@@ -957,6 +960,8 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           .description-text { padding: 6px 8px; font-size: 9px; line-height: 1.3; }
           .sources-uses-table th, .key-individuals-table th { padding: 5px 4px; font-size: 7px; }
           .sources-uses-table td, .key-individuals-table td { padding: 4px; font-size: 8px; }
+          .spread-table th { padding: 5px 4px; font-size: 7px; }
+          .spread-table td { padding: 4px; font-size: 8px; }
           .page-break { page-break-before: always; }
           .risk-scores-grid { display: block !important; }
           .risk-scores-grid > * { margin-bottom: 8px; }
@@ -1008,8 +1013,14 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         )
         .join('');
 
+    // The final entry (Guarantee) gets `last-data-row` so the CSS can
+    // draw a thick solid bottom border separating the data block from
+    // the totals rows below.
     const dataRows = (['Amount', 'Rate', 'Term', 'Guarantee'] as const)
-      .map((label) => `<tr><td class="row-label">${label}</td>${rowCells(label)}</tr>`)
+      .map((label, idx, arr) => {
+        const cls = idx === arr.length - 1 ? ' class="last-data-row"' : '';
+        return `<tr${cls}><td class="row-label">${label}</td>${rowCells(label)}</tr>`;
+      })
       .join('');
 
     const groupTotalsRow = `<tr class="group-total-row">
