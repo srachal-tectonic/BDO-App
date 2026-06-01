@@ -130,17 +130,17 @@ export interface DebtServiceLine {
 }
 
 /**
- * One row from the "Guarantors" tab: a person's name plus the two values pulled
- * from their row. Used by the upload route to update the matching
- * IndividualApplicant on the loan-application doc:
- *   - `reqDraw`  ("Required Income from Business") from column AB
- *   - `netWorth` ("Net Worth")                     from column X
- * Each value is null when its cell is blank or non-numeric.
+ * One row from the "Guarantors" tab: a person's name and their "Required Income
+ * From Business" value (column AB). Used by the upload route to update the
+ * matching IndividualApplicant.reqDraw on the loan-application doc. `reqDraw` is
+ * null when the cell is blank or non-numeric.
+ *
+ * Net Worth is deliberately NOT pulled from the spread — it derives from each
+ * applicant's SBA Personal Financial Statement (see lib/pfsNetWorth.ts).
  */
 export interface GuarantorDraw {
   name: string;
   reqDraw: number | null;
-  netWorth: number | null;
 }
 
 export interface ParsedSpreadsheet {
@@ -152,6 +152,11 @@ export interface ParsedSpreadsheet {
   /** Per-guarantor "Draw Needed" rows from the optional "Guarantors" sheet.
    *  Empty when the workbook has no such sheet — that's not an error. */
   guarantorDraws: GuarantorDraw[];
+  /** Project-level "Post Close Liquidity" total from the "BDO Prequal" sheet
+   *  (the single cell in column I on the row labelled "Post Close Liquidity").
+   *  null when the sheet/label isn't present. Applied to every Key Individual's
+   *  Post-Close Liquidity. */
+  postCloseLiquidity: number | null;
 }
 
 /**
@@ -435,30 +440,30 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
     sourcesUsesHeaders,
     debtServiceLines,
     guarantorDraws: parseGuarantorsSheet(wb),
+    postCloseLiquidity: parsePostCloseLiquidity(wb),
   };
 }
 
 /**
- * Coerce a Guarantors-sheet cell to a number, stripping `$`, `,` and whitespace
- * if it arrived as a string. Returns null for blank/`N/A`/non-numeric cells.
+ * Coerce a spreadsheet cell to a number, stripping `$`, `,` and whitespace if it
+ * arrived as a string. Returns null for blank/`N/A`/non-numeric cells.
  */
-function coerceGuarantorNumber(raw: unknown): number | null {
+function coerceSpreadNumber(raw: unknown): number | null {
   if (raw === undefined || raw === null || raw === '' || isNA(raw)) return null;
   const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/[,$\s]/g, ''));
   return Number.isFinite(n) ? n : null;
 }
 
 /**
- * Scan the optional "Guarantors" sheet for per-individual values, reading from
- * the data rows that begin at row 6 (index 5) of that tab:
+ * Scan the optional "Guarantors" sheet for per-individual "Required Income From
+ * Business" values, reading from the data rows that begin at row 6 (index 5):
  *
  *   Column B  (index 1)  — individual's name
- *   Column X  (index 23) — Net Worth
  *   Column AB (index 27) — Required Income From Business ("Draw Needed")
  *
  * Rows are accepted when column B holds a non-empty string that isn't a
  * header/total marker ("Name", "Total", "Guarantor", "Subtotal", "Grand Total",
- * or anything starting with "Total " / "Subtotal"). Numeric cells are coerced,
+ * or anything starting with "Total " / "Subtotal"). The draw cell is coerced,
  * stripping `$` and `,` if the cell came in as a string; `N/A`/blank/non-numeric
  * values become `null`.
  *
@@ -475,7 +480,6 @@ function parseGuarantorsSheet(wb: XLSX.WorkBook): GuarantorDraw[] {
 
   const range = XLSX.utils.decode_range(ws['!ref']);
   const NAME_COL = 1; // B
-  const NET_WORTH_COL = 23; // X
   const DRAW_COL = 27; // AB
   const DATA_START_ROW = 5; // row 6 (1-based) is the first data row
   const SKIP_EXACT = new Set([
@@ -493,10 +497,42 @@ function parseGuarantorsSheet(wb: XLSX.WorkBook): GuarantorDraw[] {
     if (SKIP_EXACT.has(norm)) continue;
     if (norm.startsWith('total ') || norm.startsWith('subtotal')) continue;
 
-    const reqDraw = coerceGuarantorNumber(cellVal(ws, r, DRAW_COL));
-    const netWorth = coerceGuarantorNumber(cellVal(ws, r, NET_WORTH_COL));
+    const reqDraw = coerceSpreadNumber(cellVal(ws, r, DRAW_COL));
 
-    draws.push({ name, reqDraw, netWorth });
+    draws.push({ name, reqDraw });
   }
   return draws;
+}
+
+/**
+ * Read the project-level "Post Close Liquidity" total from the "BDO Prequal"
+ * sheet. The value lives in column I (index 8); its row isn't fixed, but the
+ * row always carries the label "Post Close Liquidity" in a cell to the left of
+ * column I (e.g. H68 in the 5.6.26 layout). We locate the row by that label so
+ * the import survives row shifts.
+ *
+ * Returns null when the sheet or the label can't be found — callers then leave
+ * Post-Close Liquidity untouched rather than zeroing it.
+ */
+function parsePostCloseLiquidity(wb: XLSX.WorkBook): number | null {
+  const sheetName =
+    wb.SheetNames.find((n) => n.trim().toLowerCase() === 'bdo prequal') ||
+    wb.SheetNames.find((n) => n.trim().toLowerCase().replace(/[^a-z]/g, '').includes('prequal'));
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws || !ws['!ref']) return null;
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const LIQUIDITY_COL = 8; // I
+  const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
+
+  for (let r = 0; r <= range.e.r; r++) {
+    // The label sits to the left of the value cell, so only scan columns before I.
+    for (let c = 0; c < LIQUIDITY_COL; c++) {
+      if (norm(cellVal(ws, r, c)) === 'postcloseliquidity') {
+        return coerceSpreadNumber(cellVal(ws, r, LIQUIDITY_COL));
+      }
+    }
+  }
+  return null;
 }

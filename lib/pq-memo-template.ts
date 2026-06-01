@@ -18,6 +18,8 @@
 // PDF route, not inlined as data: URIs. Sparticuz's Chromium build refuses
 // to decode data:-scheme fonts (document.fonts reports status "error" with
 // no console log); http:// from the same page origin works normally.
+import { computePfsNetWorth } from './pfsNetWorth';
+
 /** Subset of QuestionnaireRule fields we need to render. Kept loose-typed so
  * this template doesn't reach into the questionnairePdf module. */
 export interface PQMemoQuestionnaireRule {
@@ -590,6 +592,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const projectOverview = loanApp.projectOverview || {};
   const businessApplicant = loanApp.businessApplicant || {};
   const individualApplicants: any[] = loanApp.individualApplicants || [];
+  const personalFinancialStatements: Record<string, any> = loanApp.personalFinancialStatements || {};
   const financingSources: any[] = loanApp.financingSources || [];
   // Prefer the new 7(a) Sources & Uses table (mirrors the in-app PQ Memo
   // Overview which reads `applicationData.sourcesUses7a`) and fall back to the
@@ -737,10 +740,10 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
           ? `${Number(individual.ownershipPercentage).toFixed(2)}%`
           : '-';
 
-      const netWorth =
-        individual.netWorth !== undefined && individual.netWorth !== null
-          ? formatCurrency(Number(individual.netWorth))
-          : '-';
+      // Net Worth derives from the applicant's SBA Personal Financial Statement
+      // (total assets − total liabilities), not from the spread.
+      const netWorthVal = computePfsNetWorth(personalFinancialStatements[individual.id]);
+      const netWorth = netWorthVal !== null ? formatCurrency(netWorthVal) : '-';
       const pcLiquidity =
         individual.pcLiquidity !== undefined && individual.pcLiquidity !== null
           ? formatCurrency(Number(individual.pcLiquidity))

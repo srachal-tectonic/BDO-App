@@ -233,12 +233,13 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
   } = useApplication();
 
   /**
-   * Re-pull the loan application and refresh the Guarantors-sourced fields
-   * (Net Worth, Required Income From Business) on the store's individual
-   * applicants. Activating a spread updates these server-side; without this the
-   * PreQual "Key Individuals" table keeps showing stale values until a full
-   * page reload (tabs are force-mounted, so switching tabs doesn't refetch).
-   * Only these two fields are touched, so concurrent edits elsewhere survive.
+   * Re-pull the loan application and refresh the spread-sourced fields
+   * (Required Income From Business, Post-Close Liquidity) on the store's
+   * individual applicants. Upload/activation updates these server-side; without
+   * this the PreQual "Key Individuals" table keeps showing stale values until a
+   * full page reload (tabs are force-mounted, so switching tabs doesn't
+   * refetch). Only these two fields are touched, so concurrent edits elsewhere
+   * survive. Net Worth is computed live from the PFS, so it needs no refresh.
    */
   const refreshGuarantorFields = useCallback(async () => {
     try {
@@ -250,11 +251,11 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
         if (!a?.id) continue;
         updateIndividualApplicant(a.id, {
           reqDraw: a.reqDraw ?? '',
-          netWorth: a.netWorth ?? '',
+          pcLiquidity: a.pcLiquidity ?? '',
         });
       }
     } catch (err) {
-      console.error('Failed to refresh guarantor fields:', err);
+      console.error('Failed to refresh spread-sourced fields:', err);
     }
   }, [projectId, updateIndividualApplicant]);
 

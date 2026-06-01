@@ -8,6 +8,7 @@ import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
 import DiligenceReportPanel from '@/components/diligence/DiligenceReportPanel';
 import { useApplication } from '@/lib/applicationStore';
+import { computePfsNetWorth } from '@/lib/pfsNetWorth';
 import { Button } from '@/components/ui/button';
 
 
@@ -207,6 +208,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   const loan2 = applicationData.loan2;
   const dscr = applicationData.dscr;
   const individualApplicants = applicationData.individualApplicants;
+  const personalFinancialStatements = applicationData.personalFinancialStatements;
   const businessApplicant = applicationData.businessApplicant;
 
   // Use whichever Sources & Uses table has data (prefer 7a)
@@ -760,6 +762,11 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                         ? `${individual.experience} - ${individual.yearsOfExperience} years`
                         : individual.experience || '-';
 
+                      // Net Worth comes from the applicant's SBA Personal
+                      // Financial Statement (total assets − total liabilities),
+                      // not from the spread.
+                      const netWorth = computePfsNetWorth(personalFinancialStatements?.[individual.id]);
+
                       return (
                         <tr
                           key={individual.id}
@@ -773,7 +780,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                           <td className="py-2 px-2 text-[13px]">{Number(individual.ownershipPercentage ?? 0).toFixed(2)}%</td>
                           <td className="py-2 px-2 text-[13px]">{individual.businessRole || '-'}</td>
                           <td className="py-2 px-2 text-[13px]">{experience}</td>
-                          <td className="py-2 px-2 text-[13px]">{formatCurrency(individual.netWorth)}</td>
+                          <td className="py-2 px-2 text-[13px]">{formatCurrency(netWorth)}</td>
                           <td className="py-2 px-2 text-[13px]">{formatCurrency(individual.pcLiquidity)}</td>
                           <td className="py-2 px-2 text-[13px]">{formatCurrency(individual.reqDraw)}</td>
                         </tr>
