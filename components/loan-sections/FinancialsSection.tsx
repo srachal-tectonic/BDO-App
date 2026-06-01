@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import FinancialAnalysisPanel from '@/components/FinancialAnalysisPanel';
 import SpreadComparisonTable, { getSpreadSections, formatSpreadValue, isSpreadNegative, type DebtServiceLine } from '@/components/SpreadComparisonTable';
 import { useApplication, type FinancingSource as StoreFinancingSource } from '@/lib/applicationStore';
+import { getLoanApplication } from '@/services/firestore';
 
 const formatValue = formatSpreadValue;
 const isNegative = isSpreadNegative;
@@ -228,7 +229,34 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
     removeFinancingSource,
     updateSourcesUses7a,
     updateDSCR,
+    updateIndividualApplicant,
   } = useApplication();
+
+  /**
+   * Re-pull the loan application and refresh the Guarantors-sourced fields
+   * (Net Worth, Required Income From Business) on the store's individual
+   * applicants. Activating a spread updates these server-side; without this the
+   * PreQual "Key Individuals" table keeps showing stale values until a full
+   * page reload (tabs are force-mounted, so switching tabs doesn't refetch).
+   * Only these two fields are touched, so concurrent edits elsewhere survive.
+   */
+  const refreshGuarantorFields = useCallback(async () => {
+    try {
+      const loanApp = await getLoanApplication(projectId);
+      const applicants: any[] = Array.isArray(loanApp?.individualApplicants)
+        ? loanApp!.individualApplicants
+        : [];
+      for (const a of applicants) {
+        if (!a?.id) continue;
+        updateIndividualApplicant(a.id, {
+          reqDraw: a.reqDraw ?? '',
+          netWorth: a.netWorth ?? '',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh guarantor fields:', err);
+    }
+  }, [projectId, updateIndividualApplicant]);
 
   /**
    * After a successful upload (or on reload), populate the application store's Financing Sources
@@ -408,12 +436,17 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
       console.error('Failed to activate spread:', err);
     }
     setSpreads(prev => prev.map(s => ({ ...s, isActive: s.id === id })));
+    // Activation re-applies the spread's Guarantors values server-side; pull
+    // them into the store so the PreQual Key Individuals table updates.
+    refreshGuarantorFields();
   };
 
   const handleUploadSuccess = (newSpread: FinancialSpread & { financingSources?: any[]; sourcesUses?: any[]; sourcesUsesHeaders?: string[] }) => {
     setSpreads(prev => [...prev, newSpread]);
     setShowUploadDialog(false);
     populateStoreFromSpread(newSpread);
+    // Upload also syncs Guarantors values server-side — reflect them now.
+    refreshGuarantorFields();
   };
 
   const selectedSpread = spreads.find(s => s.id === selectedSpreadId);

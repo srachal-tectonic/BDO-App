@@ -52,10 +52,11 @@ function findIndividualIdxByName(applicants: any[], rawName: string): number {
 }
 
 /**
- * Apply parsed guarantor draws to the individualApplicants array on the
- * loan-application doc, matched by name. Updates `reqDraw` (stored as a
- * string per schema.ts:42) only on applicants whose value would actually
- * change. Returns counts so the route can include them in the response.
+ * Apply parsed guarantor rows to the individualApplicants array on the
+ * loan-application doc, matched by name. Updates `reqDraw` ("Required Income
+ * from Business", col AB) and `netWorth` (col X) — both stored as strings per
+ * schema.ts — only on applicants whose value would actually change. Returns
+ * counts so the route can include them in the response.
  *
  * Safe to call with an empty draws array; safe to call when no loan
  * application exists yet (returns zeros instead of throwing).
@@ -88,11 +89,18 @@ async function applyGuarantorDrawsToIndividuals(
       continue;
     }
     matched++;
-    const newVal = draw.reqDraw == null ? '' : String(draw.reqDraw);
-    if (String(updated[idx].reqDraw ?? '') !== newVal) {
-      updated[idx].reqDraw = newVal;
-      changed++;
+    let applicantChanged = false;
+    const newDraw = draw.reqDraw == null ? '' : String(draw.reqDraw);
+    if (String(updated[idx].reqDraw ?? '') !== newDraw) {
+      updated[idx].reqDraw = newDraw;
+      applicantChanged = true;
     }
+    const newNetWorth = draw.netWorth == null ? '' : String(draw.netWorth);
+    if (String(updated[idx].netWorth ?? '') !== newNetWorth) {
+      updated[idx].netWorth = newNetWorth;
+      applicantChanged = true;
+    }
+    if (applicantChanged) changed++;
   }
 
   if (changed > 0) {
@@ -165,6 +173,10 @@ export async function POST(
       sourcesUses: parsed.sourcesUses,
       sourcesUsesHeaders: parsed.sourcesUsesHeaders,
       debtServiceLines: parsed.debtServiceLines,
+      // Persist the parsed Guarantors-tab rows so activating this spread later
+      // can re-apply them to the Key Individuals (col X = Net Worth, col AB =
+      // Required Income From Business). See the PATCH handler.
+      guarantorDraws: parsed.guarantorDraws,
     };
 
     const col = await getCollection(COLLECTIONS.FINANCIAL_SPREADS);
@@ -181,9 +193,10 @@ export async function POST(
       metadata: { fileName: file.name, versionLabel: versionLabel.trim() },
     }).catch(() => {});
 
-    // Push per-guarantor "Draw Needed" values from the Guarantors tab
-    // (col B = name, col AB = draw) onto matching individualApplicants.
-    // Failures here don't fail the upload — the spread is already saved.
+    // Push per-guarantor values from the Guarantors tab onto matching
+    // individualApplicants (col B = name, col X = Net Worth, col AB = Required
+    // Income From Business). Failures here don't fail the upload — the spread
+    // is already saved.
     let guarantorDrawSync: { matched: number; updated: number; unmatchedNames: string[] } = {
       matched: 0,
       updated: 0,
@@ -201,7 +214,7 @@ export async function POST(
           projectId,
           resourceType: 'loanApplication',
           resourceId: projectId,
-          summary: `Synced "Required Income from Business" on ${guarantorDrawSync.updated} individual applicant(s) from spread Guarantors tab`,
+          summary: `Synced "Required Income from Business" and "Net Worth" on ${guarantorDrawSync.updated} individual applicant(s) from spread Guarantors tab`,
           metadata: {
             sourceFile: file.name,
             matched: guarantorDrawSync.matched,
@@ -289,6 +302,44 @@ export async function PATCH(
       { $set: { isActive: !!isActive } }
     );
 
+    // On activation, re-apply this spread's Guarantors-tab values (Net Worth,
+    // Required Income From Business) to the matching individual applicants so the
+    // Key Individuals table reflects whichever spread is active. Older spreads
+    // uploaded before guarantorDraws was persisted simply have nothing to apply.
+    // Failures here don't fail the activation.
+    let guarantorDrawSync: { matched: number; updated: number; unmatchedNames: string[] } = {
+      matched: 0,
+      updated: 0,
+      unmatchedNames: [],
+    };
+    if (isActive) {
+      try {
+        const spread = (await col.findOne({ _id: new ObjectId(spreadId), projectId })) as any;
+        const draws: GuarantorDraw[] = Array.isArray(spread?.guarantorDraws)
+          ? spread.guarantorDraws
+          : [];
+        guarantorDrawSync = await applyGuarantorDrawsToIndividuals(projectId, draws);
+        if (guarantorDrawSync.updated > 0) {
+          logAuditEvent({
+            action: 'loan_application_updated',
+            category: 'loan_application',
+            projectId,
+            resourceType: 'loanApplication',
+            resourceId: projectId,
+            summary: `Synced "Required Income from Business" and "Net Worth" on ${guarantorDrawSync.updated} individual applicant(s) from activated spread Guarantors tab`,
+            metadata: {
+              spreadId,
+              matched: guarantorDrawSync.matched,
+              updated: guarantorDrawSync.updated,
+              unmatched: guarantorDrawSync.unmatchedNames,
+            },
+          }).catch(() => {});
+        }
+      } catch (applyErr: any) {
+        console.error('[Financials API PATCH] guarantor-draw apply failed:', applyErr);
+      }
+    }
+
     // Audit: spread activated/deactivated
     logAuditEvent({
       action: isActive ? 'spread_activated' : 'spread_deactivated',
@@ -299,7 +350,7 @@ export async function PATCH(
       summary: `${isActive ? 'Activated' : 'Deactivated'} financial spread ${spreadId}`,
     }).catch(() => {});
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, guarantorDrawSync });
   } catch (error: any) {
     console.error('[Financials API PATCH] Error:', error);
     return NextResponse.json(

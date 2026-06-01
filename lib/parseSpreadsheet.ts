@@ -130,15 +130,17 @@ export interface DebtServiceLine {
 }
 
 /**
- * One row from the "Guarantors" tab: a person's name and their "Draw Needed"
- * value (column AB). Used by the upload route to update the matching
- * IndividualApplicant.reqDraw ("Required Income from Business") on the
- * loan-application doc. `reqDraw` is null when the cell is blank or
- * non-numeric.
+ * One row from the "Guarantors" tab: a person's name plus the two values pulled
+ * from their row. Used by the upload route to update the matching
+ * IndividualApplicant on the loan-application doc:
+ *   - `reqDraw`  ("Required Income from Business") from column AB
+ *   - `netWorth` ("Net Worth")                     from column X
+ * Each value is null when its cell is blank or non-numeric.
  */
 export interface GuarantorDraw {
   name: string;
   reqDraw: number | null;
+  netWorth: number | null;
 }
 
 export interface ParsedSpreadsheet {
@@ -437,16 +439,28 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
 }
 
 /**
- * Scan the optional "Guarantors" sheet for per-individual "Draw Needed" values.
+ * Coerce a Guarantors-sheet cell to a number, stripping `$`, `,` and whitespace
+ * if it arrived as a string. Returns null for blank/`N/A`/non-numeric cells.
+ */
+function coerceGuarantorNumber(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === '' || isNA(raw)) return null;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/[,$\s]/g, ''));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Scan the optional "Guarantors" sheet for per-individual values, reading from
+ * the data rows that begin at row 6 (index 5) of that tab:
  *
  *   Column B  (index 1)  — individual's name
- *   Column AB (index 27) — Draw Needed
+ *   Column X  (index 23) — Net Worth
+ *   Column AB (index 27) — Required Income From Business ("Draw Needed")
  *
  * Rows are accepted when column B holds a non-empty string that isn't a
  * header/total marker ("Name", "Total", "Guarantor", "Subtotal", "Grand Total",
- * or anything starting with "Total " / "Subtotal"). The draw cell is coerced
- * to a number, stripping `$` and `,` if the cell came in as a string;
- * `N/A`/blank/non-numeric values become `null`.
+ * or anything starting with "Total " / "Subtotal"). Numeric cells are coerced,
+ * stripping `$` and `,` if the cell came in as a string; `N/A`/blank/non-numeric
+ * values become `null`.
  *
  * Returns `[]` when the workbook has no Guarantors sheet — that's an
  * expected configuration, not an error.
@@ -461,14 +475,16 @@ function parseGuarantorsSheet(wb: XLSX.WorkBook): GuarantorDraw[] {
 
   const range = XLSX.utils.decode_range(ws['!ref']);
   const NAME_COL = 1; // B
+  const NET_WORTH_COL = 23; // X
   const DRAW_COL = 27; // AB
+  const DATA_START_ROW = 5; // row 6 (1-based) is the first data row
   const SKIP_EXACT = new Set([
     'name', 'guarantor', 'guarantor name', 'guarantors',
     'total', 'subtotal', 'grand total',
   ]);
 
   const draws: GuarantorDraw[] = [];
-  for (let r = 0; r <= range.e.r; r++) {
+  for (let r = DATA_START_ROW; r <= range.e.r; r++) {
     const rawName = cellVal(ws, r, NAME_COL);
     if (rawName === undefined || rawName === null) continue;
     const name = String(rawName).trim();
@@ -477,17 +493,10 @@ function parseGuarantorsSheet(wb: XLSX.WorkBook): GuarantorDraw[] {
     if (SKIP_EXACT.has(norm)) continue;
     if (norm.startsWith('total ') || norm.startsWith('subtotal')) continue;
 
-    const rawDraw = cellVal(ws, r, DRAW_COL);
-    let reqDraw: number | null = null;
-    if (rawDraw !== undefined && rawDraw !== null && rawDraw !== '' && !isNA(rawDraw)) {
-      const n =
-        typeof rawDraw === 'number'
-          ? rawDraw
-          : Number(String(rawDraw).replace(/[,$\s]/g, ''));
-      if (Number.isFinite(n)) reqDraw = n;
-    }
+    const reqDraw = coerceGuarantorNumber(cellVal(ws, r, DRAW_COL));
+    const netWorth = coerceGuarantorNumber(cellVal(ws, r, NET_WORTH_COL));
 
-    draws.push({ name, reqDraw });
+    draws.push({ name, reqDraw, netWorth });
   }
   return draws;
 }
