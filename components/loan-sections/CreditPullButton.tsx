@@ -114,6 +114,36 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
   const [history, setHistory] = useState<CreditPullRow[]>([]);
   const [historyReloadKey, setHistoryReloadKey] = useState(0);
 
+  // ── Authorization gate ──────────────────────────────────────────────────
+  // The button is disabled until a signed Zoho "Soft Credit Pull Authorization
+  // Form" matching this applicant's name has been received (see
+  // /api/credit-pull/authorization). Authorization is permanent once on file.
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const first = (prefill.firstName || '').trim();
+    const last = (prefill.lastName || '').trim();
+    if (!first && !last) {
+      setAuthorized(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = `/api/credit-pull/authorization?firstName=${encodeURIComponent(first)}&lastName=${encodeURIComponent(last)}`;
+        const res = await authenticatedFetch(url);
+        if (!res.ok) return; // leave disabled on error
+        const data: { authorized?: boolean } = await res.json();
+        if (!cancelled) setAuthorized(Boolean(data.authorized));
+      } catch {
+        /* network blip — leave the button disabled */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [prefill.firstName, prefill.lastName]);
+
   useEffect(() => {
     if (!projectId || !applicantId) return;
     let cancelled = false;
@@ -260,10 +290,16 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
           e.stopPropagation();
           openFresh();
         }}
-        disabled={!projectId}
-        className="px-3 py-1.5 bg-[#133c7f] text-white font-medium rounded-md text-xs hover:bg-[#0f3168] flex items-center gap-1.5 disabled:opacity-50"
+        disabled={!projectId || !authorized}
+        className="px-3 py-1.5 bg-[#133c7f] text-white font-medium rounded-md text-xs hover:bg-[#0f3168] flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         data-testid={`button-soft-credit-pull-${index + 1}`}
-        title={projectId ? 'Soft Credit Pull' : 'Save the project before pulling credit'}
+        title={
+          !projectId
+            ? 'Save the project before pulling credit'
+            : !authorized
+              ? 'Awaiting signed Soft Credit Pull Authorization form for this applicant'
+              : 'Soft Credit Pull'
+        }
       >
         <CreditCard className="w-3.5 h-3.5" />
         Soft Credit Pull

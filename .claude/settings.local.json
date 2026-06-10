@@ -99,7 +99,12 @@
       "Bash(pdftotext -layout \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" -)",
       "Bash(pdftotext -layout -f 1 -l 18 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" -)",
       "Bash(awk 'BEGIN{p=1} /^\\\\x0c/{p++} /Lease dependency/{print p; exit}')",
-      "Bash(pdftoppm -png -r 180 -f 14 -l 14 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/dd)"
+      "Bash(pdftoppm -png -r 180 -f 14 -l 14 \"/mnt/c/Users/srachal/Desktop/BDO App April/pdfs/PQ_Memo_Little Dental Repair Shop LLC_2026-05-29.pdf\" /tmp/pq-screens/dd)",
+      "Bash(npx openspec *)",
+      "Bash(ls openspec/changes)",
+      "Bash(ls openspec/specs)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C \"/mnt/c/Users/srachal/Desktop/BDO App April\" status --short)"
     ],
     "deny": [],
     "ask": []

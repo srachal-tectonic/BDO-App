@@ -86,6 +86,11 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       await col.createIndex({ projectId: 1, pulledAt: -1 }).catch(() => {});
       // Single-pull lookup by uuid.
       await col.createIndex({ id: 1 }, { unique: true }).catch(() => {});
+    } else if (collectionName === 'creditPullAuthorizations') {
+      // Applicant match lookup (button enable check), newest first.
+      await col.createIndex({ nameKey: 1, receivedAt: -1 }).catch(() => {});
+      // Idempotent ingest: one record per Zoho submission.
+      await col.createIndex({ zohoSubmissionId: 1 }, { unique: true }).catch(() => {});
     }
   } catch (e) {
     // Index creation may fail if it already exists — that's fine
@@ -111,4 +116,5 @@ export const COLLECTIONS = {
   DUE_DILIGENCE_REPORTS: 'dueDiligenceReports',
   QUESTIONNAIRE_RESPONSES: 'questionnaireResponses',
   CREDIT_PULLS: 'creditPulls',
+  CREDIT_PULL_AUTHORIZATIONS: 'creditPullAuthorizations',
 } as const;
