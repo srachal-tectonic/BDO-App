@@ -34,32 +34,40 @@ Auth0 login).
     - *Reuse `creditPulls`*: conflates "authorized to pull" with "pull
       performed". Rejected.
 
-- **Decision: One shared normalizer `lib/nameKey.ts`** used by both the writer
-  (webhook) and reader (status check). Normalization = lowercase → strip
-  diacritics (NFKD) → remove non-letter/space → collapse whitespace → join
-  `firstName` + `lastName` (middle/suffix ignored). Both sides MUST import the
-  same function so keys never drift.
+- **Decision: Match on name + DOB.** The match key is a normalized name
+  (`firstName` + `lastName`) AND a normalized date of birth. Requiring DOB sharply
+  reduces the false matches that name-only allows (e.g. two "John Smith"s).
+
+- **Decision: One shared module `lib/nameKey.ts`** used by both the writer
+  (webhook) and reader (status check), exporting `nameKey`/`nameKeyFromFull` and
+  `dobKey`. Name normalization = lowercase → strip diacritics (NFKD) → remove
+  non-letter/space → collapse whitespace → join `firstName` + `lastName`
+  (middle/suffix ignored). DOB normalization = parse `MM/DD/YYYY` or ISO
+  `YYYY-MM-DD` → `YYYYMMDD` digit string (no separators), '' if unparseable.
+  Both sides MUST import the same functions so keys never drift.
 
 - **Decision: Shared-secret auth via custom header.** Zoho Forms supports custom
   headers (alphanumeric + `_ . -`). The webhook compares a configured
   `ZOHO_WEBHOOK_SECRET` using a constant-time comparison and returns 401 on
   mismatch or absence. Endpoint must NOT call `verifyAuth`.
 
-- **Decision: Capture `ssnLast4` and `dob` now even though matching is
-  name-only.** Strengthening the match later (e.g. `lastName + ssnLast4`) becomes
-  a change to the matcher only, with data already present.
+- **Decision: Capture `ssnLast4` now too.** Strengthening the match further
+  later (e.g. adding `ssnLast4`) becomes a matcher-only change, with data already
+  present.
 
-- **Decision: Button reads status via a small authed GET keyed by name.** The
-  button already has `applicantName`/`prefill`; it calls
-  `GET /api/credit-pull/authorization?name=...` on mount and sets
-  `disabled = !projectId || !authorized`.
+- **Decision: Button reads status via a small authed GET keyed by name + DOB.**
+  The button already has `prefill` (incl. `dateOfBirth`); it calls
+  `GET /api/credit-pull/authorization?firstName=...&lastName=...&dob=...` on mount
+  and sets `disabled = !projectId || !authorized`.
 
 ## Risks / Trade-offs
 
-- **Name-only false matches** (permanent + cross-project): a common name enables
-  the button for unrelated applicants. → Mitigated by storing stronger
-  identifiers now and recommending an upgrade before production borrower data;
-  documented as a known limitation in the spec.
+- **Residual false matches** (permanent + cross-project): name + DOB collisions
+  are rare but possible. → SSN-last-4 is captured so the key can be tightened
+  further; documented as a known limitation in the spec.
+- **DOB must be present on both sides**: an applicant with no DOB entered, or a
+  submission with an unparseable DOB, can never match → button stays disabled.
+  This is intentional (can't verify identity without it).
 - **Public endpoint abuse**: shared secret is the only gate. → Constant-time
   compare, secret in Key Vault/App Settings, log unauthorized attempts; optional
   HMAC upgrade noted as future work.
@@ -72,6 +80,14 @@ Auth0 login).
 ## Migration Plan
 
 - Add `ZOHO_WEBHOOK_SECRET` to all three Azure slots before deploying.
+- **Exclude the webhook path from Azure Easy Auth.** The App Service has
+  Microsoft Entra ID (Easy Auth) with `requireAuthentication: true`, so it
+  returns a login redirect/401 for ALL requests *before* they reach Next.js —
+  including the public webhook. Add `/api/webhooks/zoho/credit-auth` to
+  `properties.globalValidation.excludedPaths` in the site's `authsettingsV2`
+  config (per slot). There is no Portal UI for this — use Cloud Shell / Resource
+  Explorer. Without this the endpoint is unreachable by Zoho and nothing reaches
+  the app logs. See [[azure-easy-auth-excluded-paths]].
 - Configure the Zoho form webhook (JSON, POST, custom secret header, field map).
 - No data backfill: existing applicants start disabled until a form is received.
 - Rollback: re-enabling the button unconditionally is a one-line revert of the

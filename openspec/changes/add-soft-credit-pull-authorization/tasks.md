@@ -6,7 +6,7 @@
 
 ## 2. Shared name normalizer
 
-- [x] 2.1 Create `lib/nameKey.ts` exporting `nameKey(first, last)` and `nameKeyFromFull(name)` (lowercase, strip diacritics, remove non-letter/space, collapse spaces, first+last only)
+- [x] 2.1 Create `lib/nameKey.ts` exporting `nameKey(first, last)`, `nameKeyFromFull(name)`, and `dobKey(raw)` (name: lowercase/strip-diacritics/first+last; DOB: MM/DD/YYYY or ISO → YYYYMMDD digits)
 - [x] 2.2 Add unit-level sanity coverage notes for diacritics, casing, extra spaces, middle-name omission
 
 ## 3. Zoho webhook endpoint
@@ -21,7 +21,7 @@
 ## 4. Authorization status endpoint
 
 - [x] 4.1 Create `app/api/credit-pull/authorization/route.ts` GET (authed via `verifyAuth`)
-- [x] 4.2 Accept `?name=` (or first/last); compute `nameKey`; return `{ authorized, authorizedAt }`
+- [x] 4.2 Accept `?firstName=&lastName=&dob=` (or `?name=&dob=`); compute `nameKey`+`dobKey`; return `{ authorized, authorizedAt }` (requires both)
 
 ## 5. UI gating
 
@@ -31,6 +31,7 @@
 
 ## 6. Configuration & docs
 
+- [x] 6.0 Exclude `/api/webhooks/zoho/credit-auth` from Azure Easy Auth via `authsettingsV2.globalValidation.excludedPaths` (per slot) — required or Easy Auth 401s the request before it reaches the app
 - [x] 6.1 Add `ZOHO_WEBHOOK_SECRET` to Azure App Settings (dev/staging/prod) and env example
 - [x] 6.2 Document the Zoho form webhook setup (JSON body, POST, custom secret header, field→parameter map — see `design.md` "Zoho Forms field mapping")
 

@@ -19,9 +19,10 @@ received** for that individual applicant.
   authenticated by a shared secret token in a custom header.
 - Persist each authorization in a new Cosmos collection
   (`creditPullAuthorizations`), keyed by a normalized name.
-- Match an incoming submission to applicants by **normalized name only** (per
-  current requirement), while also capturing SSN-last-4 and DOB so the match key
-  can be strengthened later without re-plumbing.
+- Match an incoming submission to applicants by **normalized name (first + last)
+  AND normalized date of birth** (`YYYYMMDD`, digits only — robust to
+  `MM/DD/YYYY` vs ISO). SSN-last-4 is also captured so the key can be
+  strengthened further later without re-plumbing.
 - Authorization is **permanent** once received (no expiry, not consumed by use).
 - Add an authenticated endpoint the button uses to check authorization status.
 

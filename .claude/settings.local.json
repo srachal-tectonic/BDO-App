@@ -104,7 +104,8 @@
       "Bash(ls openspec/changes)",
       "Bash(ls openspec/specs)",
       "Bash(echo \"exit: $?\")",
-      "Bash(git -C \"/mnt/c/Users/srachal/Desktop/BDO App April\" status --short)"
+      "Bash(git -C \"/mnt/c/Users/srachal/Desktop/BDO App April\" status --short)",
+      "WebFetch(domain:sbaprequalifier-cbg7h5athsdkgxgm.southcentralus-01.azurewebsites.net)"
     ],
     "deny": [],
     "ask": []

@@ -13,6 +13,8 @@ export interface CreditPullAuthorization {
 
   /** Normalized first+last name used for applicant matching. */
   nameKey: string;
+  /** Normalized DOB (YYYYMMDD) — second half of the match key. '' if unparseable. */
+  dobKey: string;
 
   /** As submitted, for display/audit. */
   fullName: string;

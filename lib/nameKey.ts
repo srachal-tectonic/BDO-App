@@ -51,3 +51,27 @@ export function nameKeyFromFull(full: string | undefined | null): string {
   if (toks.length === 1) return toks[0];
   return `${toks[0]} ${toks[toks.length - 1]}`;
 }
+
+/**
+ * Normalize a date of birth to a comparable `YYYYMMDD` digit string (no slashes,
+ * no dashes), so format differences between the app (ISO `YYYY-MM-DD`) and Zoho
+ * (typically `MM/DD/YYYY`) don't break matching. Returns '' if the value can't
+ * be parsed to a valid-looking date, which callers MUST treat as "no match".
+ */
+export function dobKey(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  let y: string | undefined, m: string | undefined, d: string | undefined;
+
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // YYYY-MM-DD
+  if (iso) {
+    [, y, m, d] = iso;
+  } else {
+    const us = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/); // M/D/YYYY or MM-DD-YYYY
+    if (us) [, m, d, y] = us;
+  }
+  if (!y || !m || !d) return '';
+
+  const key = `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
+  return /^\d{8}$/.test(key) ? key : '';
+}

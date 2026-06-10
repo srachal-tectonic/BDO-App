@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
-import { nameKey, nameKeyFromFull } from '@/lib/nameKey';
+import { nameKey, nameKeyFromFull, dobKey } from '@/lib/nameKey';
 import type { CreditPullAuthorization } from '@/lib/creditPullAuthTypes';
 
 export async function GET(request: NextRequest) {
@@ -25,17 +25,19 @@ export async function GET(request: NextRequest) {
   const firstName = searchParams.get('firstName') || '';
   const lastName = searchParams.get('lastName') || '';
   const name = searchParams.get('name') || '';
+  const dob = searchParams.get('dob') || '';
 
   const key = firstName || lastName ? nameKey(firstName, lastName) : nameKeyFromFull(name);
-  if (!key) {
-    // No usable name → never authorized (never authorize on an empty key).
+  const dKey = dobKey(dob);
+  if (!key || !dKey) {
+    // Match requires BOTH name and DOB; missing/unparseable either → not authorized.
     return NextResponse.json({ authorized: false });
   }
 
   try {
     const col = await getCollection<CreditPullAuthorization>(COLLECTIONS.CREDIT_PULL_AUTHORIZATIONS);
     const match = await col
-      .find({ nameKey: key })
+      .find({ nameKey: key, dobKey: dKey })
       .sort({ receivedAt: -1 })
       .limit(1)
       .next();

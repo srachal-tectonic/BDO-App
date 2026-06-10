@@ -123,14 +123,16 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
   useEffect(() => {
     const first = (prefill.firstName || '').trim();
     const last = (prefill.lastName || '').trim();
-    if (!first && !last) {
+    const dob = (prefill.dateOfBirth || '').trim();
+    // Match requires name AND DOB — don't bother asking without both.
+    if ((!first && !last) || !dob) {
       setAuthorized(false);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const url = `/api/credit-pull/authorization?firstName=${encodeURIComponent(first)}&lastName=${encodeURIComponent(last)}`;
+        const url = `/api/credit-pull/authorization?firstName=${encodeURIComponent(first)}&lastName=${encodeURIComponent(last)}&dob=${encodeURIComponent(dob)}`;
         const res = await authenticatedFetch(url);
         if (!res.ok) return; // leave disabled on error
         const data: { authorized?: boolean } = await res.json();
@@ -142,7 +144,7 @@ export default function CreditPullButton(props: CreditPullButtonProps) {
     return () => {
       cancelled = true;
     };
-  }, [prefill.firstName, prefill.lastName]);
+  }, [prefill.firstName, prefill.lastName, prefill.dateOfBirth]);
 
   useEffect(() => {
     if (!projectId || !applicantId) return;

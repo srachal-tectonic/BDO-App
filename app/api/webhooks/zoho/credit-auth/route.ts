@@ -21,7 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID, createHash, timingSafeEqual } from 'crypto';
 
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
-import { nameKey, nameKeyFromFull } from '@/lib/nameKey';
+import { nameKey, nameKeyFromFull, dobKey } from '@/lib/nameKey';
 import { logAuditEvent, getClientIp } from '@/lib/auditLog';
 import type { CreditPullAuthorization } from '@/lib/creditPullAuthTypes';
 
@@ -87,9 +87,30 @@ function toIsoDate(raw: string | undefined): string | null {
   return s;
 }
 
+// GET — reachability probe. Lets you confirm the endpoint is deployed without
+// sending data or the secret. Returns 200; never reveals the secret.
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    endpoint: 'zoho-credit-auth-webhook',
+    method: 'POST',
+    secretConfigured: Boolean(process.env.ZOHO_WEBHOOK_SECRET),
+  });
+}
+
 export async function POST(request: NextRequest) {
+  // Entry log — proves a request reached the handler (no body/secret logged).
+  const ct = request.headers.get('content-type') || '(none)';
+  const hasSecretHeader = request.headers.get(SECRET_HEADER) != null;
+  console.log(
+    `[ZohoCreditAuth] POST received contentType="${ct}" secretHeaderPresent=${hasSecretHeader} secretConfigured=${Boolean(process.env.ZOHO_WEBHOOK_SECRET)} ip=${getClientIp(request.headers) ?? '?'}`,
+  );
+
   // ── 1. Authenticate the webhook via shared secret ──────────────────────────
   if (!secretMatches(request.headers.get(SECRET_HEADER))) {
+    console.warn(
+      `[ZohoCreditAuth] 401 rejected: secretHeaderPresent=${hasSecretHeader} secretConfigured=${Boolean(process.env.ZOHO_WEBHOOK_SECRET)}`,
+    );
     // Log the attempt (no payload — we haven't trusted it yet).
     void logAuditEvent({
       action: 'security_event',
@@ -104,6 +125,7 @@ export async function POST(request: NextRequest) {
   // ── 2. Parse the submission ────────────────────────────────────────────────
   const body = await parseBody(request);
   if (!body) {
+    console.warn('[ZohoCreditAuth] 400 invalid_body — could not parse payload');
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
 
@@ -114,11 +136,25 @@ export async function POST(request: NextRequest) {
   // Prefer discrete first/last; fall back to splitting the combined Name field.
   const key = firstName || lastName ? nameKey(firstName, lastName) : nameKeyFromFull(fullName);
   if (!key) {
+    console.warn(
+      `[ZohoCreditAuth] 400 missing_name — no usable name in payload; param keys present: ${Object.keys(body).join(', ')}`,
+    );
     return NextResponse.json({ error: 'missing_name' }, { status: 400 });
   }
 
   const submittedAt = toIsoDate(pick(body, 'submittedAt', 'submitted_at', 'added_time', 'Added_Time'));
   const ssn4 = ssnLast4(pick(body, 'ssn', 'SSN', 'social', 'ssnLast4'));
+
+  // DOB is the second half of the match key. Zoho sends MM/DD/YYYY; normalize to
+  // a YYYYMMDD digit string. Required — without it the record can never match.
+  const dobRaw = pick(body, 'dob', 'dateOfBirth', 'date_of_birth', 'DOB');
+  const dKey = dobKey(dobRaw);
+  if (!dKey) {
+    console.warn(
+      `[ZohoCreditAuth] 400 missing_dob — no parseable DOB in payload (raw="${dobRaw ?? ''}"); param keys present: ${Object.keys(body).join(', ')}`,
+    );
+    return NextResponse.json({ error: 'missing_dob' }, { status: 400 });
+  }
 
   // Address arrives as separate Zoho fields; keep the parts and compose a string.
   const addressComponents = {
@@ -144,17 +180,18 @@ export async function POST(request: NextRequest) {
   const providedId = pick(body, 'submissionId', 'submission_id', 'entryId', 'entry_id', 'recordId', 'id');
   const zohoSubmissionId =
     providedId ||
-    'derived:' + createHash('sha256').update(`${key}|${ssn4 ?? ''}|${submittedAt ?? ''}`).digest('hex').slice(0, 32);
+    'derived:' + createHash('sha256').update(`${key}|${dKey}|${ssn4 ?? ''}|${submittedAt ?? ''}`).digest('hex').slice(0, 32);
 
   const doc: CreditPullAuthorization = {
     id: randomUUID(),
     source: 'zoho',
     nameKey: key,
+    dobKey: dKey,
     fullName: fullName || `${firstName} ${lastName}`.trim(),
     firstName,
     lastName,
     ssnLast4: ssn4,
-    dob: toIsoDate(pick(body, 'dob', 'dateOfBirth', 'date_of_birth', 'DOB')),
+    dob: toIsoDate(dobRaw),
     email: pick(body, 'email', 'Email') || null,
     phone: pick(body, 'cellPhone', 'cell_phone', 'phone', 'Phone', 'mobile') || null,
     address: composedAddress,
@@ -187,11 +224,11 @@ export async function POST(request: NextRequest) {
     action: 'security_event',
     category: 'loan_application',
     summary: `Soft credit pull authorization received for "${doc.fullName}"`,
-    metadata: { nameKey: key, source: 'zoho', hasSsnLast4: ssn4 != null },
+    metadata: { nameKey: key, dobKey: dKey, source: 'zoho', hasSsnLast4: ssn4 != null },
     ipAddress: getClientIp(request.headers),
     userAgent: request.headers.get('user-agent') || undefined,
   });
 
-  console.log(`[ZohoCreditAuth] stored authorization nameKey="${key}" submissionId=${zohoSubmissionId}`);
+  console.log(`[ZohoCreditAuth] stored authorization nameKey="${key}" dobKey=${dKey} submissionId=${zohoSubmissionId}`);
   return NextResponse.json({ ok: true });
 }

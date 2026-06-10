@@ -87,8 +87,8 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       // Single-pull lookup by uuid.
       await col.createIndex({ id: 1 }, { unique: true }).catch(() => {});
     } else if (collectionName === 'creditPullAuthorizations') {
-      // Applicant match lookup (button enable check), newest first.
-      await col.createIndex({ nameKey: 1, receivedAt: -1 }).catch(() => {});
+      // Applicant match lookup (button enable check) by name + DOB, newest first.
+      await col.createIndex({ nameKey: 1, dobKey: 1, receivedAt: -1 }).catch(() => {});
       // Idempotent ingest: one record per Zoho submission.
       await col.createIndex({ zohoSubmissionId: 1 }, { unique: true }).catch(() => {});
     }

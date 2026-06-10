@@ -64,26 +64,32 @@ configured shared secret, and MUST NOT require an Auth0 session.
 - **WHEN** a request presents the correct secret value in the configured header
 - **THEN** the request is accepted for processing
 
-### Requirement: Applicant matching by normalized name
+### Requirement: Applicant matching by normalized name and date of birth
 
-The system SHALL match an authorization to individual applicants by a normalized
-name key. The normalizer MUST be shared between the writing (webhook) and reading
-(status check) paths so keys are computed identically.
+The system SHALL match an authorization to individual applicants by BOTH a
+normalized name key (first + last) AND a normalized date-of-birth key
+(`YYYYMMDD`, digits only). The normalizers MUST be shared between the writing
+(webhook) and reading (status check) paths so keys are computed identically.
 
-#### Scenario: Names match after normalization
+#### Scenario: Name and DOB both match
 
-- **WHEN** an applicant's first and last name normalize to the same key as a stored authorization
+- **WHEN** an applicant's first/last name and date of birth normalize to the same name key and DOB key as a stored authorization
 - **THEN** the applicant is considered authorized
 
-#### Scenario: Normalization ignores case, accents, spacing, and middle names
+#### Scenario: Normalization ignores formatting differences
 
-- **WHEN** the submitted name differs only by letter case, diacritics, extra whitespace, or a middle name/suffix
-- **THEN** it still produces the same name key as the applicant's first and last name
+- **WHEN** the submitted name differs only by letter case, diacritics, extra whitespace, or a middle name/suffix, AND the DOB differs only by format (e.g. `MM/DD/YYYY` vs ISO `YYYY-MM-DD`)
+- **THEN** it still produces the same name key and DOB key as the applicant's record
 
-#### Scenario: Non-matching name does not authorize
+#### Scenario: Matching name but different DOB does not authorize
 
-- **WHEN** no stored authorization normalizes to the applicant's name key
-- **THEN** the applicant's button remains disabled
+- **WHEN** a stored authorization shares the applicant's name key but has a different DOB key
+- **THEN** the applicant is NOT authorized and the button remains disabled
+
+#### Scenario: Missing or unparseable DOB does not authorize
+
+- **WHEN** the applicant record or the submission has no parseable date of birth
+- **THEN** no match is possible and the button remains disabled
 
 ### Requirement: Authorization is permanent and queryable
 
