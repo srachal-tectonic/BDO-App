@@ -69,7 +69,31 @@ function formatTermDisplay(months: string): string {
   return `${m} months / ${years} year${years !== 1 ? 's' : ''} ${remaining} month${remaining !== 1 ? 's' : ''}`;
 }
 
-function generateSimple7aDocx(data: Simple7aLOIData) {
+interface LogoAsset {
+  bytes: Uint8Array;
+  aspect: number; // width / height
+}
+
+// Fetch the T Bank logo (same asset used as the header on the other PDF exports)
+// and read its intrinsic aspect ratio from the PNG IHDR chunk so the embedded
+// image isn't distorted.
+async function fetchLogo(): Promise<LogoAsset | null> {
+  try {
+    const res = await fetch('/images/TBank-logo.png');
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    // PNG: 8-byte signature, then IHDR length(4)+type(4); width@16, height@20.
+    const w = dv.getUint32(16);
+    const h = dv.getUint32(20);
+    const aspect = w > 0 && h > 0 ? w / h : 3.491;
+    return { bytes, aspect };
+  } catch {
+    return null;
+  }
+}
+
+function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   const e = escapeXml;
 
   const p = (text: string, opts?: { bold?: boolean; indent?: boolean; spacing?: number; size?: number; underline?: boolean }) => {
@@ -116,11 +140,22 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
   const FIELD_FILL = 'FAFBFC';    // field background
   const LABEL_GRAY = '404040';    // small field label
 
-  // Document title block \u2014 dark-blue bold title with a heavy blue rule under it.
-  const titleHeader = `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="3" w:color="${HEADER_BLUE}"/></w:pBdr><w:spacing w:before="0" w:after="160"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p>`;
+  // Document header bar \u2014 mirrors the other PDF exports: a full-width dark-blue
+  // band with the T Bank logo on the left and a white, right-aligned title. The
+  // logo is an inline DrawingML picture referencing the embedded media (rId2).
+  const BAR_BLUE = '123D80'; // matches the PDF header bar rgb(0.07,0.24,0.5)
+  const LOGO_REL_ID = 'rId2';
+  const LOGO_H_EMU = 393700; // 31pt tall, like the PDF header logo (12700 EMU/pt)
+  const logoWidthEmu = logo ? Math.round(LOGO_H_EMU * logo.aspect) : 0;
+  const logoDrawing = logo
+    ? `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="TBankLogo"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="TBankLogo"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
+    : '';
+  const barCellPr = (firstCol: boolean) => `<w:tcPr><w:tcW w:w="5080" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${BAR_BLUE}"/><w:tcMar><w:top w:w="140" w:type="dxa"/><w:left w:w="${firstCol ? 160 : 80}" w:type="dxa"/><w:bottom w:w="140" w:type="dxa"/><w:right w:w="${firstCol ? 80 : 160}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>`;
+  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 
-  // Section heading \u2014 blue, bold, with a light-blue underline rule.
-  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="160" w:after="100"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
+  // Section heading \u2014 blue, bold, with a light-blue underline rule. Generous
+  // space above each so sections are clearly separated.
+  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
 
   // Thin spacer paragraph \u2014 also keeps Word from merging adjacent tables.
   const tableGap = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="80" w:lineRule="exact"/></w:pPr></w:p>';
@@ -159,7 +194,9 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
 
   const paragraphs: string[] = [];
 
-  paragraphs.push(titleHeader);
+  paragraphs.push(headerBar);
+  // Gap below the header band before the letter body.
+  paragraphs.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="220" w:lineRule="exact"/></w:pPr></w:p>');
 
   paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }], { spacing: 40 }));
   paragraphs.push(mixedP([{ text: 'To: ', bold: true }, { text: data.principalName || '[Name]' }], { spacing: 40 }));
@@ -268,6 +305,7 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`);
@@ -278,10 +316,17 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
 </Relationships>`);
   zip.folder('word');
   zip.folder('word/_rels');
+  const imageRel = logo
+    ? '\n  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>'
+    : '';
   zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${imageRel}
 </Relationships>`);
+  if (logo) {
+    zip.folder('word/media');
+    zip.file('word/media/image1.png', logo.bytes);
+  }
   // Compact document defaults: 10pt Calibri, single line spacing, 5pt after each
   // paragraph (replaces the old blank-line paragraphs) so the letter fits 2 pages.
   zip.file('word/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -293,7 +338,7 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
 </w:styles>`);
   zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
     ${paragraphs.join('\n    ')}
     <w:sectPr>
@@ -432,9 +477,10 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     try {
-      generateSimple7aDocx(formData);
+      const logo = await fetchLogo();
+      generateSimple7aDocx(formData, logo);
       toast({ title: "Success", description: "7(a) LOI document generated." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to generate document.", variant: "destructive" });

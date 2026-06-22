@@ -105,7 +105,10 @@
       "Bash(ls openspec/specs)",
       "Bash(echo \"exit: $?\")",
       "Bash(git -C \"/mnt/c/Users/srachal/Desktop/BDO App April\" status --short)",
-      "WebFetch(domain:sbaprequalifier-cbg7h5athsdkgxgm.southcentralus-01.azurewebsites.net)"
+      "WebFetch(domain:sbaprequalifier-cbg7h5athsdkgxgm.southcentralus-01.azurewebsites.net)",
+      "Bash(cp /tmp/loi_pkg_check.cjs ./_loi_pkg_check.cjs)",
+      "Bash(node ./_loi_pkg_check.cjs)",
+      "Bash(rm -f ./_loi_pkg_check.cjs)"
     ],
     "deny": [],
     "ask": []
