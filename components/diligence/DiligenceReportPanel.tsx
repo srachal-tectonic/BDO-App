@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -10,12 +10,26 @@ import {
   Check,
   Copy,
   Loader2,
+  MessageSquarePlus,
+  Pencil,
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useDiligenceReport, type DiligencePhase } from '@/hooks/useDiligenceReport';
 import { useToast } from '@/hooks/use-toast';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import {
+  authenticatedFetch,
+  authenticatedGet,
+  authenticatedPost,
+} from '@/lib/authenticatedFetch';
+import {
+  splitDiligenceByRiskSections,
+  type DiligenceRiskComment,
+} from '@/lib/diligenceRiskComments';
 
 interface Props {
   projectId: string;
@@ -44,6 +58,49 @@ export default function DiligenceReportPanel({
   } = useDiligenceReport(projectId);
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [comments, setComments] = useState<DiligenceRiskComment[]>([]);
+
+  // Load existing per-section comments once the project is known. Failures are
+  // non-fatal — the report still renders, just without saved comments.
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) return;
+    (async () => {
+      try {
+        const res = await authenticatedGet(`/api/projects/${projectId}/diligence-comments`);
+        if (!res.ok) return;
+        const data = (await res.json()) as DiligenceRiskComment[];
+        if (!cancelled && Array.isArray(data)) setComments(data);
+      } catch {
+        /* ignore — comments are best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const commentsBySection = useMemo(() => {
+    const map = new Map<string, DiligenceRiskComment[]>();
+    for (const c of comments) {
+      const arr = map.get(c.sectionKey);
+      if (arr) arr.push(c);
+      else map.set(c.sectionKey, [c]);
+    }
+    return map;
+  }, [comments]);
+
+  const handleCommentAdded = useCallback((comment: DiligenceRiskComment) => {
+    setComments((prev) => [...prev, comment]);
+  }, []);
+
+  const handleCommentUpdated = useCallback((comment: DiligenceRiskComment) => {
+    setComments((prev) => prev.map((c) => (c.id === comment.id ? comment : c)));
+  }, []);
+
+  const handleCommentDeleted = useCallback((commentId: string) => {
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  }, []);
 
   const missingFields = useMemo(() => {
     const missing: string[] = [];
@@ -201,7 +258,20 @@ export default function DiligenceReportPanel({
 
       <div className="px-8 py-6">
         {hasContent ? (
-          <ProseRenderer markdown={displayText} streaming={isStreaming} />
+          isStreaming ? (
+            // While streaming the markdown is incomplete, so render it plainly;
+            // comment threads attach once the final report is in.
+            <ProseRenderer markdown={displayText} streaming />
+          ) : (
+            <CommentedReport
+              markdown={displayText}
+              projectId={projectId}
+              commentsBySection={commentsBySection}
+              onCommentAdded={handleCommentAdded}
+              onCommentUpdated={handleCommentUpdated}
+              onCommentDeleted={handleCommentDeleted}
+            />
+          )
         ) : isStreaming ? (
           <div
             className="text-[13px] text-[#718bbc] italic"
@@ -284,6 +354,349 @@ function ProseRenderer({
       className="text-[13px] text-[#1a1a1a] leading-relaxed max-w-3xl mx-auto"
       data-testid="diligence-markdown"
     >
+      <MarkdownBody markdown={markdown} />
+      {streaming && (
+        <span
+          className="inline-block w-[7px] h-[14px] bg-[#2563eb] align-middle animate-pulse ml-0.5"
+          data-testid="cursor-streaming"
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Renders the finalized report split into runs, dropping an editable comment
+ * thread after each "Risk to the bank" section. Section keys are positional
+ * and shared with the PDF export so comments line up in both places.
+ */
+function CommentedReport({
+  markdown,
+  projectId,
+  commentsBySection,
+  onCommentAdded,
+  onCommentUpdated,
+  onCommentDeleted,
+}: {
+  markdown: string;
+  projectId: string;
+  commentsBySection: Map<string, DiligenceRiskComment[]>;
+  onCommentAdded: (comment: DiligenceRiskComment) => void;
+  onCommentUpdated: (comment: DiligenceRiskComment) => void;
+  onCommentDeleted: (commentId: string) => void;
+}) {
+  const segments = useMemo(() => splitDiligenceByRiskSections(markdown), [markdown]);
+
+  return (
+    <div
+      className="text-[13px] text-[#1a1a1a] leading-relaxed max-w-3xl mx-auto"
+      data-testid="diligence-markdown"
+    >
+      {segments.map((seg, i) => (
+        <Fragment key={i}>
+          {seg.text.trim().length > 0 && <MarkdownBody markdown={seg.text} />}
+          {seg.sectionKey && (
+            <RiskCommentThread
+              projectId={projectId}
+              sectionKey={seg.sectionKey}
+              comments={commentsBySection.get(seg.sectionKey) || []}
+              onCommentAdded={onCommentAdded}
+              onCommentUpdated={onCommentUpdated}
+              onCommentDeleted={onCommentDeleted}
+            />
+          )}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A single Risk-to-the-bank comment thread: existing comments shown as
+ * "Name: comment", plus an input to append a new one. Styled to match the DD
+ * memo (the same blue accent / surface used across the panel).
+ */
+function RiskCommentThread({
+  projectId,
+  sectionKey,
+  comments,
+  onCommentAdded,
+  onCommentUpdated,
+  onCommentDeleted,
+}: {
+  projectId: string;
+  sectionKey: string;
+  comments: DiligenceRiskComment[];
+  onCommentAdded: (comment: DiligenceRiskComment) => void;
+  onCommentUpdated: (comment: DiligenceRiskComment) => void;
+  onCommentDeleted: (commentId: string) => void;
+}) {
+  const { userInfo } = useFirebaseAuth();
+  const { toast } = useToast();
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const content = draft.trim();
+    if (!content || saving) return;
+    setSaving(true);
+    try {
+      const res = await authenticatedPost(
+        `/api/projects/${projectId}/diligence-comments`,
+        { sectionKey, content },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to save comment');
+      }
+      const saved = (await res.json()) as DiligenceRiskComment;
+      onCommentAdded(saved);
+      setDraft('');
+    } catch (e: any) {
+      toast({
+        title: 'Could not add comment',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="my-4 rounded-md border border-[#c5d4e8] border-l-[3px] border-l-[#2563eb] bg-[#f7faff] px-4 py-3"
+      data-testid={`risk-comments-${sectionKey}`}
+    >
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[#2563eb] mb-2">
+        Comments
+      </div>
+
+      {comments.length > 0 && (
+        <ul className="space-y-1.5 mb-3">
+          {comments.map((c) => (
+            <CommentItem
+              key={c.id}
+              projectId={projectId}
+              comment={c}
+              canModify={!!userInfo && userInfo.uid === c.authorId}
+              onUpdated={onCommentUpdated}
+              onDeleted={onCommentDeleted}
+            />
+          ))}
+        </ul>
+      )}
+
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        rows={2}
+        placeholder={
+          userInfo
+            ? `Add a comment${userInfo.displayName ? ` as ${userInfo.displayName}` : ''}…`
+            : 'Sign in to comment'
+        }
+        disabled={!userInfo || saving}
+        className="w-full px-3 py-2 border border-[#c5d4e8] rounded-md text-[13px] bg-white text-[#1a1a1a] resize-y focus:outline-none focus:ring-1 focus:ring-[#2563eb] focus:border-[#2563eb] disabled:bg-[#f1f5fb] disabled:cursor-not-allowed"
+        data-testid={`risk-comment-input-${sectionKey}`}
+      />
+      <div className="flex justify-end mt-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!userInfo || saving || !draft.trim()}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#2563eb] rounded-md transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          data-testid={`risk-comment-submit-${sectionKey}`}
+        >
+          {saving ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <MessageSquarePlus className="w-3.5 h-3.5" />
+          )}
+          {saving ? 'Adding…' : 'Add comment'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One rendered comment ("Name: comment"). Authors get inline Edit / Delete
+ * controls; everyone else sees read-only text.
+ */
+function CommentItem({
+  projectId,
+  comment,
+  canModify,
+  onUpdated,
+  onDeleted,
+}: {
+  projectId: string;
+  comment: DiligenceRiskComment;
+  canModify: boolean;
+  onUpdated: (comment: DiligenceRiskComment) => void;
+  onDeleted: (commentId: string) => void;
+}) {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment.content);
+  const [busy, setBusy] = useState(false);
+
+  const url = `/api/projects/${projectId}/diligence-comments/${comment.id}`;
+
+  const saveEdit = async () => {
+    const content = draft.trim();
+    if (!content || busy) return;
+    if (content === comment.content) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await authenticatedFetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to update comment');
+      }
+      const updated = (await res.json()) as DiligenceRiskComment;
+      onUpdated(updated);
+      setEditing(false);
+    } catch (e: any) {
+      toast({
+        title: 'Could not update comment',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (busy) return;
+    if (!window.confirm('Delete this comment?')) return;
+    setBusy(true);
+    try {
+      const res = await authenticatedFetch(url, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to delete comment');
+      }
+      onDeleted(comment.id);
+    } catch (e: any) {
+      toast({
+        title: 'Could not delete comment',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+      setBusy(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <li className="text-[13px]" data-testid={`risk-comment-${comment.id}`}>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+              e.preventDefault();
+              saveEdit();
+            }
+            if (e.key === 'Escape') {
+              setDraft(comment.content);
+              setEditing(false);
+            }
+          }}
+          rows={2}
+          disabled={busy}
+          className="w-full px-3 py-2 border border-[#c5d4e8] rounded-md text-[13px] bg-white text-[#1a1a1a] resize-y focus:outline-none focus:ring-1 focus:ring-[#2563eb] focus:border-[#2563eb] disabled:bg-[#f1f5fb]"
+          data-testid={`risk-comment-edit-input-${comment.id}`}
+          autoFocus
+        />
+        <div className="flex justify-end gap-2 mt-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(comment.content);
+              setEditing(false);
+            }}
+            disabled={busy}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium text-[#133c7f] bg-white border border-[#c5d4e8] rounded-md transition-all hover-elevate active-elevate-2 disabled:opacity-50"
+          >
+            <X className="w-3.5 h-3.5" />
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={saveEdit}
+            disabled={busy || !draft.trim()}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium text-white bg-[#2563eb] rounded-md transition-all hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Save
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li
+      className="group flex items-start gap-2 text-[13px] text-[#1a1a1a] leading-relaxed"
+      data-testid={`risk-comment-${comment.id}`}
+    >
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-[#133c7f]">{comment.authorName}:</span>{' '}
+        <span className="whitespace-pre-wrap">{comment.content}</span>
+        {comment.updatedAt && (
+          <span className="text-[11px] text-[#a1b3d2] italic ml-1">(edited)</span>
+        )}
+      </div>
+      {canModify && (
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(comment.content);
+              setEditing(true);
+            }}
+            disabled={busy}
+            className="p-1 text-[#4263a5] hover:text-[#2563eb] rounded disabled:opacity-50"
+            title="Edit comment"
+            data-testid={`risk-comment-edit-${comment.id}`}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            className="p-1 text-[#4263a5] hover:text-red-600 rounded disabled:opacity-50"
+            title="Delete comment"
+            data-testid={`risk-comment-delete-${comment.id}`}
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function MarkdownBody({ markdown }: { markdown: string }) {
+  return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -347,12 +760,5 @@ function ProseRenderer({
       >
         {markdown}
       </ReactMarkdown>
-      {streaming && (
-        <span
-          className="inline-block w-[7px] h-[14px] bg-[#2563eb] align-middle animate-pulse ml-0.5"
-          data-testid="cursor-streaming"
-        />
-      )}
-    </div>
   );
 }

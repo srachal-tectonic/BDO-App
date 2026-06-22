@@ -30,6 +30,8 @@ interface SharePointItem {
   type: 'file' | 'folder';
   fileType?: string;
   path: string;
+  /** SharePoint web URL for opening the item in the browser. */
+  webUrl?: string;
   children?: SharePointItem[];
 }
 
@@ -150,6 +152,7 @@ async function transformSharePointItems(
       modifiedDate: item.lastModifiedDateTime,
       type: isFolder ? 'folder' : 'file',
       path: itemPath,
+      webUrl: item.webUrl,
     };
 
     // Add file type for files

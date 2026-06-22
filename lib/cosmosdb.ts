@@ -74,6 +74,9 @@ async function ensureIndexes(collectionName: string): Promise<void> {
     } else if (collectionName === 'dueDiligenceReports') {
       await col.createIndex({ projectId: 1 }, { unique: true }).catch(() => {});
       await col.createIndex({ generatedAt: -1 }).catch(() => {});
+    } else if (collectionName === 'diligenceReportComments') {
+      // Per-section comment threads, oldest-first within a project/section.
+      await col.createIndex({ projectId: 1, sectionKey: 1, createdAt: 1 }).catch(() => {});
     } else if (collectionName === 'auditLogs') {
       await col.createIndex({ projectId: 1, timestamp: -1 }).catch(() => {});
       await col.createIndex({ userId: 1, timestamp: -1 }).catch(() => {});
@@ -114,6 +117,7 @@ export const COLLECTIONS = {
   ADMIN_SETTINGS: 'adminSettings',
   AUDIT_LOGS: 'auditLogs',
   DUE_DILIGENCE_REPORTS: 'dueDiligenceReports',
+  DILIGENCE_COMMENTS: 'diligenceReportComments',
   QUESTIONNAIRE_RESPONSES: 'questionnaireResponses',
   CREDIT_PULLS: 'creditPulls',
   CREDIT_PULL_AUTHORIZATIONS: 'creditPullAuthorizations',
