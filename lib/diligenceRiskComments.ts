@@ -5,15 +5,14 @@
 // runtime into either bundle.
 
 /**
- * A "Risk to the bank" callout always begins a section in the DD report and is
- * authored (by the LLM / admin appendix) as a bolded marker at the start of a
- * paragraph, e.g. `⚠ **Risk to the bank:** ...`. We match the start of a line,
- * tolerating an optional warning glyph (+ emoji variation selector) and the
- * singular/plural wording, case-insensitively.
+ * A "Risk to the bank" callout marks a section in the DD report. It is authored
+ * (by the LLM / admin appendix) as a bolded marker at the start of a block —
+ * most often a blockquote, e.g. `> ⚠ **Risk to the bank:** ...`, but sometimes
+ * a plain paragraph `⚠ **Risk to the bank:** ...`. We match the start of a line,
+ * tolerating an optional blockquote prefix (`>`), an optional warning glyph
+ * (+ emoji variation selector), and singular/plural wording, case-insensitively.
  */
-export const RISK_TO_BANK_MARKER = /^\s*(?:⚠[️]?\s*)?\*\*\s*risks?\s+to\s+the\s+bank/i;
-
-const HEADING_RE = /^\s*#{1,6}\s+/;
+export const RISK_TO_BANK_MARKER = /^\s*>*\s*(?:⚠️?\s*)?\*\*\s*risks?\s+to\s+the\s+bank/i;
 
 export interface DiligenceRiskSegment {
   /** Markdown for this run of the report, rendered as-is. */
@@ -41,17 +40,18 @@ export interface DiligenceRiskComment {
 }
 
 /**
- * Split a DD report's markdown into segments, breaking it at the end of each
- * "Risk to the bank" section so a comment thread can be injected there. A risk
- * section runs from its marker line up to (but not including) the next risk
- * marker or the next markdown heading — whichever comes first — or the end of
- * the document. Everything before the first marker is folded into the first
- * risk segment so the report reads in order with the comment box following the
- * callout it belongs to.
+ * Split a DD report's markdown into segments, breaking it right after each
+ * "Risk to the bank" callout so a comment thread can be injected there. The
+ * callout is a single markdown block (a blockquote or paragraph) that ends at
+ * the first blank line; we cut at that blank line so the comment box lands
+ * immediately after the callout it belongs to. Everything before the first
+ * callout is folded into the first risk segment, and any trailing text after
+ * the last callout becomes a final, comment-less segment. Section keys are
+ * positional (`risk-1`, `risk-2`, …) and shared by the in-app panel and the PDF
+ * export so comments line up in both.
  */
 export function splitDiligenceByRiskSections(markdown: string): DiligenceRiskSegment[] {
   const lines = (markdown ?? '').split(/\r?\n/);
-  const isHeading = (l: string) => HEADING_RE.test(l);
   const isMarker = (l: string) => RISK_TO_BANK_MARKER.test(l);
 
   const segments: DiligenceRiskSegment[] = [];
@@ -65,17 +65,18 @@ export function splitDiligenceByRiskSections(markdown: string): DiligenceRiskSeg
   };
 
   for (const line of lines) {
-    // A heading or a new marker ends the risk section currently in progress;
-    // cut here so the comment thread lands after the section's content.
-    if (inRisk && (isHeading(line) || isMarker(line))) {
-      flush(`risk-${riskCount}`);
-      inRisk = false;
-    }
-    if (isMarker(line)) {
+    // Enter a risk callout on its marker line (guard with !inRisk so a callout
+    // wrapped across several blockquote lines still counts once).
+    if (!inRisk && isMarker(line)) {
       riskCount += 1;
       inRisk = true;
     }
     buf.push(line);
+    // The callout block ends at the first blank line — cut here.
+    if (inRisk && line.trim() === '') {
+      flush(`risk-${riskCount}`);
+      inRisk = false;
+    }
   }
   flush(inRisk ? `risk-${riskCount}` : null);
 
