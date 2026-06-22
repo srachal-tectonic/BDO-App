@@ -152,11 +152,11 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
     ? `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="TBankLogo"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="TBankLogo"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
     : '';
   const barCellPr = (firstCol: boolean) => `<w:tcPr><w:tcW w:w="5080" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/><w:tcBorders><w:bottom w:val="single" w:sz="8" w:space="0" w:color="${HEADER_NAVY}"/></w:tcBorders><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="${firstCol ? 40 : 80}" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:right w:w="${firstCol ? 80 : 40}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>`;
-  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
+  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 
   // Section heading \u2014 blue, bold, with a light-blue underline rule. Generous
   // space above each so sections are clearly separated.
-  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
+  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${HEADER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
 
   // Thin spacer paragraph \u2014 also keeps Word from merging adjacent tables.
   const tableGap = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="80" w:lineRule="exact"/></w:pPr></w:p>';
@@ -201,8 +201,9 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   // Gap below the header band before the document title.
   paragraphs.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="160" w:lineRule="exact"/></w:pPr></w:p>');
 
-  // Large, bold, navy document title — with clear space beneath it before Date.
-  paragraphs.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="320"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p>`);
+  // Large, bold, navy document title — left-aligned, with clear space beneath
+  // it before the Date line.
+  paragraphs.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="320"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p>`);
 
   paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }], { spacing: 40 }));
   paragraphs.push(mixedP([{ text: 'To: ', bold: true }, { text: data.principalName || '[Name]' }], { spacing: 40 }));
@@ -264,6 +265,7 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.borrowerName || '[Borrower Name]' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true, spacing: 60 }));
   paragraphs.push(spacer);
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
     'The Good Faith Deposit will be applied toward third-party costs, including but not limited to appraisal fees, environmental reports, credit reports, background checks, and other due diligence expenses.  T Bank will exercise reasonableness and sensitivity toward the Borrower regarding fees and expenses.  In the event the loan does not close, you will be responsible for all third-party expenses incurred by T Bank on your behalf that were made in a good faith attempt to close the loan.'
@@ -284,7 +286,7 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   paragraphs.push(spacer);
 
   paragraphs.push(p('We are excited about your project and look forward to working with you.  If you have any questions, please feel free to reach out.'));
-  paragraphs.push(empty());
+  paragraphs.push(spacer);
   paragraphs.push(p('Sincerely,'));
   paragraphs.push(empty());
   paragraphs.push(empty());
@@ -293,8 +295,8 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   if (data.bdoTitle) paragraphs.push(mixedP([{ text: 'Title: ', bold: true }, { text: data.bdoTitle }]));
   if (data.bdoPhone) paragraphs.push(mixedP([{ text: 'Phone: ', bold: true }, { text: data.bdoPhone }]));
   if (data.bdoEmail) paragraphs.push(mixedP([{ text: 'Email: ', bold: true }, { text: data.bdoEmail }]));
-  paragraphs.push(empty());
-  paragraphs.push(empty());
+  paragraphs.push(spacer);
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
     'I understand that the preliminary information given above is provided for informational purposes only and should not be considered a commitment for financing by Lender and/or any of its subsidiaries. This information may change without notice prior to final approval.',
