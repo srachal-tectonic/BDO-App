@@ -156,7 +156,7 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
 
   // Section heading \u2014 blue, bold, with a light-blue underline rule. Generous
   // space above each so sections are clearly separated.
-  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${HEADER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
+  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
 
   // Thin spacer paragraph \u2014 also keeps Word from merging adjacent tables.
   const tableGap = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="80" w:lineRule="exact"/></w:pPr></w:p>';
@@ -265,7 +265,6 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.borrowerName || '[Borrower Name]' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true, spacing: 60 }));
   paragraphs.push(spacer);
-  paragraphs.push(spacer);
 
   paragraphs.push(p(
     'The Good Faith Deposit will be applied toward third-party costs, including but not limited to appraisal fees, environmental reports, credit reports, background checks, and other due diligence expenses.  T Bank will exercise reasonableness and sensitivity toward the Borrower regarding fees and expenses.  In the event the loan does not close, you will be responsible for all third-party expenses incurred by T Bank on your behalf that were made in a good faith attempt to close the loan.'
@@ -283,10 +282,10 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
     'All correspondence between the Bank and the Borrower, and all of Bank\u2019s documents including this Term Sheet, are confidential and may not be shown or discussed with any third party (other than on a confidential basis with Borrower\u2019s legal counsel, independent certified public accountants, and representatives of the Borrower), without Bank\u2019s prior written consent.  It is understood that T bank will from time to time give information on the status of your loan to the U.S. Small Business Administration.',
     { spacing: 240 }
   ));
-  paragraphs.push(spacer);
+  paragraphs.push(empty());
 
   paragraphs.push(p('We are excited about your project and look forward to working with you.  If you have any questions, please feel free to reach out.'));
-  paragraphs.push(spacer);
+  paragraphs.push(empty());
   paragraphs.push(p('Sincerely,'));
   paragraphs.push(empty());
   paragraphs.push(empty());
@@ -295,8 +294,8 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   if (data.bdoTitle) paragraphs.push(mixedP([{ text: 'Title: ', bold: true }, { text: data.bdoTitle }]));
   if (data.bdoPhone) paragraphs.push(mixedP([{ text: 'Phone: ', bold: true }, { text: data.bdoPhone }]));
   if (data.bdoEmail) paragraphs.push(mixedP([{ text: 'Email: ', bold: true }, { text: data.bdoEmail }]));
-  paragraphs.push(spacer);
-  paragraphs.push(spacer);
+  paragraphs.push(empty());
+  paragraphs.push(empty());
 
   paragraphs.push(p(
     'I understand that the preliminary information given above is provided for informational purposes only and should not be considered a commitment for financing by Lender and/or any of its subsidiaries. This information may change without notice prior to final approval.',
