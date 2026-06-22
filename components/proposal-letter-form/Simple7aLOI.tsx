@@ -74,19 +74,20 @@ interface LogoAsset {
   aspect: number; // width / height
 }
 
-// Fetch the T Bank logo (same asset used as the header on the other PDF exports)
-// and read its intrinsic aspect ratio from the PNG IHDR chunk so the embedded
-// image isn't distorted.
+// Fetch the navy T Bank logo (extracted from the "T Bank Letterhead" .docx — a
+// transparent-background, navy version that reads well on white) and read its
+// intrinsic aspect ratio from the PNG IHDR chunk so the embedded image isn't
+// distorted.
 async function fetchLogo(): Promise<LogoAsset | null> {
   try {
-    const res = await fetch('/images/TBank-logo.png');
+    const res = await fetch('/images/TBank-logo-navy.png');
     if (!res.ok) return null;
     const bytes = new Uint8Array(await res.arrayBuffer());
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     // PNG: 8-byte signature, then IHDR length(4)+type(4); width@16, height@20.
     const w = dv.getUint32(16);
     const h = dv.getUint32(20);
-    const aspect = w > 0 && h > 0 ? w / h : 3.491;
+    const aspect = w > 0 && h > 0 ? w / h : 3.484;
     return { bytes, aspect };
   } catch {
     return null;
@@ -140,25 +141,27 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   const FIELD_FILL = 'FAFBFC';    // field background
   const LABEL_GRAY = '404040';    // small field label
 
-  // Document header bar \u2014 mirrors the other PDF exports: a full-width dark-blue
-  // band with the T Bank logo on the left and a white, right-aligned title. The
-  // logo is an inline DrawingML picture referencing the embedded media (rId2).
-  const BAR_BLUE = '123D80'; // matches the PDF header bar rgb(0.07,0.24,0.5)
+  // Document header \u2014 letterhead style: white background, the navy T Bank logo
+  // on the left, a navy right-aligned title, and a navy rule beneath. The logo
+  // is an inline DrawingML picture referencing the embedded media (rId2).
+  const HEADER_NAVY = '103C7C'; // navy sampled from the T Bank letterhead logo
   const LOGO_REL_ID = 'rId2';
   const LOGO_H_EMU = 393700; // 31pt tall, like the PDF header logo (12700 EMU/pt)
   const logoWidthEmu = logo ? Math.round(LOGO_H_EMU * logo.aspect) : 0;
   const logoDrawing = logo
     ? `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="TBankLogo"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="TBankLogo"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
     : '';
-  const barCellPr = (firstCol: boolean) => `<w:tcPr><w:tcW w:w="5080" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${BAR_BLUE}"/><w:tcMar><w:top w:w="140" w:type="dxa"/><w:left w:w="${firstCol ? 160 : 80}" w:type="dxa"/><w:bottom w:w="140" w:type="dxa"/><w:right w:w="${firstCol ? 80 : 160}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>`;
-  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
+  const barCellPr = (firstCol: boolean) => `<w:tcPr><w:tcW w:w="5080" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/><w:tcBorders><w:bottom w:val="single" w:sz="8" w:space="0" w:color="${HEADER_NAVY}"/></w:tcBorders><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="${firstCol ? 40 : 80}" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:right w:w="${firstCol ? 80 : 40}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>`;
+  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 
   // Section heading \u2014 blue, bold, with a light-blue underline rule. Generous
   // space above each so sections are clearly separated.
-  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
+  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
 
   // Thin spacer paragraph \u2014 also keeps Word from merging adjacent tables.
   const tableGap = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="80" w:lineRule="exact"/></w:pPr></w:p>';
+  // Medium vertical spacer (~9pt) for separating prose blocks.
+  const spacer = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="180" w:lineRule="exact"/></w:pPr></w:p>';
 
   // A boxed field (label + value) styled like the Business Applicant Form's
   // input boxes. `span` of 2 makes it full-width across both grid columns.
@@ -195,8 +198,11 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   const paragraphs: string[] = [];
 
   paragraphs.push(headerBar);
-  // Gap below the header band before the letter body.
-  paragraphs.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="220" w:lineRule="exact"/></w:pPr></w:p>');
+  // Gap below the header band before the document title.
+  paragraphs.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="160" w:lineRule="exact"/></w:pPr></w:p>');
+
+  // Large, bold, navy document title — with clear space beneath it before Date.
+  paragraphs.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="320"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p>`);
 
   paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }], { spacing: 40 }));
   paragraphs.push(mixedP([{ text: 'To: ', bold: true }, { text: data.principalName || '[Name]' }], { spacing: 40 }));
@@ -256,8 +262,8 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   paragraphs.push(mixedP([{ text: 'ABA #111024975' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Account #91240010-0070' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.borrowerName || '[Borrower Name]' }], { indent: true }));
-  paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true }));
-  paragraphs.push(empty());
+  paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true, spacing: 60 }));
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
     'The Good Faith Deposit will be applied toward third-party costs, including but not limited to appraisal fees, environmental reports, credit reports, background checks, and other due diligence expenses.  T Bank will exercise reasonableness and sensitivity toward the Borrower regarding fees and expenses.  In the event the loan does not close, you will be responsible for all third-party expenses incurred by T Bank on your behalf that were made in a good faith attempt to close the loan.'
@@ -269,12 +275,13 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   paragraphs.push(checkbox('Real Estate appraisal', data.authAppraisal));
   paragraphs.push(checkbox('Environmental Report', data.authEnvironmental));
   paragraphs.push(checkbox('Business Valuation', data.authValuation));
-  paragraphs.push(empty());
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
-    'All correspondence between the Bank and the Borrower, and all of Bank\u2019s documents including this Term Sheet, are confidential and may not be shown or discussed with any third party (other than on a confidential basis with Borrower\u2019s legal counsel, independent certified public accountants, and representatives of the Borrower), without Bank\u2019s prior written consent.  It is understood that T bank will from time to time give information on the status of your loan to the U.S. Small Business Administration.'
+    'All correspondence between the Bank and the Borrower, and all of Bank\u2019s documents including this Term Sheet, are confidential and may not be shown or discussed with any third party (other than on a confidential basis with Borrower\u2019s legal counsel, independent certified public accountants, and representatives of the Borrower), without Bank\u2019s prior written consent.  It is understood that T bank will from time to time give information on the status of your loan to the U.S. Small Business Administration.',
+    { spacing: 240 }
   ));
-  paragraphs.push(empty());
+  paragraphs.push(spacer);
 
   paragraphs.push(p('We are excited about your project and look forward to working with you.  If you have any questions, please feel free to reach out.'));
   paragraphs.push(empty());
