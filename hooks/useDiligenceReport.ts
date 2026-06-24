@@ -13,6 +13,7 @@ export interface DiligenceReport {
   industry?: string;
   naicsCode?: string;
   primaryProjectPurpose?: string;
+  status?: 'generating' | 'completed' | 'failed';
 }
 
 export type DiligencePhase = 'thinking' | 'researching' | 'writing' | null;
@@ -39,72 +40,24 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load the existing report (if any) on mount / projectId change.
-  useEffect(() => {
-    let cancelled = false;
-    if (!projectId) {
-      setIsLoading(false);
-      setReport(null);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const res = await authenticatedGet(
-          `/api/diligence-report?projectId=${encodeURIComponent(projectId)}`
-        );
-        if (!res.ok) {
-          throw new Error(`Failed to load report (${res.status})`);
-        }
-        const data = await res.json();
-        if (!cancelled) setReport(data || null);
-      } catch (err: any) {
-        if (!cancelled) {
-          console.error('[useDiligenceReport] Load failed:', err);
-          setError(err?.message || 'Failed to load report');
-          setReport(null);
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
-
-  // Cancel any in-flight stream on unmount.
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  const generate = useCallback(
-    async () => {
-      if (!projectId) {
-        setError('Missing projectId');
-        return;
-      }
-      if (isStreaming) return;
-
-      // Reset streaming state.
+  // Open an ndjson event stream and apply each event to local state. Used both
+  // to start a generation ({ projectId }) and to reconnect to one already
+  // running in the background ({ projectId, subscribe: true }). Aborting only
+  // detaches this viewer — the server keeps generating regardless.
+  const consumeStream = useCallback(
+    async (body: { projectId: string; subscribe?: boolean }) => {
       const controller = new AbortController();
       abortRef.current?.abort();
       abortRef.current = controller;
 
       setIsStreaming(true);
-      setStreamedText('');
-      setSearchQueries([]);
-      setPhase('thinking');
       setError(null);
 
       try {
         const res = await authenticatedFetch('/api/diligence-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
 
@@ -140,6 +93,12 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
               continue;
             }
             switch (evt.type) {
+              case 'reset':
+                // Sent first on (re)subscribe so the upcoming replay rebuilds
+                // the partial report from scratch without duplicating text.
+                setStreamedText('');
+                setSearchQueries([]);
+                break;
               case 'phase':
                 setPhase(evt.phase ?? null);
                 break;
@@ -158,7 +117,7 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
                 break;
               case 'done':
                 setReport({
-                  projectId,
+                  projectId: body.projectId,
                   reportText: evt.reportText || '',
                   model: evt.model || '',
                   generatedAt: evt.generatedAt || new Date().toISOString(),
@@ -166,6 +125,7 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
                   industry: evt.industry,
                   naicsCode: evt.naicsCode,
                   primaryProjectPurpose: evt.primaryProjectPurpose,
+                  status: 'completed',
                 });
                 break;
             }
@@ -173,15 +133,88 @@ export function useDiligenceReport(projectId: string | undefined): UseDiligenceR
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') return;
-        console.error('[useDiligenceReport] Generate failed:', err);
+        console.error('[useDiligenceReport] Stream failed:', err);
         setError(err?.message || 'Failed to generate report');
       } finally {
         setIsStreaming(false);
         setPhase(null);
       }
     },
-    [projectId, isStreaming]
+    []
   );
+
+  // Load the existing report (if any) on mount / projectId change. If a
+  // generation is still running in the background, reconnect to it so the user
+  // sees it continue in real time.
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      setIsLoading(false);
+      setReport(null);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const res = await authenticatedGet(
+          `/api/diligence-report?projectId=${encodeURIComponent(projectId)}`
+        );
+        if (!res.ok) {
+          throw new Error(`Failed to load report (${res.status})`);
+        }
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data && data.status === 'generating') {
+          // A background generation is in progress — show the streaming UI and
+          // attach to the live job. The replay rebuilds whatever has been
+          // produced so far, then live updates continue.
+          setReport(null);
+          setStreamedText('');
+          setSearchQueries([]);
+          setPhase((data.phase as DiligencePhase) ?? 'thinking');
+          setIsLoading(false);
+          void consumeStream({ projectId, subscribe: true });
+          return;
+        }
+
+        setReport(data || null);
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('[useDiligenceReport] Load failed:', err);
+          setError(err?.message || 'Failed to load report');
+          setReport(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, consumeStream]);
+
+  // Detach from the stream on unmount. This does NOT stop the server-side job —
+  // it keeps generating and will be picked back up on the next mount.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const generate = useCallback(async () => {
+    if (!projectId) {
+      setError('Missing projectId');
+      return;
+    }
+    if (isStreaming) return;
+
+    setStreamedText('');
+    setSearchQueries([]);
+    setPhase('thinking');
+    await consumeStream({ projectId });
+  }, [projectId, isStreaming, consumeStream]);
 
   return {
     report,

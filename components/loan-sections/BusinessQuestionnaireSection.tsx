@@ -444,12 +444,10 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
     responseMap.set(r.ruleId, r.content || '');
   }
 
-  // "Blank" = no applicable question has a non-empty answer. Drives the
-  // "Add Additional Materials" affordance on the PQ Memo / PreQual view.
-  const hasAnyAnswer = applicableRules.some(
-    (rule) => stripHtml(responseMap.get(rule.id) || '').trim().length > 0,
-  );
-  const showAddMaterials = exportMode === 'readonly' && !hasAnyAnswer;
+  // Show the "Add Additional Materials" affordance on the PQ Memo / PreQual
+  // (read-only) view regardless of whether the questionnaire has been filled
+  // out, so materials can always be attached.
+  const showAddMaterials = exportMode === 'readonly';
 
   // Read-only (PQ Memo) list of uploaded supplementary files, shown above the
   // Business Overview section once any have been uploaded.
