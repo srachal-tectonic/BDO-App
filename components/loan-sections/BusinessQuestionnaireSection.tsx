@@ -619,7 +619,7 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
       <p className="text-[13px] text-[#7da1d4] mb-6">
         {editable
           ? 'Review the questions below. Use the trashcan to remove a question for this project, or "Regenerate Questions" to restore all questions.'
-          : "The following questions and answers are based on your project's details. This is a read-only view."}
+          : "The following questions and answers are based on your project's details."}
       </p>
 
       {materialsBlock}
