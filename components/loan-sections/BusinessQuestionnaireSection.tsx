@@ -110,6 +110,8 @@ function groupRulesByPurpose(
   primaryPurpose: string,
   secondaryPurposes: string[],
 ): PurposeBlock[] {
+  // Build the selected purposes in priority order: the primary (Main Loan
+  // Purpose) first, then each secondary, de-duplicated by normalized spelling.
   const ordered: string[] = [];
   const seen = new Set<string>();
   for (const p of [primaryPurpose, ...secondaryPurposes]) {
@@ -119,33 +121,47 @@ function groupRulesByPurpose(
     seen.add(norm);
     ordered.push(p);
   }
-  const blocks: PurposeBlock[] = [];
+
   const general: QuestionnaireRule[] = [];
   const byPurpose = new Map<string, QuestionnaireRule[]>();
+  for (const p of ordered) byPurpose.set(p, []);
 
+  // Place each rule in EXACTLY ONE bucket. A rule may apply to several purposes
+  // (its `purposeKeys` array); when more than one is selected on this project we
+  // show it only under the highest-priority match (primary first) — i.e. the
+  // Main Loan Purpose — instead of repeating it in every matching section. The
+  // `placed` guard also defends against the same rule appearing twice in the
+  // input list.
+  const placed = new Set<string>();
   for (const rule of rules) {
-    const key = rule.purposeKey?.trim();
-    if (!key) {
+    if (placed.has(rule.id)) continue;
+    placed.add(rule.id);
+
+    const r = rule as QuestionnaireRule & { purposeKeys?: string[] };
+    const keys = r.purposeKeys && r.purposeKeys.length > 0
+      ? r.purposeKeys
+      : (r.purposeKey ? [r.purposeKey] : []);
+
+    const match = keys.length > 0
+      ? ordered.find((p) => keys.some((k) => normalizePurpose(k) === normalizePurpose(p)))
+      : undefined;
+
+    if (match) {
+      byPurpose.get(match)!.push(rule);
+    } else {
+      // Applies to all purposes (no keys) or to none currently selected —
+      // collect into the leading "General" block shown above the per-purpose
+      // sections.
       general.push(rule);
-      continue;
     }
-    const matched = ordered.find((p) => normalizePurpose(p) === normalizePurpose(key));
-    const label = matched || key;
-    if (!byPurpose.has(label)) byPurpose.set(label, []);
-    byPurpose.get(label)!.push(rule);
   }
 
+  const blocks: PurposeBlock[] = [];
   if (general.length > 0) blocks.push({ purposeName: '', rules: general });
-  for (const label of ordered) {
-    const list = byPurpose.get(label);
-    if (list && list.length > 0) blocks.push({ purposeName: label, rules: list });
+  for (const p of ordered) {
+    const list = byPurpose.get(p);
+    if (list && list.length > 0) blocks.push({ purposeName: p, rules: list });
   }
-  for (const [label, list] of byPurpose.entries()) {
-    if (!ordered.some((p) => normalizePurpose(p) === normalizePurpose(label))) {
-      blocks.push({ purposeName: label, rules: list });
-    }
-  }
-
   return blocks;
 }
 
