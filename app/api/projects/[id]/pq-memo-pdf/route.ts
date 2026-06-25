@@ -446,9 +446,18 @@ export async function GET(
       project.businessName ||
       'Draft';
     const safeName = borrowerName.replace(/[^a-zA-Z0-9]/g, '_');
+    // Full Pre-Qual Memo export uses the convention
+    // "Pre-Qual Memo {Loan Name} {date generated}" (Loan Name = project name,
+    // date = MM-DD-YYYY). The browser's `a.download` normally wins for the blob
+    // download, but keep this header consistent for direct hits on the route.
+    const loanName = (projectOverview.projectName || project.projectName || borrowerName)
+      .replace(/[\\/:*?"<>|]/g, '')
+      .trim() || 'Draft';
+    const now = new Date();
+    const dateGenerated = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
     const filename = bqOnly
       ? `${safeName}_Business_Questionnaire.pdf`
-      : `Pre_Qual_${safeName}.pdf`;
+      : `Pre-Qual Memo ${loanName} ${dateGenerated}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,
