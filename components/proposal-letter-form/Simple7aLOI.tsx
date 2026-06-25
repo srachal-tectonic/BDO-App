@@ -69,7 +69,32 @@ function formatTermDisplay(months: string): string {
   return `${m} months / ${years} year${years !== 1 ? 's' : ''} ${remaining} month${remaining !== 1 ? 's' : ''}`;
 }
 
-function generateSimple7aDocx(data: Simple7aLOIData) {
+interface LogoAsset {
+  bytes: Uint8Array;
+  aspect: number; // width / height
+}
+
+// Fetch the navy T Bank logo (extracted from the "T Bank Letterhead" .docx — a
+// transparent-background, navy version that reads well on white) and read its
+// intrinsic aspect ratio from the PNG IHDR chunk so the embedded image isn't
+// distorted.
+async function fetchLogo(): Promise<LogoAsset | null> {
+  try {
+    const res = await fetch('/images/TBank-logo-navy.png');
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    // PNG: 8-byte signature, then IHDR length(4)+type(4); width@16, height@20.
+    const w = dv.getUint32(16);
+    const h = dv.getUint32(20);
+    const aspect = w > 0 && h > 0 ? w / h : 3.484;
+    return { bytes, aspect };
+  } catch {
+    return null;
+  }
+}
+
+function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
   const e = escapeXml;
 
   const p = (text: string, opts?: { bold?: boolean; indent?: boolean; spacing?: number; size?: number; underline?: boolean }) => {
@@ -100,94 +125,129 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
     return `<w:p>${pPrXml}${runs}</w:p>`;
   };
 
-  const empty = () => '<w:p/>';
+  // Blank-line separation is handled by paragraph `after` spacing (see
+  // styles.xml docDefaults), so an "empty" paragraph collapses to nothing \u2014
+  // this keeps the letter compact enough to fit two pages.
+  const empty = () => '';
 
   const checkbox = (text: string, checked: boolean) => {
     const mark = checked ? '\u2611' : '\u2610';
-    return `<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t xml:space="preserve">${mark} ${e(text)}</w:t></w:r></w:p>`;
+    return `<w:p><w:pPr><w:spacing w:after="40"/><w:ind w:left="360"/></w:pPr><w:r><w:t xml:space="preserve">${mark} ${e(text)}</w:t></w:r></w:p>`;
   };
 
-  const tableRow = (cells: Array<{ text: string; bold?: boolean; width?: number; align?: string }>) => {
-    const tcs = cells.map(cell => {
-      const rPr = cell.bold ? '<w:rPr><w:b/></w:rPr>' : '';
-      const jc = cell.align ? `<w:jc w:val="${cell.align}"/>` : '';
-      const tcW = cell.width ? `<w:tcW w:w="${cell.width}" w:type="dxa"/>` : '';
-      return `<w:tc><w:tcPr>${tcW}</w:tcPr><w:p><w:pPr>${jc}</w:pPr><w:r>${rPr}<w:t xml:space="preserve">${e(cell.text)}</w:t></w:r></w:p></w:tc>`;
-    }).join('');
-    return `<w:tr>${tcs}</w:tr>`;
+  // ----- Styled building blocks (mirrors the Business Applicant Form) -----
+  const HEADER_BLUE = '133C7F';   // section/title text \u2014 #133c7f
+  const BORDER_BLUE = 'C5D4E8';   // field + rule borders
+  const FIELD_FILL = 'FAFBFC';    // field background
+  const LABEL_GRAY = '404040';    // small field label
+
+  // Document header \u2014 letterhead style: white background, the navy T Bank logo
+  // on the left, a navy right-aligned title, and a navy rule beneath. The logo
+  // is an inline DrawingML picture referencing the embedded media (rId2).
+  const HEADER_NAVY = '103C7C'; // navy sampled from the T Bank letterhead logo
+  const LOGO_REL_ID = 'rId2';
+  const LOGO_H_EMU = 393700; // 31pt tall, like the PDF header logo (12700 EMU/pt)
+  const logoWidthEmu = logo ? Math.round(LOGO_H_EMU * logo.aspect) : 0;
+  const logoDrawing = logo
+    ? `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="TBankLogo"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="TBankLogo"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${logoWidthEmu}" cy="${LOGO_H_EMU}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
+    : '';
+  const barCellPr = (firstCol: boolean) => `<w:tcPr><w:tcW w:w="5080" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/><w:tcBorders><w:bottom w:val="single" w:sz="8" w:space="0" w:color="${HEADER_NAVY}"/></w:tcBorders><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="${firstCol ? 40 : 80}" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:right w:w="${firstCol ? 80 : 40}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>`;
+  const headerBar = `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid><w:tr><w:tc>${barCellPr(true)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r>${logoDrawing}</w:r></w:p></w:tc><w:tc>${barCellPr(false)}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
+
+  // Section heading \u2014 blue, bold, with a light-blue underline rule. Generous
+  // space above each so sections are clearly separated.
+  const sectionHeader = (text: string) => `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="18" w:space="2" w:color="${BORDER_BLUE}"/></w:pBdr><w:spacing w:before="360" w:after="120"/><w:keepNext/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_BLUE}"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p>`;
+
+  // Thin spacer paragraph \u2014 also keeps Word from merging adjacent tables.
+  const tableGap = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="80" w:lineRule="exact"/></w:pPr></w:p>';
+  // Medium vertical spacer (~9pt) for separating prose blocks.
+  const spacer = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="180" w:lineRule="exact"/></w:pPr></w:p>';
+
+  // A boxed field (label + value) styled like the Business Applicant Form's
+  // input boxes. `span` of 2 makes it full-width across both grid columns.
+  const fieldCell = (label: string, value: string, span = 1) => {
+    const w = span === 2 ? 10160 : 5080;
+    const gridSpan = span === 2 ? '<w:gridSpan w:val="2"/>' : '';
+    const border = (side: string) => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="${BORDER_BLUE}"/>`;
+    return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${gridSpan}<w:tcBorders>${border('top')}${border('left')}${border('bottom')}${border('right')}</w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="${FIELD_FILL}"/><w:tcMar><w:top w:w="30" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="30" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="200" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:color w:val="${LABEL_GRAY}"/><w:sz w:val="15"/><w:szCs w:val="15"/></w:rPr><w:t xml:space="preserve">${e(label)}</w:t></w:r></w:p><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="220" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${e(value || '\u2014')}</w:t></w:r></w:p></w:tc>`;
+  };
+
+  const fieldRow = (cells: string) => `<w:tr><w:trPr><w:tblCellSpacing w:w="36" w:type="dxa"/></w:trPr>${cells}</w:tr>`;
+
+  const fieldTable = (rows: string[]) => `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblCellSpacing w:w="36" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="5080"/><w:gridCol w:w="5080"/></w:tblGrid>${rows.join('')}</w:tbl>`;
+
+  // Use-of-Proceeds table, restyled with the same blue borders/headers.
+  const propCell = (text: string, opts?: { right?: boolean; bold?: boolean; fill?: string; color?: string }) => {
+    const jc = opts?.right ? '<w:jc w:val="right"/>' : '';
+    const b = opts?.bold ? '<w:b/>' : '';
+    const shd = opts?.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${opts.fill}"/>` : '';
+    const wv = opts?.right ? 2600 : 7560;
+    const border = (side: string) => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="${BORDER_BLUE}"/>`;
+    return `<w:tc><w:tcPr><w:tcW w:w="${wv}" w:type="dxa"/><w:tcBorders>${border('top')}${border('left')}${border('bottom')}${border('right')}</w:tcBorders>${shd}<w:tcMar><w:top w:w="20" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="20" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0"/>${jc}</w:pPr><w:r><w:rPr>${b}<w:color w:val="${opts?.color || '000000'}"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">${e(text)}</w:t></w:r></w:p></w:tc>`;
+  };
+
+  const buildProceedsTable = () => {
+    const head = `<w:tr>${propCell('Use of Proceeds', { bold: true, fill: 'EAF0FA', color: HEADER_BLUE })}${propCell('Amount', { right: true, bold: true, fill: 'EAF0FA', color: HEADER_BLUE })}</w:tr>`;
+    const body = data.useOfProceeds
+      .map(row => `<w:tr>${propCell(row.category)}${propCell(formatCurrency(row.amount), { right: true })}</w:tr>`)
+      .join('');
+    const total = `<w:tr>${propCell('Total', { bold: true, fill: 'F2F6FC' })}${propCell(formatCurrency(data.useOfProceeds.reduce((s, r) => s + r.amount, 0)), { right: true, bold: true, fill: 'F2F6FC' })}</w:tr>`;
+    return `<w:tbl><w:tblPr><w:tblW w:w="10160" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="7560"/><w:gridCol w:w="2600"/></w:tblGrid>${head}${body}${total}</w:tbl>`;
   };
 
   const paragraphs: string[] = [];
 
-  paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }]));
-  paragraphs.push(empty());
-  paragraphs.push(mixedP([{ text: 'To:  ', bold: true }, { text: data.principalName || '[Name]' }]));
-  paragraphs.push(empty());
+  paragraphs.push(headerBar);
+  // Gap below the header band before the document title.
+  paragraphs.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="160" w:lineRule="exact"/></w:pPr></w:p>');
+
+  // Large, bold, navy document title — left-aligned, with clear space beneath
+  // it before the Date line.
+  paragraphs.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="320"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${HEADER_NAVY}"/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr><w:t xml:space="preserve">7(a) LOI Proposal Letter</w:t></w:r></w:p>`);
+
+  paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }], { spacing: 40 }));
+  paragraphs.push(mixedP([{ text: 'To: ', bold: true }, { text: data.principalName || '[Name]' }], { spacing: 40 }));
   if (data.mailingAddress) {
-    paragraphs.push(mixedP([{ text: 'Address: ', bold: true }, { text: data.mailingAddress.split('\n').join(', ') }]));
+    paragraphs.push(mixedP([{ text: 'Address: ', bold: true }, { text: data.mailingAddress.split('\n').join(', ') }], { spacing: 40 }));
   }
-  paragraphs.push(empty());
-  paragraphs.push(mixedP([{ text: 'Re: ', bold: true }, { text: data.loanName || '[Loan Name]' }]));
-  paragraphs.push(empty());
-  paragraphs.push(p(`Dear ${data.principalName || '[Principal Name]'}:`));
-  paragraphs.push(empty());
+  paragraphs.push(mixedP([{ text: 'Re: ', bold: true }, { text: data.loanName || '[Loan Name]' }], { spacing: 120 }));
+  paragraphs.push(p(`Dear ${data.principalName || '[Principal Name]'}:`, { spacing: 100 }));
   paragraphs.push(p(
-    `This Letter of Interest (\u201CLetter\u201D) outlines the preliminary terms under which T Bank may be willing to consider financing for ${data.borrowerName || '[Borrower Name]'} under the U.S. Small Business Administration (\u201CSBA\u201D) 7(a) Loan Program. This Letter is provided for discussion purposes only and does not constitute a commitment to lend.`
+    `This Letter of Interest (\u201CLetter\u201D) outlines the preliminary terms under which T Bank may be willing to consider financing for ${data.borrowerName || '[Borrower Name]'} under the U.S. Small Business Administration (\u201CSBA\u201D) 7(a) Loan Program. This Letter is provided for discussion purposes only and does not constitute a commitment to lend.`,
+    { spacing: 60 }
   ));
-  paragraphs.push(empty());
-  paragraphs.push(p('Proposed Loan Terms (Subject to Credit Approval)', { bold: true, underline: true, size: 24 }));
-  paragraphs.push(empty());
-  paragraphs.push(mixedP([{ text: 'Loan Program: ', bold: true }, { text: data.loanType || 'SBA 7(a)' }]));
-  paragraphs.push(mixedP([{ text: 'Borrower: ', bold: true }, { text: data.borrowerName || '[Legal Business Name]' }]));
-  paragraphs.push(mixedP([{ text: 'Guarantor(s): ', bold: true }, { text: data.guarantorNames || '[Owner Name(s)]' }]));
-  paragraphs.push(mixedP([{ text: 'Loan Amount: ', bold: true }, { text: data.loanAmount || '[Amount]' }]));
+
+  paragraphs.push(sectionHeader('Proposed Loan Terms (Subject to Credit Approval)'));
+
+  paragraphs.push(fieldTable([
+    fieldRow(fieldCell('Loan Program', data.loanType || 'SBA 7(a)') + fieldCell('Loan Amount', data.loanAmount || '[Amount]')),
+    fieldRow(fieldCell('Borrower', data.borrowerName || '[Legal Business Name]') + fieldCell('Term / Amortization', formatTermDisplay(data.termMonths))),
+    fieldRow(fieldCell('Guarantor(s)', data.guarantorNames || '[Owner Name(s)]') + fieldCell('Loan Fees', data.loanFees || '[Fees]')),
+  ]));
+  paragraphs.push(tableGap);
 
   if (data.useOfProceeds.length > 0) {
-    paragraphs.push(mixedP([{ text: 'Loan Purpose: ', bold: true }]));
-    const proceedsTable = `<w:tbl>
-      <w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>
-        <w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-        <w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-        <w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      </w:tblBorders></w:tblPr>
-      ${tableRow([
-        { text: 'Use of Proceeds', bold: true, width: 5000 },
-        { text: 'Amount', bold: true, width: 3000, align: 'right' },
-      ])}
-      ${data.useOfProceeds.map(row => tableRow([
-        { text: row.category, width: 5000 },
-        { text: formatCurrency(row.amount), width: 3000, align: 'right' },
-      ])).join('\n')}
-      ${tableRow([
-        { text: 'Total', bold: true, width: 5000 },
-        { text: formatCurrency(data.useOfProceeds.reduce((sum, r) => sum + r.amount, 0)), bold: true, width: 3000, align: 'right' },
-      ])}
-    </w:tbl>`;
-    paragraphs.push(proceedsTable);
+    paragraphs.push(mixedP([{ text: 'Loan Purpose / Use of Proceeds', bold: true }], { spacing: 60 }));
+    paragraphs.push(buildProceedsTable());
   } else {
-    paragraphs.push(mixedP([{ text: 'Loan Purpose:  ', bold: true }, { text: data.loanPurpose || '[Purpose]' }]));
+    paragraphs.push(fieldTable([
+      fieldRow(fieldCell('Loan Purpose', data.loanPurpose || '[Purpose]', 2)),
+    ]));
   }
-  paragraphs.push(empty());
-
-  paragraphs.push(mixedP([{ text: 'Term / Amortization: ', bold: true }, { text: formatTermDisplay(data.termMonths) }]));
-  paragraphs.push(mixedP([{ text: 'Loan Fees: ', bold: true }, { text: data.loanFees || '[Fees]' }]));
+  paragraphs.push(tableGap);
 
   const rateText = data.interestRateSpread
     ? `The rate is WSJ Prime Plus ${data.interestRateSpread}%.  The rate will adjust on a ${data.rateAdjustmentPeriod || 'quarterly'} basis for the life of the loan. The above rates are subject to change the prevailing Wall Street Journal Prime (WSJ P) rate.`
     : '[Interest Rate Details]';
-  paragraphs.push(mixedP([{ text: 'Interest Rate: ', bold: true }, { text: rateText }]));
-  paragraphs.push(mixedP([{ text: 'Prepayment: ', bold: true }, { text: data.prepaymentTerms || '[Prepayment Terms]' }]));
-
   const collateralText = data.collateralDescription || 'First UCC blanket lien on all business assets.';
-  paragraphs.push(mixedP([{ text: 'Collateral: ', bold: true }, { text: collateralText }]));
-  paragraphs.push(mixedP([{ text: 'Life Insurance: ', bold: true }, { text: data.lifeInsurance || 'Life insurance may be required' }]));
-  paragraphs.push(empty());
 
-  paragraphs.push(p('Good Faith Deposit', { bold: true, underline: true, size: 24 }));
-  paragraphs.push(empty());
+  paragraphs.push(fieldTable([
+    fieldRow(fieldCell('Interest Rate', rateText, 2)),
+    fieldRow(fieldCell('Prepayment', data.prepaymentTerms || '[Prepayment Terms]') + fieldCell('Life Insurance', data.lifeInsurance || 'Life insurance may be required')),
+    fieldRow(fieldCell('Collateral', collateralText, 2)),
+  ]));
+
+  paragraphs.push(sectionHeader('Good Faith Deposit'));
   paragraphs.push(p(
     `Upon execution of this Letter, the Borrower will be required to remit a Good Faith Deposit in the amount of ${data.goodFaithDeposit || '$[Amount]'}.`
   ));
@@ -203,8 +263,8 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
   paragraphs.push(mixedP([{ text: 'ABA #111024975' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Account #91240010-0070' }], { indent: true }));
   paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.borrowerName || '[Borrower Name]' }], { indent: true }));
-  paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true }));
-  paragraphs.push(empty());
+  paragraphs.push(mixedP([{ text: 'Reference: ', bold: true }, { text: data.bdoName || '[BDO Name]' }], { indent: true, spacing: 60 }));
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
     'The Good Faith Deposit will be applied toward third-party costs, including but not limited to appraisal fees, environmental reports, credit reports, background checks, and other due diligence expenses.  T Bank will exercise reasonableness and sensitivity toward the Borrower regarding fees and expenses.  In the event the loan does not close, you will be responsible for all third-party expenses incurred by T Bank on your behalf that were made in a good faith attempt to close the loan.'
@@ -216,10 +276,11 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
   paragraphs.push(checkbox('Real Estate appraisal', data.authAppraisal));
   paragraphs.push(checkbox('Environmental Report', data.authEnvironmental));
   paragraphs.push(checkbox('Business Valuation', data.authValuation));
-  paragraphs.push(empty());
+  paragraphs.push(spacer);
 
   paragraphs.push(p(
-    'All correspondence between the Bank and the Borrower, and all of Bank\u2019s documents including this Term Sheet, are confidential and may not be shown or discussed with any third party (other than on a confidential basis with Borrower\u2019s legal counsel, independent certified public accountants, and representatives of the Borrower), without Bank\u2019s prior written consent.  It is understood that T bank will from time to time give information on the status of your loan to the U.S. Small Business Administration.'
+    'All correspondence between the Bank and the Borrower, and all of Bank\u2019s documents including this Term Sheet, are confidential and may not be shown or discussed with any third party (other than on a confidential basis with Borrower\u2019s legal counsel, independent certified public accountants, and representatives of the Borrower), without Bank\u2019s prior written consent.  It is understood that T bank will from time to time give information on the status of your loan to the U.S. Small Business Administration.',
+    { spacing: 240 }
   ));
   paragraphs.push(empty());
 
@@ -252,7 +313,9 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`);
   zip.folder('_rels');
   zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -260,13 +323,35 @@ function generateSimple7aDocx(data: Simple7aLOIData) {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`);
   zip.folder('word');
+  zip.folder('word/_rels');
+  const imageRel = logo
+    ? '\n  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>'
+    : '';
+  zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${imageRel}
+</Relationships>`);
+  if (logo) {
+    zip.folder('word/media');
+    zip.file('word/media/image1.png', logo.bytes);
+  }
+  // Compact document defaults: 10pt Calibri, single line spacing, 5pt after each
+  // paragraph (replaces the old blank-line paragraphs) so the letter fits 2 pages.
+  zip.file('word/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="100" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+</w:styles>`);
   zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
     ${paragraphs.join('\n    ')}
     <w:sectPr>
       <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:pgMar w:top="720" w:right="900" w:bottom="720" w:left="900" w:header="360" w:footer="360" w:gutter="0"/>
     </w:sectPr>
   </w:body>
 </w:document>`);
@@ -400,9 +485,10 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     try {
-      generateSimple7aDocx(formData);
+      const logo = await fetchLogo();
+      generateSimple7aDocx(formData, logo);
       toast({ title: "Success", description: "7(a) LOI document generated." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to generate document.", variant: "destructive" });

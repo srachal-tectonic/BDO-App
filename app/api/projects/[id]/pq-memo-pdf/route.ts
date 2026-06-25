@@ -135,6 +135,14 @@ export async function GET(
     const ddCol = await getCollection(COLLECTIONS.DUE_DILIGENCE_REPORTS);
     const ddDoc = (await ddCol.findOne({ projectId })) as any;
 
+    // Per-section "Risk to the bank" comments, oldest-first so threads read in
+    // order; injected after their section in the rendered report.
+    const ddCommentsCol = await getCollection(COLLECTIONS.DILIGENCE_COMMENTS);
+    const ddComments = (await ddCommentsCol
+      .find({ projectId })
+      .sort({ createdAt: 1 })
+      .toArray()) as any[];
+
     // Per-category risk-score explanations — persisted on projectOverview
     // (see handleExplanationChange in components/PQMemoForm.tsx). The
     // template renders them under each risk-score card; missing fields
@@ -173,6 +181,12 @@ export async function GET(
             reportText: String(ddDoc.reportText ?? ''),
             generatedAt: String(ddDoc.generatedAt ?? ''),
             model: ddDoc.model ? String(ddDoc.model) : undefined,
+            comments: ddComments.map((c) => ({
+              sectionKey: String(c.sectionKey ?? ''),
+              authorName: String(c.authorName ?? 'Unknown'),
+              content: String(c.content ?? ''),
+              createdAt: c.createdAt ? String(c.createdAt) : undefined,
+            })),
           }
         : null,
     };

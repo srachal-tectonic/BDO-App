@@ -14,6 +14,7 @@ export type AuditAction =
   | 'pdf_data_imported' | 'borrower_upload_applied'
   | 'spread_uploaded' | 'spread_activated' | 'spread_deactivated' | 'spread_deleted'
   | 'note_created'
+  | 'diligence_comment_created' | 'diligence_comment_updated' | 'diligence_comment_deleted'
   | 'portal_token_created' | 'portal_token_revoked'
   | 'broker_token_created' | 'broker_token_revoked' | 'broker_upload'
   | 'admin_settings_updated'

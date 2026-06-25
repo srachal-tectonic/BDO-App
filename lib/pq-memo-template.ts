@@ -18,6 +18,7 @@
 // PDF route, not inlined as data: URIs. Sparticuz's Chromium build refuses
 // to decode data:-scheme fonts (document.fonts reports status "error" with
 // no console log); http:// from the same page origin works normally.
+import { splitDiligenceByRiskSections } from './diligenceRiskComments';
 import { computePfsNetWorth } from './pfsNetWorth';
 
 /** Subset of QuestionnaireRule fields we need to render. Kept loose-typed so
@@ -38,6 +39,18 @@ export interface PQMemoQuestionnaireResponse {
   updatedAt?: Date | string;
 }
 
+/** A user comment under a "Risk to the bank" section of the DD report. */
+export interface PQMemoDiligenceComment {
+  /** Positional section key from splitDiligenceByRiskSections (e.g. "risk-1"). */
+  sectionKey: string;
+  /** Display name shown as "Name:". */
+  authorName: string;
+  /** Comment body. */
+  content: string;
+  /** ISO timestamp string. */
+  createdAt?: string;
+}
+
 export interface PQMemoDiligenceReport {
   /** Markdown body from the LLM. */
   reportText: string;
@@ -45,6 +58,8 @@ export interface PQMemoDiligenceReport {
   generatedAt?: string;
   /** Model id, e.g. "claude-sonnet-4-6". */
   model?: string;
+  /** Per-section "Risk to the bank" comments, rendered after each section. */
+  comments?: PQMemoDiligenceComment[];
 }
 
 export interface PQMemoInput {
@@ -391,7 +406,10 @@ function formatGuaranteePct(source: any): string {
  * purposeKey collected into a "General" subsection). Numbering is continuous
  * across all subsections.
  */
-function buildBusinessQuestionnaireSection(input: PQMemoInput): string {
+function buildBusinessQuestionnaireSection(
+  input: PQMemoInput,
+  options: { omitIfBlank?: boolean } = {},
+): string {
   const questionnaireRules = (input.questionnaireRules || [])
     .slice()
     .sort((a, b) => (a.questionOrder ?? 0) - (b.questionOrder ?? 0));
@@ -400,6 +418,17 @@ function buildBusinessQuestionnaireSection(input: PQMemoInput): string {
   const responseByRuleId = new Map<string, string>();
   for (const r of input.questionnaireResponses || []) {
     if (r?.ruleId) responseByRuleId.set(r.ruleId, String(r.content ?? ''));
+  }
+
+  // When requested (full PQ Memo export), drop the entire section if not a
+  // single applicable question has a non-empty answer — i.e. the Business
+  // Questionnaire has never been filled out. The standalone BQ-only export
+  // doesn't pass this flag, so it still renders its own empty-state fallback.
+  if (options.omitIfBlank) {
+    const hasAnyAnswer = questionnaireRules.some(
+      (rule) => (responseByRuleId.get(rule.id) || '').trim().length > 0,
+    );
+    if (!hasAnyAnswer) return '';
   }
 
   type Subsection = { title: string; rules: PQMemoQuestionnaireRule[] };
@@ -637,16 +666,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const bdoSummaryNotes = projectOverview.bdoComments || '';
 
   // ── Business Questionnaire block ──────────────────────────────────────
-  // Omit the section entirely from the PQ Memo when the questionnaire hasn't
-  // been filled out at all (no stored response has any non-empty content).
-  // The standalone BQ-only export keeps rendering it, since that's a
-  // deliberate, BQ-specific export action.
-  const hasQuestionnaireResponse = (input.questionnaireResponses || []).some(
-    (r) => String(r?.content ?? '').trim().length > 0,
-  );
-  const questionnaireBlock = hasQuestionnaireResponse
-    ? buildBusinessQuestionnaireSection(input)
-    : '';
+  const questionnaireBlock = buildBusinessQuestionnaireSection(input, { omitIfBlank: true });
 
   // ── Due Diligence Report block ────────────────────────────────────────
   // `reportText` is Markdown from the Claude DD prompt. We render via a
@@ -659,11 +679,43 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     const footer = generated
       ? `<div class="dd-meta">Generated ${esc(generated)}${dd.model ? ` · ${esc(dd.model)}` : ''}</div>`
       : '';
+
+    // Group comments by the same positional section keys the in-app panel uses,
+    // so each "Risk to the bank" section's comments land in the right place.
+    const commentsBySection = new Map<string, PQMemoDiligenceComment[]>();
+    for (const c of dd.comments || []) {
+      if (!c?.sectionKey || !c.content?.trim()) continue;
+      const arr = commentsBySection.get(c.sectionKey);
+      if (arr) arr.push(c);
+      else commentsBySection.set(c.sectionKey, [c]);
+    }
+
+    const renderComments = (sectionKey: string): string => {
+      const cs = commentsBySection.get(sectionKey) || [];
+      if (cs.length === 0) return '';
+      const items = cs
+        .map(
+          (c) =>
+            `<div class="dd-comment-item"><span class="dd-comment-author">${esc(
+              c.authorName,
+            )}:</span> ${esc(c.content)}</div>`,
+        )
+        .join('');
+      return `<div class="dd-comments"><div class="dd-comments-label">Comments</div>${items}</div>`;
+    };
+
+    const body = splitDiligenceByRiskSections(dd.reportText)
+      .map((seg) => {
+        const html = seg.text.trim() ? markdownToHtml(seg.text) : '';
+        return seg.sectionKey ? html + renderComments(seg.sectionKey) : html;
+      })
+      .join('\n');
+
     return `<div class="page-break"></div>
     <div class="section">
       <h2 class="section-title">Due Diligence Report</h2>
       ${footer}
-      <div class="dd-body">${markdownToHtml(dd.reportText)}</div>
+      <div class="dd-body">${body}</div>
     </div>`;
   })();
 
@@ -927,6 +979,11 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
         .dd-body table.dd-table tr { page-break-inside: avoid; }
         .dd-body table.dd-table th { background: #e7edf4; color: #133c7f; font-weight: 700; text-align: left; padding: 4px 6px; border: 1px solid #c5d4e8; vertical-align: top; }
         .dd-body table.dd-table td { padding: 4px 6px; border: 1px solid #c5d4e8; color: #2c3e50; vertical-align: top; }
+        .dd-comments { background: #f7faff; border: 1px solid #c5d4e8; border-left: 3px solid #2563a8; border-radius: 4px; padding: 6px 10px; margin: 8px 0; page-break-inside: avoid; }
+        .dd-comments-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #2563a8; margin-bottom: 4px; }
+        .dd-comment-item { font-size: 11px; color: #2c3e50; line-height: 1.5; margin-bottom: 3px; }
+        .dd-comment-item:last-child { margin-bottom: 0; }
+        .dd-comment-author { font-weight: 700; color: #133c7f; }
         /* .qn-* — copied verbatim from the user-provided reference CSS.
            Our Business Questionnaire HTML uses .qna-* classes (defined
            above), so .qn-* rules are inert today; included here so the

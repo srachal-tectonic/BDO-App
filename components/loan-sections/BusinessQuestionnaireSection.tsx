@@ -1,11 +1,47 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ClipboardList, FileDown, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ClipboardList,
+  ExternalLink,
+  FileDown,
+  FileText,
+  Loader2,
+  Paperclip,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApplication } from '@/lib/applicationStore';
 import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
+import { authenticatedFormPost, authenticatedGet } from '@/lib/authenticatedFetch';
 import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
+
+// SharePoint subfolder that holds files uploaded via "Add Additional Materials".
+const ADDITIONAL_MATERIALS_FOLDER = 'Additional Materials';
+
+interface AdditionalMaterialFile {
+  id: string;
+  name: string;
+  webUrl?: string;
+}
+
+// Recursively locate the "Additional Materials" subfolder in a SharePoint file
+// tree and return its file children.
+function findAdditionalMaterials(items: any[]): AdditionalMaterialFile[] {
+  for (const it of items || []) {
+    if (it?.type === 'folder' && String(it.name).toLowerCase() === ADDITIONAL_MATERIALS_FOLDER.toLowerCase()) {
+      return (it.children || [])
+        .filter((c: any) => c?.type === 'file')
+        .map((c: any) => ({ id: c.id, name: c.name, webUrl: c.webUrl }));
+    }
+    if (Array.isArray(it?.children)) {
+      const found = findAdditionalMaterials(it.children);
+      if (found.length) return found;
+    }
+  }
+  return [];
+}
 
 async function fetchLogoBytes(): Promise<Uint8Array | null> {
   try {
@@ -74,6 +110,8 @@ function groupRulesByPurpose(
   primaryPurpose: string,
   secondaryPurposes: string[],
 ): PurposeBlock[] {
+  // Build the selected purposes in priority order: the primary (Main Loan
+  // Purpose) first, then each secondary, de-duplicated by normalized spelling.
   const ordered: string[] = [];
   const seen = new Set<string>();
   for (const p of [primaryPurpose, ...secondaryPurposes]) {
@@ -83,33 +121,47 @@ function groupRulesByPurpose(
     seen.add(norm);
     ordered.push(p);
   }
-  const blocks: PurposeBlock[] = [];
+
   const general: QuestionnaireRule[] = [];
   const byPurpose = new Map<string, QuestionnaireRule[]>();
+  for (const p of ordered) byPurpose.set(p, []);
 
+  // Place each rule in EXACTLY ONE bucket. A rule may apply to several purposes
+  // (its `purposeKeys` array); when more than one is selected on this project we
+  // show it only under the highest-priority match (primary first) — i.e. the
+  // Main Loan Purpose — instead of repeating it in every matching section. The
+  // `placed` guard also defends against the same rule appearing twice in the
+  // input list.
+  const placed = new Set<string>();
   for (const rule of rules) {
-    const key = rule.purposeKey?.trim();
-    if (!key) {
+    if (placed.has(rule.id)) continue;
+    placed.add(rule.id);
+
+    const r = rule as QuestionnaireRule & { purposeKeys?: string[] };
+    const keys = r.purposeKeys && r.purposeKeys.length > 0
+      ? r.purposeKeys
+      : (r.purposeKey ? [r.purposeKey] : []);
+
+    const match = keys.length > 0
+      ? ordered.find((p) => keys.some((k) => normalizePurpose(k) === normalizePurpose(p)))
+      : undefined;
+
+    if (match) {
+      byPurpose.get(match)!.push(rule);
+    } else {
+      // Applies to all purposes (no keys) or to none currently selected —
+      // collect into the leading "General" block shown above the per-purpose
+      // sections.
       general.push(rule);
-      continue;
     }
-    const matched = ordered.find((p) => normalizePurpose(p) === normalizePurpose(key));
-    const label = matched || key;
-    if (!byPurpose.has(label)) byPurpose.set(label, []);
-    byPurpose.get(label)!.push(rule);
   }
 
+  const blocks: PurposeBlock[] = [];
   if (general.length > 0) blocks.push({ purposeName: '', rules: general });
-  for (const label of ordered) {
-    const list = byPurpose.get(label);
-    if (list && list.length > 0) blocks.push({ purposeName: label, rules: list });
+  for (const p of ordered) {
+    const list = byPurpose.get(p);
+    if (list && list.length > 0) blocks.push({ purposeName: p, rules: list });
   }
-  for (const [label, list] of byPurpose.entries()) {
-    if (!ordered.some((p) => normalizePurpose(p) === normalizePurpose(label))) {
-      blocks.push({ purposeName: label, rules: list });
-    }
-  }
-
   return blocks;
 }
 
@@ -149,6 +201,57 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  // "Additional Materials" — uploaded to the project's SharePoint folder and
+  // listed at the top of the read-only (PQ Memo / PreQual) questionnaire view.
+  const [materials, setMaterials] = useState<AdditionalMaterialFile[]>([]);
+  const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
+  const materialsInputRef = useRef<HTMLInputElement>(null);
+
+  const loadMaterials = useCallback(async () => {
+    if (!projectId || exportMode !== 'readonly') return;
+    try {
+      const res = await authenticatedGet(`/api/sharepoint/files?projectId=${encodeURIComponent(projectId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.items)) {
+        setMaterials(findAdditionalMaterials(data.items));
+      }
+    } catch (err) {
+      console.warn('[BusinessQuestionnaire] additional materials load failed:', err);
+    }
+  }, [projectId, exportMode]);
+
+  useEffect(() => {
+    loadMaterials();
+  }, [loadMaterials]);
+
+  const handleAddMaterials = async (fileList: FileList | null) => {
+    if (!projectId || !fileList || fileList.length === 0) return;
+    setIsUploadingMaterial(true);
+    try {
+      const sharepointFolderId = (project as any)?.sharepointFolderId as string | undefined;
+      for (const file of Array.from(fileList)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('projectId', projectId);
+        if (sharepointFolderId) formData.append('folderId', sharepointFolderId);
+        formData.append('subfolder', ADDITIONAL_MATERIALS_FOLDER);
+        const res = await authenticatedFormPost('/api/sharepoint/upload', formData);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.message || err?.error || 'Failed to upload file');
+        }
+      }
+      await loadMaterials();
+    } catch (err) {
+      console.error('Error uploading additional materials:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload materials. Please try again.');
+    } finally {
+      setIsUploadingMaterial(false);
+      if (materialsInputRef.current) materialsInputRef.current.value = '';
+    }
+  };
 
   const loadAll = useCallback(async (signal?: { cancelled: boolean }) => {
     try {
@@ -357,6 +460,47 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
     responseMap.set(r.ruleId, r.content || '');
   }
 
+  // Show the "Add Additional Materials" affordance on the PQ Memo / PreQual
+  // (read-only) view regardless of whether the questionnaire has been filled
+  // out, so materials can always be attached.
+  const showAddMaterials = exportMode === 'readonly';
+
+  // Read-only (PQ Memo) list of uploaded supplementary files, shown above the
+  // Business Overview section once any have been uploaded.
+  const materialsBlock =
+    exportMode === 'readonly' && materials.length > 0 ? (
+      <div
+        className="bg-white border border-[#c5d4e8] rounded-lg p-4 mb-8"
+        data-testid="additional-materials-list"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Paperclip className="w-4 h-4 text-[#2563eb]" />
+          <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Additional Materials</h3>
+        </div>
+        <ul className="space-y-1.5">
+          {materials.map((m) => (
+            <li key={m.id}>
+              <a
+                href={m.webUrl || '#'}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex items-center gap-2 text-[13px] ${
+                  m.webUrl
+                    ? 'text-[#2563eb] hover:underline'
+                    : 'text-[#1a1a1a] pointer-events-none'
+                }`}
+                data-testid={`additional-material-${m.id}`}
+              >
+                <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="break-all">{m.name}</span>
+                {m.webUrl && <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-70" />}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
   const showExportButton = editable || showExport;
   const headerControls = (editable || showExportButton) ? (
     <div className="flex items-center gap-2 flex-shrink-0">
@@ -380,6 +524,37 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
             </>
           )}
         </Button>
+      )}
+      {showAddMaterials && (
+        <>
+          <input
+            ref={materialsInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => handleAddMaterials(e.target.files)}
+            data-testid="input-additional-materials"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => materialsInputRef.current?.click()}
+            disabled={isUploadingMaterial || !projectId}
+            data-testid="button-add-additional-materials"
+          >
+            {isUploadingMaterial ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Paperclip className="w-4 h-4 mr-2" />
+                Add Additional Materials
+              </>
+            )}
+          </Button>
+        </>
       )}
       {showExportButton && (
         <Button
@@ -415,6 +590,7 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
           </div>
           {headerControls}
         </div>
+        {materialsBlock}
         <div className="bg-white border border-[#c5d4e8] rounded-lg p-12 text-center">
           <p className="text-[#7da1d4] text-[13px]" data-testid="text-no-questionnaire-items">
             {rules.length === 0
@@ -443,8 +619,10 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
       <p className="text-[13px] text-[#7da1d4] mb-6">
         {editable
           ? 'Review the questions below. Use the trashcan to remove a question for this project, or "Regenerate Questions" to restore all questions.'
-          : "The following questions and answers are based on your project's details. This is a read-only view."}
+          : "The following questions and answers are based on your project's details."}
       </p>
+
+      {materialsBlock}
 
       <div className="space-y-8">
         {sortedCategories.map((category) => {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { ChevronDown, Info } from 'lucide-react';
+import { useState } from 'react';
 
 interface CreditScoringMatrix {
   repayment: number;
@@ -128,8 +128,7 @@ export default function CreditMatrixScoring({
   onExplanationChange,
   disabled = false
 }: CreditMatrixScoringProps) {
-  // Expand every category's criteria list by default; each can still be
-  // collapsed/expanded independently.
+  // All criteria lists start expanded; each can be collapsed independently.
   const [expandedCategories, setExpandedCategories] = useState<Set<keyof CreditScoringMatrix>>(
     () => new Set(matrixCategories.map((c) => c.key)),
   );

@@ -761,6 +761,8 @@ Example format:
   type RiskScoreRuleFormData = Omit<RiskScoreRule, 'id' | 'createdAt' | 'updatedAt'>;
   const [riskRuleModalOpen, setRiskRuleModalOpen] = useState(false);
   const [editingRiskRule, setEditingRiskRule] = useState<RiskScoreRule | null>(null);
+  // Tracks the in-flight auto-save triggered by the risk rule modal's submit button.
+  const [isSavingRiskRule, setIsSavingRiskRule] = useState(false);
   const [riskRuleCategoryFilter, setRiskRuleCategoryFilter] = useState<string>('All');
   const riskRulesFileInputRef = useRef<HTMLInputElement>(null);
   const [riskRuleForm, setRiskRuleForm] = useState<RiskScoreRuleFormData>({
@@ -804,6 +806,8 @@ Example format:
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<QuestionnaireRule | null>(null);
   const [ruleForm, setRuleForm] = useState<Omit<QuestionnaireRule, 'id'>>(emptyRuleForm);
+  // Tracks the in-flight auto-save triggered by the rule modal's submit button.
+  const [isSavingRule, setIsSavingRule] = useState(false);
 
   // Questionnaire Rules Import Modal State
   const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
@@ -1076,7 +1080,7 @@ Example format:
     setRuleModalOpen(true);
   };
 
-  const handleRuleSubmit = () => {
+  const handleRuleSubmit = async () => {
     if (!ruleForm.name.trim()) {
       alert('Please enter a rule name');
       return;
@@ -1097,30 +1101,38 @@ Example format:
       return;
     }
 
-    if (editingRule) {
-      // Update existing rule
-      setSettings({
-        ...settings,
-        questionnaireRules: settings.questionnaireRules.map((r) =>
+    const updatedRules = editingRule
+      ? // Update existing rule
+        settings.questionnaireRules.map((r) =>
           r.id === editingRule.id ? { ...ruleForm, id: editingRule.id } : r
-        ),
-      });
-    } else {
-      // Create new rule
-      const newRule: QuestionnaireRule = {
-        ...ruleForm,
-        id: `rule-${Date.now()}`,
-      };
-      setSettings({
-        ...settings,
-        questionnaireRules: [...settings.questionnaireRules, newRule],
-      });
-    }
+        )
+      : // Create new rule
+        [...settings.questionnaireRules, { ...ruleForm, id: `rule-${Date.now()}` }];
 
-    setHasUnsavedChanges(true);
-    setRuleModalOpen(false);
-    setEditingRule(null);
-    setRuleForm(emptyRuleForm);
+    const updatedSettings = { ...settings, questionnaireRules: updatedRules };
+    setSettings(updatedSettings);
+
+    // Auto-save the questionnaire rule straight to the database so the admin
+    // doesn't have to also click "Save Changes". The admin-settings doc is a
+    // single Cosmos record, so we persist the whole settings object (plus
+    // themeSettings, which lives outside `settings`) to avoid clobbering it.
+    setIsSavingRule(true);
+    try {
+      await saveAdminSettings({ ...updatedSettings, themeSettings });
+      // Everything in `settings` was just persisted, so clear the dirty flag.
+      setHasUnsavedChanges(false);
+      setRuleModalOpen(false);
+      setEditingRule(null);
+      setRuleForm(emptyRuleForm);
+    } catch (err: any) {
+      console.error('Error auto-saving questionnaire rule:', err);
+      alert(`Failed to save rule: ${err.message ?? err}`);
+      // Keep the modal open and mark the change dirty so the admin can retry
+      // (either by resubmitting or via the top "Save Changes" button).
+      setHasUnsavedChanges(true);
+    } finally {
+      setIsSavingRule(false);
+    }
   };
 
   const handleImportQuestionnaireRules = () => {
@@ -1273,27 +1285,47 @@ Example format:
     mutate: (id: string) => upsertRiskRule((rules) => rules.filter((r) => r.id !== id)),
   };
 
-  const handleRiskRuleSubmit = () => {
+  const handleRiskRuleSubmit = async () => {
     const now = new Date().toISOString();
-    if (editingRiskRule) {
-      upsertRiskRule((rules) =>
-        rules.map((r) =>
+    const updatedRules = editingRiskRule
+      ? riskScoreRulesList.map((r) =>
           r.id === editingRiskRule.id
             ? { ...r, ...riskRuleForm, id: r.id, createdAt: r.createdAt, updatedAt: now }
             : r
         )
-      );
-    } else {
-      const newRule: RiskScoreRule = {
-        id: `risk-rule-${Date.now()}`,
-        ...riskRuleForm,
-        createdAt: now,
-        updatedAt: now,
-      };
-      upsertRiskRule((rules) => [...rules, newRule]);
+      : [
+          ...riskScoreRulesList,
+          {
+            id: `risk-rule-${Date.now()}`,
+            ...riskRuleForm,
+            createdAt: now,
+            updatedAt: now,
+          } as RiskScoreRule,
+        ];
+
+    const updatedSettings = { ...settings, riskScoreRules: updatedRules };
+    setSettings(updatedSettings);
+
+    // Auto-save the risk score rule straight to the database so the admin
+    // doesn't have to also click "Save Changes". The admin-settings doc is a
+    // single Cosmos record, so we persist the whole settings object (plus
+    // themeSettings, which lives outside `settings`) to avoid clobbering it.
+    setIsSavingRiskRule(true);
+    try {
+      await saveAdminSettings({ ...updatedSettings, themeSettings });
+      // Everything in `settings` was just persisted, so clear the dirty flag.
+      setHasUnsavedChanges(false);
+      setRiskRuleModalOpen(false);
+      setEditingRiskRule(null);
+    } catch (err: any) {
+      console.error('Error auto-saving risk score rule:', err);
+      alert(`Failed to save rule: ${err.message ?? err}`);
+      // Keep the modal open and mark the change dirty so the admin can retry
+      // (either by resubmitting or via the top "Save Changes" button).
+      setHasUnsavedChanges(true);
+    } finally {
+      setIsSavingRiskRule(false);
     }
-    setRiskRuleModalOpen(false);
-    setEditingRiskRule(null);
   };
 
   // CSV helpers
@@ -2842,14 +2874,15 @@ Example format:
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setRuleModalOpen(false)} data-testid="button-cancel-rule">
+              <Button variant="outline" onClick={() => setRuleModalOpen(false)} disabled={isSavingRule} data-testid="button-cancel-rule">
                 Cancel
               </Button>
               <Button
                 onClick={handleRuleSubmit}
+                disabled={isSavingRule}
                 data-testid="button-submit-rule"
               >
-                {editingRule ? 'Update Rule' : 'Create Rule'}
+                {isSavingRule ? 'Saving...' : editingRule ? 'Update Rule' : 'Create Rule'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -3313,15 +3346,15 @@ Example format:
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRiskRuleModalOpen(false)} data-testid="button-cancel-risk-rule">
+            <Button variant="outline" onClick={() => setRiskRuleModalOpen(false)} disabled={isSavingRiskRule} data-testid="button-cancel-risk-rule">
               Cancel
             </Button>
             <Button
               onClick={handleRiskRuleSubmit}
-              disabled={!riskRuleForm.ruleText || riskRuleForm.riskCategories.length === 0 || (riskRuleForm.frequency === 'conditional' && riskRuleForm.applicableScores.length === 0)}
+              disabled={isSavingRiskRule || !riskRuleForm.ruleText || riskRuleForm.riskCategories.length === 0 || (riskRuleForm.frequency === 'conditional' && riskRuleForm.applicableScores.length === 0)}
               data-testid="button-submit-risk-rule"
             >
-              {editingRiskRule ? 'Update' : 'Add'}
+              {isSavingRiskRule ? 'Saving...' : editingRiskRule ? 'Update' : 'Add'}
             </Button>
           </DialogFooter>
         </DialogContent>

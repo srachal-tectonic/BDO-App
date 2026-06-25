@@ -12,6 +12,8 @@ export interface AuthenticatedUser {
   uid: string;
   email: string | undefined;
   emailVerified: boolean;
+  /** Entra ID display name ("name" claim), when available. */
+  displayName?: string;
 }
 
 export interface AuthResult {
@@ -40,6 +42,11 @@ const EMAIL_CLAIM_TYPES = [
   'email',
 ];
 
+const NAME_CLAIM_TYPES = [
+  'name',
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+];
+
 function findClaim(claims: Array<{ typ: string; val: string }>, types: string[]): string | undefined {
   for (const type of types) {
     const claim = claims.find((c) => c.typ === type);
@@ -65,6 +72,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
             uid: 'dev-srachal',
             email: 'srachal@tectonicfinancial.com',
             emailVerified: true,
+            displayName: 'Shane Rachal',
           },
         };
       }
@@ -79,6 +87,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
   if (principalHeader || principalId) {
     let uid: string | undefined = principalId ?? undefined;
     let email: string | undefined = principalName ?? undefined;
+    let displayName: string | undefined;
 
     if (principalHeader) {
       try {
@@ -87,6 +96,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
         const claims = principal.claims ?? [];
         uid = uid || findClaim(claims, NAMEID_CLAIM_TYPES) || principal.userId;
         email = email || findClaim(claims, EMAIL_CLAIM_TYPES) || principal.userDetails;
+        displayName = findClaim(claims, NAME_CLAIM_TYPES);
       } catch (err) {
         console.warn('[Auth] Failed to parse x-ms-client-principal header:', err);
       }
@@ -101,6 +111,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
           // Easy Auth only injects these headers after a successful Entra ID
           // sign-in, so the email is considered verified by the IdP.
           emailVerified: true,
+          displayName,
         },
       };
     }
