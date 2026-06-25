@@ -481,7 +481,7 @@ export default function BDOToolsPage() {
               {loanAppSubTab === 'individual-applicants' && <IndividualApplicantsSection />}
               {loanAppSubTab === 'other-businesses' && <OtherOwnedBusinessesSection />}
               {loanAppSubTab === 'project-info' && <SellerInfoSection />}
-              {loanAppSubTab === 'business-questionnaire' && <BusinessQuestionnaireSection />}
+              {loanAppSubTab === 'business-questionnaire' && <BusinessQuestionnaireSection answersEditable />}
             </div>
 
             {/* Navigation Buttons */}
@@ -573,7 +573,7 @@ export default function BDOToolsPage() {
               </TabsContent>
               <TabsContent value="edit-questionnaire-sub" className="mt-0">
                 <div className="px-6 py-6">
-                  <BusinessQuestionnaireSection editable />
+                  <BusinessQuestionnaireSection editable answersEditable />
                 </div>
               </TabsContent>
               <TabsContent value="borrower-files-sub" className="mt-0">

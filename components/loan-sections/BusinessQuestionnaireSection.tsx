@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useApplication } from '@/lib/applicationStore';
 import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
-import { authenticatedFormPost, authenticatedGet } from '@/lib/authenticatedFetch';
+import { authenticatedFormPost, authenticatedGet, authenticatedPost } from '@/lib/authenticatedFetch';
 import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
 
 // SharePoint subfolder that holds files uploaded via "Add Additional Materials".
@@ -175,8 +175,92 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Auto-saving answer box used when the questionnaire is shown in an editable
+ * BDO view (`answersEditable`). Mirrors the borrower portal's debounced
+ * auto-save, but persists through the questionnaire-responses POST endpoint so
+ * typed answers land in Cosmos (the borrower portal's `setDoc` is a dev shim).
+ * Answers are stored as plain text — the read-only views strip HTML anyway.
+ */
+function EditableAnswer({
+  projectId,
+  ruleId,
+  initialContent,
+  onSaved,
+}: {
+  projectId: string;
+  ruleId: string;
+  initialContent: string;
+  onSaved: (ruleId: string, content: string) => void;
+}) {
+  const [value, setValue] = useState(initialContent);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the field in sync if a fresh load (e.g. a re-fetch after import)
+  // brings in different content for this question.
+  useEffect(() => {
+    setValue(initialContent);
+  }, [initialContent]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    };
+  }, []);
+
+  const handleChange = (next: string) => {
+    setValue(next);
+    setSaveError(false);
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(async () => {
+      if (!projectId) return;
+      setIsSaving(true);
+      try {
+        const res = await authenticatedPost(
+          `/api/projects/${encodeURIComponent(projectId)}/questionnaire-responses`,
+          { ruleId, content: next },
+        );
+        if (!res.ok) throw new Error('Save failed');
+        onSaved(ruleId, next);
+      } catch (err) {
+        console.error('[BusinessQuestionnaire] failed to save answer:', err);
+        setSaveError(true);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1000);
+  };
+
+  return (
+    <div>
+      <textarea
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="Type the answer here…"
+        rows={3}
+        className="w-full text-[13px] text-[#1a1a1a] border border-[#c5d4e8] rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-[#2563eb] focus:border-[#2563eb] resize-y"
+        data-testid={`input-answer-${ruleId}`}
+      />
+      <div className="h-4 mt-1 text-[11px]">
+        {isSaving && <span className="text-[#7da1d4]">Saving…</span>}
+        {!isSaving && saveError && (
+          <span className="text-red-600">Failed to save — keep typing to retry.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface BusinessQuestionnaireSectionProps {
   editable?: boolean;
+  /**
+   * When true, each answer is shown as an auto-saving text box so BDO users can
+   * type answers directly (Loan Application & Edit Questionnaire tabs). When
+   * false (default) answers render read-only.
+   */
+  answersEditable?: boolean;
   showExport?: boolean;
   /**
    * `fillable` (default) — generate the PDF client-side via `pdf-lib` with
@@ -188,7 +272,7 @@ interface BusinessQuestionnaireSectionProps {
   exportMode?: 'fillable' | 'readonly';
 }
 
-export default function BusinessQuestionnaireSection({ editable = false, showExport = false, exportMode = 'fillable' }: BusinessQuestionnaireSectionProps = {}) {
+export default function BusinessQuestionnaireSection({ editable = false, answersEditable = false, showExport = false, exportMode = 'fillable' }: BusinessQuestionnaireSectionProps = {}) {
   const { data: appData } = useApplication();
   const projectId = appData.projectId;
   const po = appData.projectOverview;
@@ -400,6 +484,16 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
       setIsExporting(false);
     }
   };
+
+  // Reflect a freshly-typed answer in local state so the read view and the PDF
+  // export (which read from `responses`) stay in sync without a full reload.
+  const handleAnswerSaved = useCallback((ruleId: string, content: string) => {
+    setResponses((prev) => {
+      const next = prev.filter((r) => r.ruleId !== ruleId);
+      next.push({ ruleId, content } as QuestionnaireResponse);
+      return next;
+    });
+  }, []);
 
   const handleDeleteQuestion = async (ruleId: string) => {
     if (!projectId) return;
@@ -618,8 +712,10 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
 
       <p className="text-[13px] text-[#7da1d4] mb-6">
         {editable
-          ? 'Review the questions below. Use the trashcan to remove a question for this project, or "Regenerate Questions" to restore all questions.'
-          : "The following questions and answers are based on your project's details."}
+          ? `Review the questions below.${answersEditable ? ' Type answers directly into each box — they save automatically.' : ''} Use the trashcan to remove a question for this project, or "Regenerate Questions" to restore all questions.`
+          : answersEditable
+            ? 'Type answers directly into each box below — they save automatically as you type.'
+            : "The following questions and answers are based on your project's details."}
       </p>
 
       {materialsBlock}
@@ -665,13 +761,22 @@ export default function BusinessQuestionnaireSection({ editable = false, showExp
                       </button>
                     )}
                   </div>
-                  <div
-                    className={`text-[13px] ${answer ? 'text-[#1a1a1a]' : 'text-[#999] italic'}`}
-                    style={{ whiteSpace: 'pre-wrap', minHeight: 20 }}
-                    data-testid={`text-readonly-answer-${rule.id}`}
-                  >
-                    {answer || 'No response provided'}
-                  </div>
+                  {answersEditable && exportMode !== 'readonly' && projectId ? (
+                    <EditableAnswer
+                      projectId={projectId}
+                      ruleId={rule.id}
+                      initialContent={answer}
+                      onSaved={handleAnswerSaved}
+                    />
+                  ) : (
+                    <div
+                      className={`text-[13px] ${answer ? 'text-[#1a1a1a]' : 'text-[#999] italic'}`}
+                      style={{ whiteSpace: 'pre-wrap', minHeight: 20 }}
+                      data-testid={`text-readonly-answer-${rule.id}`}
+                    >
+                      {answer || 'No response provided'}
+                    </div>
+                  )}
                 </div>
               </div>
             );
