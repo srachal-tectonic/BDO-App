@@ -257,8 +257,9 @@ interface BusinessQuestionnaireSectionProps {
   editable?: boolean;
   /**
    * When true, each answer is shown as an auto-saving text box so BDO users can
-   * type answers directly (Loan Application & Edit Questionnaire tabs). When
-   * false (default) answers render read-only.
+   * type answers directly (Loan Application, Edit Questionnaire, and PreQual/PQ
+   * Memo tabs). Works in any `exportMode`. When false (default) answers render
+   * read-only.
    */
   answersEditable?: boolean;
   showExport?: boolean;
@@ -761,7 +762,7 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
                       </button>
                     )}
                   </div>
-                  {answersEditable && exportMode !== 'readonly' && projectId ? (
+                  {answersEditable && projectId ? (
                     <EditableAnswer
                       projectId={projectId}
                       ruleId={rule.id}

@@ -898,13 +898,13 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             <PQMemoFinancials projectId={projectId} />
           </TabsContent>
 
-          {/* Business Questionnaire — read-only view of the same component used
-              in the Loan Application tab (omit `editable` → defaults to false).
-              Reads its data from useApplication() and the questionnaire API,
-              so no extra props are needed beyond the projectId already on
-              applicationStore. */}
+          {/* Business Questionnaire — same component used in the Loan Application
+              tab. `answersEditable` turns each answer into an auto-saving text
+              box (persisted to Cosmos via the questionnaire-responses POST), so
+              BDO users can type answers here too. Reads its data from
+              useApplication() and the questionnaire API. */}
           <TabsContent value="business-questionnaire" className="mt-0">
-            <BusinessQuestionnaireSection showExport exportMode="readonly" />
+            <BusinessQuestionnaireSection showExport exportMode="readonly" answersEditable />
           </TabsContent>
 
           <TabsContent value="due-diligence" className="mt-0">
