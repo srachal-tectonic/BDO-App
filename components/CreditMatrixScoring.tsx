@@ -128,10 +128,22 @@ export default function CreditMatrixScoring({
   onExplanationChange,
   disabled = false
 }: CreditMatrixScoringProps) {
-  const [expandedCategory, setExpandedCategory] = useState<keyof CreditScoringMatrix | null>(null);
+  // Expand every category's criteria list by default; each can still be
+  // collapsed/expanded independently.
+  const [expandedCategories, setExpandedCategories] = useState<Set<keyof CreditScoringMatrix>>(
+    () => new Set(matrixCategories.map((c) => c.key)),
+  );
 
   const toggleExpand = (category: keyof CreditScoringMatrix) => {
-    setExpandedCategory(expandedCategory === category ? null : category);
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
   };
 
   const totalScore = scores.repayment + scores.management + scores.credit + scores.equity + scores.collateral + scores.liquidity;
@@ -179,7 +191,7 @@ export default function CreditMatrixScoring({
       <div className="space-y-3">
         {matrixCategories.map((category) => {
           const currentScore = scores[category.key];
-          const isExpanded = expandedCategory === category.key;
+          const isExpanded = expandedCategories.has(category.key);
           const selectedCriteria = category.scores[currentScore];
           const isNA = selectedCriteria === 'N/A';
 

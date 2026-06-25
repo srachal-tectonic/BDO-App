@@ -637,7 +637,16 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const bdoSummaryNotes = projectOverview.bdoComments || '';
 
   // ── Business Questionnaire block ──────────────────────────────────────
-  const questionnaireBlock = buildBusinessQuestionnaireSection(input);
+  // Omit the section entirely from the PQ Memo when the questionnaire hasn't
+  // been filled out at all (no stored response has any non-empty content).
+  // The standalone BQ-only export keeps rendering it, since that's a
+  // deliberate, BQ-specific export action.
+  const hasQuestionnaireResponse = (input.questionnaireResponses || []).some(
+    (r) => String(r?.content ?? '').trim().length > 0,
+  );
+  const questionnaireBlock = hasQuestionnaireResponse
+    ? buildBusinessQuestionnaireSection(input)
+    : '';
 
   // ── Due Diligence Report block ────────────────────────────────────────
   // `reportText` is Markdown from the Claude DD prompt. We render via a
