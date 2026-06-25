@@ -134,6 +134,21 @@ export default function DiligenceReportPanel({
 
   const runGenerate = () => {
     if (!canGenerate || isStreaming) return;
+    // Regenerating produces a fresh report, which the server treats as a clean
+    // slate — it wipes the per-section comments (their positional keys no longer
+    // line up). Warn the user first, but only when they actually have comments
+    // to lose.
+    if (comments.length > 0) {
+      const n = comments.length;
+      const ok = window.confirm(
+        `Regenerating the Due Diligence report will permanently remove the ${n} comment${
+          n === 1 ? '' : 's'
+        } added to the "Risk to the bank" section${n === 1 ? '' : 's'}. This cannot be undone.\n\nContinue?`,
+      );
+      if (!ok) return;
+    }
+    // Clear locally so the UI matches the server's wipe as the new report streams in.
+    setComments([]);
     return generate();
   };
 
@@ -479,7 +494,8 @@ function RiskCommentThread({
               key={c.id}
               projectId={projectId}
               comment={c}
-              canModify={!!userInfo && userInfo.uid === c.authorId}
+              canEdit={!!userInfo && userInfo.uid === c.authorId}
+              canDelete={!!userInfo}
               onUpdated={onCommentUpdated}
               onDeleted={onCommentDeleted}
             />
@@ -527,19 +543,22 @@ function RiskCommentThread({
 }
 
 /**
- * One rendered comment ("Name: comment"). Authors get inline Edit / Delete
- * controls; everyone else sees read-only text.
+ * One rendered comment ("Name: comment"). The author gets an inline Edit
+ * control; any signed-in user can Delete (internal BDO tool). Otherwise the
+ * comment is read-only text.
  */
 function CommentItem({
   projectId,
   comment,
-  canModify,
+  canEdit,
+  canDelete,
   onUpdated,
   onDeleted,
 }: {
   projectId: string;
   comment: DiligenceRiskComment;
-  canModify: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   onUpdated: (comment: DiligenceRiskComment) => void;
   onDeleted: (commentId: string) => void;
 }) {
@@ -664,31 +683,35 @@ function CommentItem({
           <span className="text-[11px] text-[#a1b3d2] italic ml-1">(edited)</span>
         )}
       </div>
-      {canModify && (
+      {(canEdit || canDelete) && (
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(comment.content);
-              setEditing(true);
-            }}
-            disabled={busy}
-            className="p-1 text-[#4263a5] hover:text-[#2563eb] rounded disabled:opacity-50"
-            title="Edit comment"
-            data-testid={`risk-comment-edit-${comment.id}`}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={busy}
-            className="p-1 text-[#4263a5] hover:text-red-600 rounded disabled:opacity-50"
-            title="Delete comment"
-            data-testid={`risk-comment-delete-${comment.id}`}
-          >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(comment.content);
+                setEditing(true);
+              }}
+              disabled={busy}
+              className="p-1 text-[#4263a5] hover:text-[#2563eb] rounded disabled:opacity-50"
+              title="Edit comment"
+              data-testid={`risk-comment-edit-${comment.id}`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className="p-1 text-[#4263a5] hover:text-red-600 rounded disabled:opacity-50"
+              title="Delete comment"
+              data-testid={`risk-comment-delete-${comment.id}`}
+            >
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       )}
     </li>

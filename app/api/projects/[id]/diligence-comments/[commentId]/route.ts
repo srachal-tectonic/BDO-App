@@ -4,10 +4,10 @@ import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { logAuditEvent } from '@/lib/auditLog';
 import type { DiligenceRiskComment } from '@/lib/diligenceRiskComments';
 
-// Edits and deletes are restricted to the comment's author. We verify the
-// Entra ID principal, load the comment, and compare its authorId to the
-// caller's uid before allowing the mutation.
-async function loadOwnComment(
+// Verify the Entra ID principal and load the comment. Used by both PATCH and
+// DELETE; the author-only restriction is applied by the caller (PATCH) since
+// deletes are allowed for any authenticated BDO user.
+async function loadComment(
   request: NextRequest,
   projectId: string,
   commentId: string,
@@ -25,16 +25,27 @@ async function loadOwnComment(
   if (!existing) {
     return { error: NextResponse.json({ error: 'Comment not found' }, { status: 404 }) };
   }
-  if (existing.authorId !== auth.user.uid) {
+
+  return { user: auth.user, col, existing };
+}
+
+// Editing is restricted to the comment's author.
+async function loadOwnComment(
+  request: NextRequest,
+  projectId: string,
+  commentId: string,
+) {
+  const loaded = await loadComment(request, projectId, commentId);
+  if ('error' in loaded) return loaded;
+  if (loaded.existing.authorId !== loaded.user.uid) {
     return {
       error: NextResponse.json(
-        { error: 'You can only modify your own comments' },
+        { error: 'You can only edit your own comments' },
         { status: 403 },
       ),
     };
   }
-
-  return { user: auth.user, col, existing };
+  return loaded;
 }
 
 // PATCH /api/projects/:id/diligence-comments/:commentId  — body: { content }
@@ -86,7 +97,7 @@ export async function DELETE(
 ) {
   try {
     const { id: projectId, commentId } = await params;
-    const loaded = await loadOwnComment(request, projectId, commentId);
+    const loaded = await loadComment(request, projectId, commentId);
     if ('error' in loaded) return loaded.error;
     const { user, col, existing } = loaded;
 

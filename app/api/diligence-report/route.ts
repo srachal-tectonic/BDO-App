@@ -4,6 +4,7 @@ import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { verifyAuth, unauthorizedResponse } from '@/lib/apiAuth';
 import { checkRateLimit, rateLimitExceededResponse, RATE_LIMITS } from '@/lib/rateLimit';
 import { checkCsrf } from '@/lib/csrf';
+import { logAuditEvent } from '@/lib/auditLog';
 import { DEFAULT_DILIGENCE_CORE_PROMPT } from '@/lib/diligencePrompts';
 import {
   isGenerating,
@@ -706,6 +707,30 @@ async function runDiligenceGeneration(params: GenerationParams): Promise<void> {
         error: `Report generated but could not be saved: ${persistErr?.message || 'unknown error'}`,
         fatal: false,
       });
+    }
+
+    // A completed (re)generation invalidates the per-section "Risk to the bank"
+    // comments: their positional `risk-N` keys no longer line up with the new
+    // report, so a stale comment would otherwise resurface under the wrong (or
+    // every) section. Wipe them here — the panel warns the user before
+    // regenerating whenever comments exist. Non-fatal on failure.
+    try {
+      const commentsCol = await getCollection(COLLECTIONS.DILIGENCE_COMMENTS);
+      const del = await commentsCol.deleteMany({ projectId });
+      if (del?.deletedCount) {
+        logAuditEvent({
+          action: 'diligence_comment_deleted',
+          category: 'note',
+          userId,
+          projectId,
+          resourceType: 'diligence_comment',
+          resourceId: projectId,
+          summary: `Cleared ${del.deletedCount} Risk-to-the-bank comment(s) on report regeneration`,
+          metadata: { bulk: true, deletedCount: del.deletedCount, reason: 'report_regenerated' },
+        }).catch(() => {});
+      }
+    } catch (wipeErr) {
+      console.error('[diligence-report] Failed to clear comments on regeneration:', wipeErr);
     }
 
     emit(projectId, {

@@ -20,6 +20,11 @@ import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireRes
 // SharePoint subfolder that holds files uploaded via "Add Additional Materials".
 const ADDITIONAL_MATERIALS_FOLDER = 'Additional Materials';
 
+// Temporary feature flag: hide the "Add Additional Materials" button and the
+// uploaded-materials list on the PreQual / PQ Memo Business Questionnaire tab.
+// Flip back to `true` (or remove the guards) to restore the feature.
+const SHOW_ADDITIONAL_MATERIALS = false;
+
 interface AdditionalMaterialFile {
   id: string;
   name: string;
@@ -295,7 +300,7 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
   const materialsInputRef = useRef<HTMLInputElement>(null);
 
   const loadMaterials = useCallback(async () => {
-    if (!projectId || exportMode !== 'readonly') return;
+    if (!SHOW_ADDITIONAL_MATERIALS || !projectId || exportMode !== 'readonly') return;
     try {
       const res = await authenticatedGet(`/api/sharepoint/files?projectId=${encodeURIComponent(projectId)}`);
       if (!res.ok) return;
@@ -605,12 +610,12 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
   // Show the "Add Additional Materials" affordance on the PQ Memo / PreQual
   // (read-only) view regardless of whether the questionnaire has been filled
   // out, so materials can always be attached.
-  const showAddMaterials = exportMode === 'readonly';
+  const showAddMaterials = SHOW_ADDITIONAL_MATERIALS && exportMode === 'readonly';
 
   // Read-only (PQ Memo) list of uploaded supplementary files, shown above the
   // Business Overview section once any have been uploaded.
   const materialsBlock =
-    exportMode === 'readonly' && materials.length > 0 ? (
+    SHOW_ADDITIONAL_MATERIALS && exportMode === 'readonly' && materials.length > 0 ? (
       <div
         className="bg-white border border-[#c5d4e8] rounded-lg p-4 mb-8"
         data-testid="additional-materials-list"
