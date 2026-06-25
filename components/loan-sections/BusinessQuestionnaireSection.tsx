@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useApplication } from '@/lib/applicationStore';
 import { getAdminSettings, getProject, updateProject } from '@/services/firestore';
-import { authenticatedFormPost, authenticatedGet, authenticatedPost } from '@/lib/authenticatedFetch';
+import { authenticatedFetch, authenticatedFormPost, authenticatedGet, authenticatedPost } from '@/lib/authenticatedFetch';
 import { generateQuestionnairePdf, type QuestionnaireRule, type QuestionnaireResponse } from '@/lib/questionnairePdf';
 
 // SharePoint subfolder that holds files uploaded via "Add Additional Materials".
@@ -291,6 +291,7 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
   // listed at the top of the read-only (PQ Memo / PreQual) questionnaire view.
   const [materials, setMaterials] = useState<AdditionalMaterialFile[]>([]);
   const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
+  const [pendingDeleteMaterialId, setPendingDeleteMaterialId] = useState<string | null>(null);
   const materialsInputRef = useRef<HTMLInputElement>(null);
 
   const loadMaterials = useCallback(async () => {
@@ -335,6 +336,35 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
     } finally {
       setIsUploadingMaterial(false);
       if (materialsInputRef.current) materialsInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteMaterial = async (file: AdditionalMaterialFile) => {
+    if (!projectId || pendingDeleteMaterialId) return;
+    if (!window.confirm(`Remove "${file.name}"? This permanently deletes the file from SharePoint.`)) {
+      return;
+    }
+    setPendingDeleteMaterialId(file.id);
+    // Optimistically drop it from the list; restore on failure.
+    const previous = materials;
+    setMaterials((prev) => prev.filter((m) => m.id !== file.id));
+    try {
+      const res = await authenticatedFetch(
+        `/api/sharepoint/item?projectId=${encodeURIComponent(projectId)}&itemId=${encodeURIComponent(file.id)}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.message || err?.error || 'Failed to delete file');
+      }
+      // Re-sync with SharePoint so the list reflects the source of truth.
+      await loadMaterials();
+    } catch (err) {
+      console.error('Error deleting additional material:', err);
+      setMaterials(previous);
+      alert(err instanceof Error ? err.message : 'Failed to remove file. Please try again.');
+    } finally {
+      setPendingDeleteMaterialId(null);
     }
   };
 
@@ -400,6 +430,25 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
     }
   };
 
+  // Standalone Business Questionnaire export filename convention:
+  // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}". Non-alphanumerics
+  // in the legal name are collapsed to underscores; a missing LoanStar ID
+  // falls back to "NA" so the shape stays stable.
+  const buildExportFilename = (): string => {
+    const legalRaw =
+      appData.businessApplicant?.legalName ||
+      project?.projectName ||
+      (po as any)?.projectName ||
+      'Business';
+    const legalName = legalRaw.replace(/[^a-zA-Z0-9]/g, '_');
+    const rawLoanId = po?.loanStarLoanId;
+    const loanId =
+      rawLoanId != null && String(rawLoanId).trim() !== ''
+        ? String(rawLoanId).replace(/[^a-zA-Z0-9]/g, '_')
+        : 'NA';
+    return `SBA_Biz_Question_${legalName}_${loanId}.pdf`;
+  };
+
   const handleExportPdf = async () => {
     if (!projectId) return;
     setIsExporting(true);
@@ -418,9 +467,7 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const projectName =
-          project?.projectName || (po as any)?.projectName || 'Business_Questionnaire';
-        link.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_Business_Questionnaire.pdf`;
+        link.download = buildExportFilename();
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -473,7 +520,7 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_Business_Questionnaire.pdf`;
+      link.download = buildExportFilename();
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -573,25 +620,43 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
           <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Additional Materials</h3>
         </div>
         <ul className="space-y-1.5">
-          {materials.map((m) => (
-            <li key={m.id}>
-              <a
-                href={m.webUrl || '#'}
-                target="_blank"
-                rel="noreferrer"
-                className={`inline-flex items-center gap-2 text-[13px] ${
-                  m.webUrl
-                    ? 'text-[#2563eb] hover:underline'
-                    : 'text-[#1a1a1a] pointer-events-none'
-                }`}
-                data-testid={`additional-material-${m.id}`}
-              >
-                <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="break-all">{m.name}</span>
-                {m.webUrl && <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-70" />}
-              </a>
-            </li>
-          ))}
+          {materials.map((m) => {
+            const isDeleting = pendingDeleteMaterialId === m.id;
+            return (
+              <li key={m.id} className="flex items-center justify-between gap-2 group">
+                <a
+                  href={m.webUrl || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex items-center gap-2 text-[13px] min-w-0 ${
+                    m.webUrl
+                      ? 'text-[#2563eb] hover:underline'
+                      : 'text-[#1a1a1a] pointer-events-none'
+                  }`}
+                  data-testid={`additional-material-${m.id}`}
+                >
+                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="break-all">{m.name}</span>
+                  {m.webUrl && <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-70" />}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMaterial(m)}
+                  disabled={isDeleting || !!pendingDeleteMaterialId}
+                  className="text-[#7da1d4] hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 p-1 -m-1"
+                  title="Remove this file"
+                  aria-label={`Remove ${m.name}`}
+                  data-testid={`button-delete-material-${m.id}`}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     ) : null;

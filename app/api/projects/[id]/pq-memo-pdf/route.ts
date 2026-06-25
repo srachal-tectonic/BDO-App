@@ -445,9 +445,8 @@ export async function GET(
       project.projectName ||
       project.businessName ||
       'Draft';
-    const safeName = borrowerName.replace(/[^a-zA-Z0-9]/g, '_');
     // Full Pre-Qual Memo export uses the convention
-    // "Pre-Qual Memo {Loan Name} {date generated}" (Loan Name = project name,
+    // "Pre-Qual Memo_{Loan Name}_{date generated}" (Loan Name = project name,
     // date = MM-DD-YYYY). The browser's `a.download` normally wins for the blob
     // download, but keep this header consistent for direct hits on the route.
     const loanName = (projectOverview.projectName || project.projectName || borrowerName)
@@ -455,9 +454,18 @@ export async function GET(
       .trim() || 'Draft';
     const now = new Date();
     const dateGenerated = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+    // Standalone Business Questionnaire export convention:
+    // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}". Kept consistent
+    // with the client-side `a.download` (which normally wins for blob downloads).
+    const bqLegalName = (businessApplicant.legalName || projectOverview.projectName || 'Business')
+      .replace(/[^a-zA-Z0-9]/g, '_');
+    const bqLoanId =
+      projectOverview.loanStarLoanId != null && String(projectOverview.loanStarLoanId).trim() !== ''
+        ? String(projectOverview.loanStarLoanId).replace(/[^a-zA-Z0-9]/g, '_')
+        : 'NA';
     const filename = bqOnly
-      ? `${safeName}_Business_Questionnaire.pdf`
-      : `Pre-Qual Memo ${loanName} ${dateGenerated}.pdf`;
+      ? `SBA_Biz_Question_${bqLegalName}_${bqLoanId}.pdf`
+      : `Pre-Qual Memo_${loanName}_${dateGenerated}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,

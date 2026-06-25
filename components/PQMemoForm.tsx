@@ -334,13 +334,13 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Export filename convention: "Pre-Qual Memo {Loan Name} {date generated}".
+      // Export filename convention: "Pre-Qual Memo_{Loan Name}_{date generated}".
       // Loan Name = the project name; date = MM-DD-YYYY of generation. Strip
       // only characters illegal in filenames so spaces/hyphens are preserved.
       const now = new Date();
       const dateGenerated = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
       const loanName = (applicationData.projectOverview.projectName || 'Draft').replace(/[\\/:*?"<>|]/g, '').trim() || 'Draft';
-      a.download = `Pre-Qual Memo ${loanName} ${dateGenerated}.pdf`;
+      a.download = `Pre-Qual Memo_${loanName}_${dateGenerated}.pdf`;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();

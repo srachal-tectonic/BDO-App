@@ -585,7 +585,15 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   const handleDownloadForm = (formId: string) => {
     // Pass projectId so the Business Applicant envelope is generated with
     // fillable sections that match the project's selected purposes.
-    const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const params = new URLSearchParams();
+    if (projectId) params.set('projectId', projectId);
+    // For the per-individual envelope, pass the applicant selected in the
+    // dropdown so the download can be named "Individual Info {Last, First}".
+    if (formId === 'blank-individual-applicant') {
+      const indId = selectedIndividual[formId];
+      if (indId) params.set('individualApplicantId', indId);
+    }
+    const qs = params.toString() ? `?${params.toString()}` : '';
     window.open(`/api/generated-forms/${formId}/download${qs}`, '_blank');
   };
 

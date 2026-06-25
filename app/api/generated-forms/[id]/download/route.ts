@@ -100,6 +100,18 @@ export async function GET(
         try {
           const col = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
           const doc = await col.findOne({ projectId });
+
+          // Name the generated file "Business Info {Business Name}". Resolve the
+          // business name from the Business Applicant's legal name, falling back
+          // to the project name. Set it before appending sections so the name
+          // sticks even if section generation fails and we serve the blank.
+          const businessName: string =
+            doc?.businessApplicant?.legalName ||
+            doc?.projectOverview?.projectName ||
+            'Business';
+          const safeBusinessName = businessName.replace(/[\\/:*?"<>|]/g, '').trim() || 'Business';
+          outputFileName = `Business Info ${safeBusinessName}.pdf`;
+
           const primary: string =
             typeof doc?.projectOverview?.primaryProjectPurpose === 'string'
               ? doc.projectOverview.primaryProjectPurpose
@@ -108,10 +120,36 @@ export async function GET(
             ? doc.projectOverview.secondaryProjectPurposes
             : [];
           outputBytes = await appendActiveSections(outputBytes, { primary, secondary });
-          outputFileName = outputFileName.replace(/\.pdf$/, `_${projectId}.pdf`);
         } catch (err) {
           console.error('[Generated Forms Download] Failed to append sections:', err);
           // Fall back to the blank template on generation failure.
+        }
+      }
+    }
+
+    // Individual Applicant envelope: name the file "Individual Info {Last, First}"
+    // for the applicant selected in the PDF Forms list (passed as
+    // ?individualApplicantId=...). Falls back to the static template name when
+    // no applicant is selected or it can't be resolved.
+    if (formId === 'blank-individual-applicant') {
+      const individualApplicantId = request.nextUrl.searchParams.get('individualApplicantId');
+      if (projectId && individualApplicantId) {
+        try {
+          const col = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+          const doc = await col.findOne({ projectId });
+          const applicants: any[] = Array.isArray(doc?.individualApplicants)
+            ? doc.individualApplicants
+            : [];
+          const applicant = applicants.find((a) => a?.id === individualApplicantId);
+          if (applicant) {
+            const last = String(applicant.lastName || '').trim();
+            const first = String(applicant.firstName || '').trim();
+            const namePart = [last, first].filter(Boolean).join(', ') || 'Applicant';
+            const safeName = namePart.replace(/[\\/:*?"<>|]/g, '').trim() || 'Applicant';
+            outputFileName = `Individual Info ${safeName}.pdf`;
+          }
+        } catch (err) {
+          console.error('[Generated Forms Download] Failed to resolve individual applicant name:', err);
         }
       }
     }
