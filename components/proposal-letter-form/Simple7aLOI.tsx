@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useApplication } from '@/lib/applicationStore';
 import { useToast } from '@/hooks/use-toast';
 import { FileDown, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -372,7 +372,7 @@ interface Simple7aLOIProps {
 }
 
 export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
-  const { data: appData } = useApplication();
+  const { data: appData, updateProposalLetter7a, resetProposalLetter7a } = useApplication();
   const { toast } = useToast();
 
   const initialData = useMemo((): Simple7aLOIData => {
@@ -478,14 +478,16 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
     };
   }, [appData]);
 
-  const [formData, setFormData] = useState<Simple7aLOIData>(initialData);
-
-  useEffect(() => {
-    setFormData(initialData);
-  }, [initialData]);
+  // User edits are persisted as overrides in the application store (survives
+  // page refresh) and layered on top of the values auto-derived from project data.
+  const overrides = (appData.proposalLetter7a || {}) as Partial<Simple7aLOIData>;
+  const formData = useMemo<Simple7aLOIData>(
+    () => ({ ...initialData, ...overrides }),
+    [initialData, overrides]
+  );
 
   const updateField = (field: keyof Simple7aLOIData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    updateProposalLetter7a({ [field]: value });
   };
 
   const handleGenerate = async () => {
@@ -499,7 +501,7 @@ export default function Simple7aLOI({ onBack }: Simple7aLOIProps) {
   };
 
   const handleReloadFromProject = () => {
-    setFormData(initialData);
+    resetProposalLetter7a();
     toast({ title: "Reloaded", description: "Fields refreshed from project data." });
   };
 

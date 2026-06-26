@@ -135,6 +135,9 @@ export interface ApplicationData {
   financingSources: FinancingSource[];
   // SBA Form 159 - Fee Disclosure Form data
   feeDisclosure: Partial<FeeDisclosure159> | null;
+  // 7(a) Letter of Interest — user-edited field overrides layered on top of
+  // the values auto-derived from project data (persisted so edits survive refresh)
+  proposalLetter7a: Record<string, any>;
 }
 
 // Define the application store interface
@@ -185,6 +188,10 @@ export interface ApplicationStore {
   addFinancingSource: (source: FinancingSource) => void;
   removeFinancingSource: (id: string) => void;
   updateFinancingSource: (id: string, updates: Partial<FinancingSource>) => void;
+
+  // 7(a) Letter of Interest actions
+  updateProposalLetter7a: (updates: Record<string, any>) => void;
+  resetProposalLetter7a: () => void;
 
   // File actions
   addFile: (file: any) => void;
@@ -249,6 +256,7 @@ const initialData: ApplicationData = {
   },
   financingSources: [],
   feeDisclosure: null,
+  proposalLetter7a: {},
 };
 
 export const useApplicationStore = create<ApplicationStore>()(
@@ -430,6 +438,20 @@ export const useApplicationStore = create<ApplicationStore>()(
         },
       })),
 
+      updateProposalLetter7a: (updates) => set((state) => ({
+        data: {
+          ...state.data,
+          proposalLetter7a: { ...state.data.proposalLetter7a, ...updates },
+        },
+      })),
+
+      resetProposalLetter7a: () => set((state) => ({
+        data: {
+          ...state.data,
+          proposalLetter7a: {},
+        },
+      })),
+
       addFile: (file) => set((state) => ({
         data: {
           ...state.data,
@@ -528,6 +550,7 @@ export const useApplicationStore = create<ApplicationStore>()(
           sourcesUses7a: firestoreData.sourcesUses7a || { ...defaultSourcesUses },
           sourcesUses504: firestoreData.sourcesUses504 || { ...defaultSourcesUses },
           sourcesUsesExpress: firestoreData.sourcesUsesExpress || { ...defaultSourcesUses },
+          proposalLetter7a: firestoreData.proposalLetter7a || {},
         },
       })),
     }),

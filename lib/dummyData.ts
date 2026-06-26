@@ -349,6 +349,7 @@ export const dummyApplicationData: ApplicationData = {
   feeDisclosure: null,
   financingSources: [],
   uploadedFiles: [],
+  proposalLetter7a: {},
 };
 
 /**
