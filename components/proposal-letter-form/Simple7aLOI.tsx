@@ -207,6 +207,9 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
 
   paragraphs.push(mixedP([{ text: 'Date: ', bold: true }, { text: data.letterDate || '[Date]' }], { spacing: 40 }));
   paragraphs.push(mixedP([{ text: 'To: ', bold: true }, { text: data.principalName || '[Name]' }], { spacing: 40 }));
+  if (data.principalTitle) {
+    paragraphs.push(mixedP([{ text: 'Title: ', bold: true }, { text: data.principalTitle }], { spacing: 40 }));
+  }
   if (data.mailingAddress) {
     paragraphs.push(mixedP([{ text: 'Address: ', bold: true }, { text: data.mailingAddress.split('\n').join(', ') }], { spacing: 40 }));
   }
