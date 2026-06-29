@@ -14,6 +14,7 @@ import {
   ROBOTO_700_WOFF2_BASE64,
   ROBOTO_700_WOFF_BASE64,
 } from '@/lib/pq-memo-font';
+import { uploadFileToProjectFolder, SHAREPOINT_SUBFOLDERS } from '@/lib/sharepoint';
 
 // Font bytes decoded once per process. ~88 KB total. Served to Chromium
 // over a loopback HTTP server (see startFontServer) — sparticuz's Chromium
@@ -466,6 +467,29 @@ export async function GET(
     const filename = bqOnly
       ? `SBA_Biz_Question_${bqLegalName}_${bqLoanId}.pdf`
       : `Pre-Qual Memo_${loanName}_${dateGenerated}.pdf`;
+
+    // Auto-save the generated Pre-Qual Memo into the project's SharePoint folder
+    // ("Project Files" subfolder) so every export lands a copy alongside the
+    // loan's other documents. A time component keeps same-day exports as
+    // distinct copies. Skipped for the Business-Questionnaire-only sub-export
+    // (that's a partial view, not the memo of record). Non-fatal: a SharePoint
+    // failure must never block the user's PDF download.
+    if (!bqOnly) {
+      try {
+        const stamp = `${dateGenerated}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+        const spFileName = `Pre-Qual Memo_${loanName}_${stamp}.pdf`;
+        const saved = await uploadFileToProjectFolder({
+          projectId,
+          fileName: spFileName,
+          content: Buffer.from(pdfBuffer),
+          contentType: 'application/pdf',
+          subfolderName: SHAREPOINT_SUBFOLDERS.PROJECT_FILES,
+        });
+        console.log('[PQ Memo PDF] Saved memo to SharePoint:', { id: saved.id, name: saved.name });
+      } catch (spErr: any) {
+        console.error('[PQ Memo PDF] Failed to save memo to SharePoint:', spErr?.message || spErr);
+      }
+    }
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,

@@ -3,6 +3,16 @@ import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { parseFinancialSpreadsheet, type GuarantorDraw } from '@/lib/parseSpreadsheet';
 import { ObjectId } from 'mongodb';
 import { logAuditEvent } from '@/lib/auditLog';
+import { uploadFileToProjectFolder, SHAREPOINT_SUBFOLDERS } from '@/lib/sharepoint';
+
+/**
+ * Build a filesystem/SharePoint-safe timestamp suffix: `YYYY-MM-DD_HHmmss`
+ * (local time). Used to keep distinct, identifiable copies of each saved file.
+ */
+function fileTimestamp(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
 
 /**
  * Normalise a person's name for fuzzy equality: strip punctuation, collapse
@@ -196,6 +206,37 @@ export async function POST(
     const col = await getCollection(COLLECTIONS.FINANCIAL_SPREADS);
     const result = await col.insertOne(doc as any);
 
+    // Save the original spreadsheet file into the project's SharePoint folder
+    // ("Project Files" subfolder) so the source-of-record document lives
+    // alongside the rest of the loan's files. A timestamped filename keeps every
+    // upload as a distinct copy. Non-fatal: the parsed spread is already saved,
+    // so a SharePoint hiccup must not fail the upload.
+    let sharepoint: { id: string; name: string; webUrl: string } | null = null;
+    try {
+      const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+      const base = file.name.includes('.') ? file.name.slice(0, file.name.lastIndexOf('.')) : file.name;
+      const spFileName = `${base}_${versionLabel.trim()}_${fileTimestamp()}${ext}`;
+      const uploaded = await uploadFileToProjectFolder({
+        projectId,
+        fileName: spFileName,
+        content: buffer,
+        contentType: file.type || 'application/octet-stream',
+        subfolderName: SHAREPOINT_SUBFOLDERS.PROJECT_FILES,
+      });
+      sharepoint = { id: uploaded.id, name: uploaded.name, webUrl: uploaded.webUrl };
+      logAuditEvent({
+        action: 'spread_uploaded',
+        category: 'financial',
+        projectId,
+        resourceType: 'financialSpread',
+        resourceId: result.insertedId.toString(),
+        summary: `Saved spread "${versionLabel.trim()}" to SharePoint (${uploaded.name})`,
+        metadata: { sharepointFileId: uploaded.id, sharepointUrl: uploaded.webUrl, fileName: uploaded.name },
+      }).catch(() => {});
+    } catch (spErr: any) {
+      console.error('[Financials API] Failed to save spread to SharePoint:', spErr);
+    }
+
     // Audit: spread uploaded
     logAuditEvent({
       action: 'spread_uploaded',
@@ -246,6 +287,7 @@ export async function POST(
       id: result.insertedId.toString(),
       ...doc,
       guarantorDrawSync,
+      sharepoint,
     });
   } catch (error: any) {
     console.error('[Financials API POST] Error:', error);

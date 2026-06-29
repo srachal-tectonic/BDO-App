@@ -39,6 +39,10 @@ export interface Project {
   loanAmount?: number;
   businessType?: string;
   location?: string;
+  // Seed for the loan application's "BDO (1)" field, set at creation when the
+  // creator is a BDO. initializeFromProject maps this into
+  // projectOverview.bdo1 the first time the loan application is opened.
+  bdo1?: string;
   sharepointFolderId?: string;
   sharepointFolderUrl?: string;
   // Legacy fields (kept for backward compatibility)

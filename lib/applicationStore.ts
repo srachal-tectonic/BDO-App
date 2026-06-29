@@ -481,6 +481,9 @@ export const useApplicationStore = create<ApplicationStore>()(
               projectOverview: {
                 projectName: projectData.projectName || '',
                 bdoName: projectData.bdoUserName || '',
+                // Auto-assigned BDO (1) seed — set at creation when a BDO created
+                // the project (see handleCreateProject). Blank otherwise.
+                bdo1: projectData.bdo1 || '',
                 bdaName: '',
                 industry: projectData.businessType || '',
                 naicsCode: '',
@@ -519,6 +522,10 @@ export const useApplicationStore = create<ApplicationStore>()(
             projectOverview: {
               projectName: projectData.projectName || '',
               bdoName: projectData.bdoUserName || '',
+              // Auto-assigned BDO (1) seed — set at creation when a BDO created
+              // the project (see handleCreateProject). Preserve any value the
+              // user already picked; fall back to the seed otherwise.
+              bdo1: state.data.projectOverview.bdo1 || projectData.bdo1 || '',
               bdaName: state.data.projectOverview.bdaName || '',
               industry: projectData.businessType || '',
               naicsCode: state.data.projectOverview.naicsCode || '',

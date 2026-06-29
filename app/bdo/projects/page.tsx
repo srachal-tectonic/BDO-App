@@ -221,6 +221,15 @@ export default function ProjectsPage() {
     try {
       setIsCreating(true);
 
+      // When the creator is a BDO, auto-assign them as the project's BDO (1).
+      // Stored as a seed on the project; initializeFromProject maps it into
+      // projectOverview.bdo1 (the field the PQ Memo, proposal letter, and
+      // SharePoint hierarchy read). The value uses displayName to match the
+      // BDO (1) dropdown's option values. Admins/other roles are left blank so
+      // the field still reflects an actual BDO assignment.
+      const isBdo = userInfo.role === 'BDO';
+      const bdoSeed = userInfo.displayName || userInfo.email || userInfo.uid;
+
       const projectData = {
         projectName: newProjectName.trim(),
         businessName: newProjectName.trim(),
@@ -228,6 +237,7 @@ export default function ProjectsPage() {
         status: 'Active' as const,
         bdoUserId: userInfo.uid,
         bdoUserName: userInfo.displayName || userInfo.email || 'Unknown',
+        ...(isBdo ? { bdo1: bdoSeed } : {}),
         createdAt: new Date(),
         updatedAt: new Date(),
       };

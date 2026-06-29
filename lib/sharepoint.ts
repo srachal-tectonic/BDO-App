@@ -4,6 +4,9 @@
  * TODO: Consider using Azure Key Vault for secrets management
  */
 
+import { getProjectAdmin, updateProjectAdmin } from '@/services/firestoreAdmin';
+import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
+
 interface SharePointCredentials {
   tenantId: string;
   clientId: string;
@@ -526,4 +529,215 @@ export async function createSharePointFolder(
       projectFilesFolderId,
     },
   };
+}
+
+/**
+ * Ensures a named subfolder exists directly under a parent folder, returning
+ * its ID. Looks the folder up by name first, creates it on miss, and tolerates
+ * the create-create race (409) by re-reading. Unlike {@link ensureFolderPath}
+ * this operates relative to an arbitrary parent item rather than the drive root.
+ */
+export async function ensureSubfolder(
+  token: string,
+  siteId: string,
+  driveId: string,
+  parentFolderId: string,
+  subfolderName: string
+): Promise<string> {
+  const sanitized = sanitizeFolderName(subfolderName);
+
+  const getResponse = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${parentFolderId}/children?$filter=name eq '${encodeURIComponent(sanitized)}'`,
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+  );
+  if (getResponse.ok) {
+    const data = await getResponse.json();
+    if (data.value && data.value.length > 0) return data.value[0].id;
+  }
+
+  const createResponse = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${parentFolderId}/children`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: sanitized,
+        folder: {},
+        '@microsoft.graph.conflictBehavior': 'fail',
+      }),
+    }
+  );
+
+  if (!createResponse.ok) {
+    if (createResponse.status === 409) {
+      const retry = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${parentFolderId}/children?$filter=name eq '${encodeURIComponent(sanitized)}'`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+      );
+      if (retry.ok) {
+        const retryData = await retry.json();
+        if (retryData.value && retryData.value.length > 0) return retryData.value[0].id;
+      }
+    }
+    throw new Error(`Failed to create subfolder "${sanitized}": ${await createResponse.text()}`);
+  }
+
+  return (await createResponse.json()).id;
+}
+
+/**
+ * Result of an automatic, system-generated upload into a project folder.
+ */
+export interface ProjectFileUploadResult {
+  id: string;
+  name: string;
+  webUrl: string;
+  size?: number;
+}
+
+/**
+ * Server-side: upload a raw file buffer into a project's SharePoint folder
+ * (optionally a named subfolder, which is auto-created). Resolves the project's
+ * linked SharePoint folder and auto-provisions it — with the standard
+ * subfolders — when the project isn't linked yet, persisting the new IDs back
+ * onto the project. This mirrors the auto-provision behaviour of
+ * `/api/sharepoint/upload`, but is callable directly from server code where
+ * there is no multipart HTTP request to drive the existing route (e.g. saving a
+ * generated PQ Memo PDF or a parsed financial spread).
+ *
+ * Files are uploaded with `@microsoft.graph.conflictBehavior: rename`, so a name
+ * clash never overwrites an existing file — SharePoint appends a numeric suffix.
+ * Callers that want distinct, identifiable copies should embed a timestamp in
+ * `fileName` themselves.
+ */
+export async function uploadFileToProjectFolder(opts: {
+  projectId: string;
+  fileName: string;
+  content: Buffer | Uint8Array | ArrayBuffer;
+  contentType?: string;
+  /** Named subfolder under the project folder, e.g. SHAREPOINT_SUBFOLDERS.PROJECT_FILES. */
+  subfolderName?: string;
+}): Promise<ProjectFileUploadResult> {
+  const { projectId, fileName, content, contentType, subfolderName } = opts;
+
+  const token = await getSharePointAccessToken();
+
+  // Resolve (or auto-provision) the project's SharePoint folder.
+  let folderId: string | undefined;
+  const project = await getProjectAdmin(projectId);
+  if (!project) {
+    throw new Error(`Project ${projectId} not found`);
+  }
+  if (project.sharepointFolderId) {
+    folderId = project.sharepointFolderId;
+  } else {
+    // Drive the folder hierarchy off the loan application's "BDO 1" field, the
+    // same signal /api/sharepoint/upload uses.
+    const loanAppCol = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+    const loanAppDoc = (await loanAppCol.findOne({ projectId })) as any;
+    const bdo1 = loanAppDoc?.projectOverview?.bdo1;
+    const folderInfo = await createSharePointFolder(token, project.projectName, bdo1);
+    folderId = folderInfo.folderId;
+
+    const updateData: Record<string, string | undefined> = {
+      sharepointFolderId: folderInfo.folderId,
+      sharepointFolderUrl: folderInfo.webUrl,
+    };
+    if (folderInfo.subfolders?.businessApplicantFolderId) {
+      (updateData as any).sharepointBusinessApplicantFolderId = folderInfo.subfolders.businessApplicantFolderId;
+    }
+    if (folderInfo.subfolders?.otherBusinessesFolderId) {
+      (updateData as any).sharepointOtherBusinessesFolderId = folderInfo.subfolders.otherBusinessesFolderId;
+    }
+    if (folderInfo.subfolders?.projectFilesFolderId) {
+      (updateData as any).sharepointProjectFilesFolderId = folderInfo.subfolders.projectFilesFolderId;
+    }
+    await updateProjectAdmin(projectId, updateData as any);
+    console.log(`[SharePoint] Auto-provisioned folder for project ${projectId} during file save`);
+  }
+
+  // Resolve site + drive.
+  const siteUrl = await getSharePointSiteUrl();
+  const { hostname, sitePath } = parseSharePointSiteUrl(siteUrl);
+  const siteId = await getSharePointSiteId(token, hostname, sitePath);
+
+  const driveResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  if (!driveResponse.ok) {
+    throw new Error(`Failed to get drive: ${await driveResponse.text()}`);
+  }
+  const driveId = (await driveResponse.json()).id;
+
+  // Ensure the target subfolder (e.g. "Project Files") under the project folder.
+  let targetFolderId = folderId!;
+  if (subfolderName) {
+    targetFolderId = await ensureSubfolder(token, siteId, driveId, folderId!, subfolderName);
+  }
+
+  // Normalise the body to a Buffer so we can measure size and chunk if needed.
+  const buffer =
+    content instanceof Buffer
+      ? content
+      : content instanceof Uint8Array
+        ? Buffer.from(content)
+        : Buffer.from(new Uint8Array(content));
+  const fileSize = buffer.byteLength;
+  const safeName = fileName.replace(/[\\/:*?"<>|]/g, '-');
+  const mime = contentType || 'application/octet-stream';
+
+  let uploadResponse: Response | undefined;
+  if (fileSize <= 4 * 1024 * 1024) {
+    // Simple upload for small files. `:/content` with conflictBehavior=rename is
+    // expressed via query param since PUT /content takes no JSON body.
+    uploadResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${targetFolderId}:/${encodeURIComponent(safeName)}:/content?@microsoft.graph.conflictBehavior=rename`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': mime },
+        body: buffer,
+      }
+    );
+  } else {
+    // Resumable upload session for larger files (chunked at 10MB).
+    const sessionResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${targetFolderId}:/${encodeURIComponent(safeName)}:/createUploadSession`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: { '@microsoft.graph.conflictBehavior': 'rename' } }),
+      }
+    );
+    if (!sessionResponse.ok) {
+      throw new Error(`Failed to create upload session: ${await sessionResponse.text()}`);
+    }
+    const uploadUrl = (await sessionResponse.json()).uploadUrl;
+
+    const chunkSize = 10 * 1024 * 1024;
+    let start = 0;
+    while (start < fileSize) {
+      const end = Math.min(start + chunkSize, fileSize);
+      const chunk = buffer.subarray(start, end);
+      uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': String(chunk.byteLength),
+          'Content-Range': `bytes ${start}-${end - 1}/${fileSize}`,
+        },
+        body: chunk,
+      });
+      if (!uploadResponse.ok && uploadResponse.status !== 202) {
+        throw new Error(`Failed to upload chunk: ${await uploadResponse.text()}`);
+      }
+      start = end;
+    }
+  }
+
+  if (!uploadResponse || (!uploadResponse.ok && uploadResponse.status !== 201)) {
+    throw new Error(`Failed to upload file: ${uploadResponse ? await uploadResponse.text() : 'no response'}`);
+  }
+
+  const uploaded = await uploadResponse.json();
+  console.log(`[SharePoint] Saved "${uploaded.name}" to project ${projectId}`, { id: uploaded.id, webUrl: uploaded.webUrl });
+  return { id: uploaded.id, name: uploaded.name, webUrl: uploaded.webUrl, size: uploaded.size };
 }
