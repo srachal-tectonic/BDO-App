@@ -470,17 +470,17 @@ export async function GET(
 
     // Auto-save the generated Pre-Qual Memo into the project's SharePoint folder
     // ("Project Files" subfolder) so every export lands a copy alongside the
-    // loan's other documents. A time component keeps same-day exports as
-    // distinct copies. Skipped for the Business-Questionnaire-only sub-export
-    // (that's a partial view, not the memo of record). Non-fatal: a SharePoint
-    // failure must never block the user's PDF download.
+    // loan's other documents. Named identically to the export —
+    // "Pre-Qual Memo_{Loan Name}_{Date Generated}.pdf" — with SharePoint's
+    // conflictBehavior=rename keeping same-day re-exports as distinct copies.
+    // Skipped for the Business-Questionnaire-only sub-export (that's a partial
+    // view, not the memo of record). Non-fatal: a SharePoint failure must never
+    // block the user's PDF download.
     if (!bqOnly) {
       try {
-        const stamp = `${dateGenerated}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-        const spFileName = `Pre-Qual Memo_${loanName}_${stamp}.pdf`;
         const saved = await uploadFileToProjectFolder({
           projectId,
-          fileName: spFileName,
+          fileName: filename,
           content: Buffer.from(pdfBuffer),
           contentType: 'application/pdf',
           subfolderName: SHAREPOINT_SUBFOLDERS.PROJECT_FILES,

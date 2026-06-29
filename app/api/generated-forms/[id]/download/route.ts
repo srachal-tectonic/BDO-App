@@ -154,6 +154,36 @@ export async function GET(
       }
     }
 
+    // Personal Financial Information worksheet (xlsx): name the file
+    // "PFS_{FirstName}.{LastName}" for the applicant selected in the PDF Forms
+    // list (?individualApplicantId=...). Falls back to the static template name
+    // when no applicant is selected or it can't be resolved.
+    if (formId === 'individual-pfi-worksheet') {
+      const individualApplicantId = request.nextUrl.searchParams.get('individualApplicantId');
+      if (projectId && individualApplicantId) {
+        try {
+          const col = await getCollection(COLLECTIONS.LOAN_APPLICATIONS);
+          const doc = await col.findOne({ projectId });
+          const applicants: any[] = Array.isArray(doc?.individualApplicants)
+            ? doc.individualApplicants
+            : [];
+          const applicant = applicants.find((a) => a?.id === individualApplicantId);
+          if (applicant) {
+            const first = String(applicant.firstName || '').trim();
+            const last = String(applicant.lastName || '').trim();
+            const namePart = [first, last].filter(Boolean).join('.') || 'Applicant';
+            const safeName = namePart.replace(/[\\/:*?"<>|]/g, '').trim() || 'Applicant';
+            const ext = form.fileName.includes('.')
+              ? form.fileName.slice(form.fileName.lastIndexOf('.'))
+              : '.xlsx';
+            outputFileName = `PFS_${safeName}${ext}`;
+          }
+        } catch (err) {
+          console.error('[Generated Forms Download] Failed to resolve PFI applicant name:', err);
+        }
+      }
+    }
+
     // Audit: form template downloaded
     logAuditEvent({
       action: 'file_downloaded',

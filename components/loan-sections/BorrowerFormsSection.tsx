@@ -113,6 +113,67 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   const { data: appData, loadFromFirestore } = useApplication();
   const individuals = appData.individualApplicants || [];
 
+  // Business Questionnaire archive filename — matches the BQ export convention
+  // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}.pdf" (see
+  // BusinessQuestionnaireSection.buildExportFilename). Non-alphanumerics in the
+  // legal name collapse to underscores; a missing LoanStar ID falls back to "NA".
+  const buildBqArchiveFilename = (): string => {
+    const legalRaw =
+      appData.businessApplicant?.legalName ||
+      appData.projectOverview?.projectName ||
+      'Business';
+    const legalName = legalRaw.replace(/[^a-zA-Z0-9]/g, '_');
+    const rawLoanId = appData.projectOverview?.loanStarLoanId;
+    const loanId =
+      rawLoanId != null && String(rawLoanId).trim() !== ''
+        ? String(rawLoanId).replace(/[^a-zA-Z0-9]/g, '_')
+        : 'NA';
+    return `SBA_Biz_Question_${legalName}_${loanId}.pdf`;
+  };
+
+  // Business Applicant archive filename — matches the export convention
+  // "Business Info {Business Name}.pdf" (see the generated-forms download route).
+  // Business Name resolves from the Business Applicant's legal name, falling
+  // back to the project name; only filesystem-illegal characters are stripped
+  // (spaces preserved).
+  const buildBusinessApplicantArchiveFilename = (): string => {
+    const businessName =
+      appData.businessApplicant?.legalName ||
+      appData.projectOverview?.projectName ||
+      'Business';
+    const safe = businessName.replace(/[\\/:*?"<>|]/g, '').trim() || 'Business';
+    return `Business Info ${safe}.pdf`;
+  };
+
+  // Individual Applicant archive filename — matches the export convention
+  // "Individual Info {Last, First}.pdf" (see the generated-forms download
+  // route). The applicant is resolved by id from the loan application; only
+  // filesystem-illegal characters are stripped (comma/space preserved).
+  const buildIndividualApplicantArchiveFilename = (applicantId: string): string => {
+    const applicant = individuals.find((a) => a.id === applicantId);
+    const last = String(applicant?.lastName || '').trim();
+    const first = String(applicant?.firstName || '').trim();
+    const namePart = [last, first].filter(Boolean).join(', ') || 'Applicant';
+    const safe = namePart.replace(/[\\/:*?"<>|]/g, '').trim() || 'Applicant';
+    return `Individual Info ${safe}.pdf`;
+  };
+
+  // Personal Financial Information (PFI) worksheet archive filename:
+  // "PFS_{FirstName}.{LastName}" for the selected applicant, preserving the
+  // uploaded workbook's extension (.xlsx/.xls). Only filesystem-illegal
+  // characters are stripped.
+  const buildPfiArchiveFilename = (applicantId: string, originalFile: File): string => {
+    const applicant = individuals.find((a) => a.id === applicantId);
+    const first = String(applicant?.firstName || '').trim();
+    const last = String(applicant?.lastName || '').trim();
+    const namePart = [first, last].filter(Boolean).join('.') || 'Applicant';
+    const safe = namePart.replace(/[\\/:*?"<>|]/g, '').trim() || 'Applicant';
+    const ext = originalFile.name.includes('.')
+      ? originalFile.name.slice(originalFile.name.lastIndexOf('.'))
+      : '.xlsx';
+    return `PFS_${safe}${ext}`;
+  };
+
   const [forms, setForms] = useState<GeneratedForm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -154,6 +215,7 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   // project folder was created during this upload.
   const archiveToSharePoint = async (
     file: File,
+    desiredFileName?: string,
   ): Promise<{ ok: boolean; folderCreated: boolean }> => {
     if (!projectId) {
       console.warn('[BorrowerForms] SharePoint archive skipped — missing projectId');
@@ -165,6 +227,9 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       fd.append('projectId', projectId);
       if (sharepointFolderId) fd.append('folderId', sharepointFolderId);
       fd.append('subfolder', 'Borrower Forms');
+      // When supplied, archive under a fixed name (the upload route uses it
+      // verbatim) instead of the default "{original}_{timestamp}".
+      if (desiredFileName) fd.append('fileName', desiredFileName);
       const res = await authenticatedFormPost('/api/sharepoint/upload', fd);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -239,7 +304,12 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
         ? [target.firstName, target.lastName].filter(Boolean).join(' ') || 'the selected individual'
         : 'the selected individual';
 
-      const archived = await archiveToSharePoint(file);
+      // Archive the PFI worksheet as "PFS_{FirstName}.{LastName}" for the
+      // selected applicant, matching the agreed convention.
+      const archived = await archiveToSharePoint(
+        file,
+        buildPfiArchiveFilename(individualApplicantId, file),
+      );
       const archiveNote = archived.ok
         ? archived.folderCreated
           ? ' Created a new SharePoint folder for this project and saved the file under Borrower Forms.'
@@ -321,7 +391,21 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
       // apply returns appliedFieldCount; apply-individual returns fieldsImported.
       const applied = payload.appliedFieldCount ?? payload.fieldsImported ?? 0;
 
-      const archived = await archiveToSharePoint(file);
+      // Archive imported forms under the same convention as their export so the
+      // SharePoint copy matches what the BDO sees on download:
+      //   • Business Questionnaire → "SBA_Biz_Question_{Legal}_{LoanId}.pdf"
+      //   • Business Applicant     → "Business Info {Business Name}.pdf"
+      //   • Individual Applicant   → "Individual Info {Last, First}.pdf"
+      // Any other form keeps its original upload name.
+      const isBusinessApplicantForm = formId === 'blank-business-applicant';
+      const archiveFileName = isBusinessQuestionnaireForm
+        ? buildBqArchiveFilename()
+        : isBusinessApplicantForm
+          ? buildBusinessApplicantArchiveFilename()
+          : isIndividualApplicantForm
+            ? buildIndividualApplicantArchiveFilename(individualApplicantId)
+            : undefined;
+      const archived = await archiveToSharePoint(file, archiveFileName);
       const archiveNote = archived.ok
         ? archived.folderCreated
           ? '\n\nCreated a new SharePoint folder for this project and saved the file under Borrower Forms.'
@@ -587,9 +671,10 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
     // fillable sections that match the project's selected purposes.
     const params = new URLSearchParams();
     if (projectId) params.set('projectId', projectId);
-    // For the per-individual envelope, pass the applicant selected in the
-    // dropdown so the download can be named "Individual Info {Last, First}".
-    if (formId === 'blank-individual-applicant') {
+    // For per-individual forms, pass the applicant selected in the dropdown so
+    // the download can be named after them — "Individual Info {Last, First}"
+    // for the envelope, "PFS_{First}.{Last}" for the PFI worksheet.
+    if (formId === 'blank-individual-applicant' || formId === 'individual-pfi-worksheet') {
       const indId = selectedIndividual[formId];
       if (indId) params.set('individualApplicantId', indId);
     }

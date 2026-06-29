@@ -139,6 +139,12 @@ export async function POST(request: NextRequest) {
     const applicantName = formData.get('applicantName') as string | null; // Individual applicant's name for their folder
     const years = formData.get('years') as string | null; // JSON array of years
     const description = formData.get('description') as string | null;
+    // Optional caller-supplied target filename. When present it's used verbatim
+    // (with conflictBehavior=rename so repeat uploads keep distinct copies)
+    // instead of the default "{base}_{timestamp}" scheme. Lets callers archive a
+    // file under a fixed convention — e.g. the Business Questionnaire import,
+    // which must match its export name "SBA_Biz_Question_{Legal}_{LoanId}.pdf".
+    const fileNameOverride = formData.get('fileName') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -267,12 +273,22 @@ export async function POST(request: NextRequest) {
     const fileBuffer = await file.arrayBuffer();
     const fileSize = fileBuffer.byteLength;
 
-    // Generate a unique filename to avoid conflicts
-    const timestamp = Date.now();
+    // Determine the upload filename. By default we append a millisecond
+    // timestamp so concurrent uploads never collide. When the caller supplied
+    // an explicit `fileName`, use it verbatim and let SharePoint's
+    // conflictBehavior=rename append a numeric suffix on repeat uploads — this
+    // keeps the file under a fixed naming convention (e.g. the Business
+    // Questionnaire's "SBA_Biz_Question_..." export name).
     const originalName = file.name;
     const extension = originalName.includes('.') ? originalName.substring(originalName.lastIndexOf('.')) : '';
     const baseName = originalName.includes('.') ? originalName.substring(0, originalName.lastIndexOf('.')) : originalName;
-    const uniqueFileName = `${baseName}_${timestamp}${extension}`;
+    const useOverride = !!(fileNameOverride && fileNameOverride.trim());
+    const uniqueFileName = useOverride
+      ? fileNameOverride!.trim().replace(/[\\/:*?"<>|]/g, '-')
+      : `${baseName}_${Date.now()}${extension}`;
+    // Only the override path needs an explicit conflict policy; the default
+    // timestamped names are already collision-free.
+    const conflictQuery = useOverride ? '?@microsoft.graph.conflictBehavior=rename' : '';
 
     console.log(`[SharePoint] Uploading file: ${uniqueFileName} (${fileSize} bytes)`);
 
@@ -282,7 +298,7 @@ export async function POST(request: NextRequest) {
     if (fileSize <= 4 * 1024 * 1024) {
       // Simple upload for small files
       uploadResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${targetFolderId}:/${encodeURIComponent(uniqueFileName)}:/content`,
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${targetFolderId}:/${encodeURIComponent(uniqueFileName)}:/content${conflictQuery}`,
         {
           method: 'PUT',
           headers: {
