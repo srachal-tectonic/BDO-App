@@ -602,7 +602,7 @@ async function runDiligenceGeneration(params: GenerationParams): Promise<void> {
     const anthropic = getAnthropicClient();
     const claudeStream = anthropic.messages.stream({
       model: CLAUDE_MODEL,
-      max_tokens: 8000,
+      max_tokens: 32000,
       tools: [
         {
           type: 'web_search_20250305',
@@ -667,12 +667,31 @@ async function runDiligenceGeneration(params: GenerationParams): Promise<void> {
       }
     }
 
-    await claudeStream.finalMessage();
+    const finalMessage = await claudeStream.finalMessage();
 
     if (!reportText.trim()) {
       emit(projectId, { type: 'error', error: 'Claude returned an empty report.', fatal: true });
       finishJob(projectId, 'failed');
       return;
+    }
+
+    // Detect a response truncated by the output-token cap. `stop_reason` is
+    // 'end_turn' on a clean finish; 'max_tokens' means Claude ran out of budget
+    // mid-report. Surface this as a non-fatal warning so a cut-off report no
+    // longer passes through silently as a normal "done" (the symptom that the
+    // report appeared to stop early). Non-fatal: the partial text is still kept.
+    if (finalMessage.stop_reason === 'max_tokens') {
+      console.warn(
+        `[diligence-report] Report for project ${projectId} hit the max_tokens cap ` +
+          `(${finalMessage.usage?.output_tokens ?? '?'} output tokens) and was truncated.`
+      );
+      emit(projectId, {
+        type: 'error',
+        error:
+          'The report reached the maximum length and may be incomplete. ' +
+          'Try regenerating, or contact support if this persists.',
+        fatal: false,
+      });
     }
 
     const generatedAt = new Date().toISOString();
