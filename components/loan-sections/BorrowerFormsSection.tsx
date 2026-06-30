@@ -116,7 +116,8 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
   // Business Questionnaire archive filename — matches the BQ export convention
   // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}.pdf" (see
   // BusinessQuestionnaireSection.buildExportFilename). Non-alphanumerics in the
-  // legal name collapse to underscores; a missing LoanStar ID falls back to "NA".
+  // legal name collapse to underscores; when the LoanStar ID is missing the
+  // "_{LoanId}" suffix is dropped entirely (no "_NA").
   const buildBqArchiveFilename = (): string => {
     const legalRaw =
       appData.businessApplicant?.legalName ||
@@ -127,8 +128,10 @@ export default function BorrowerFormsSection({ projectId, sharepointFolderId, sh
     const loanId =
       rawLoanId != null && String(rawLoanId).trim() !== ''
         ? String(rawLoanId).replace(/[^a-zA-Z0-9]/g, '_')
-        : 'NA';
-    return `SBA_Biz_Question_${legalName}_${loanId}.pdf`;
+        : '';
+    return loanId
+      ? `SBA_Biz_Question_${legalName}_${loanId}.pdf`
+      : `SBA_Biz_Question_${legalName}.pdf`;
   };
 
   // Business Applicant archive filename — matches the export convention

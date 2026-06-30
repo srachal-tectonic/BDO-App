@@ -458,14 +458,18 @@ export async function GET(
     // Standalone Business Questionnaire export convention:
     // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}". Kept consistent
     // with the client-side `a.download` (which normally wins for blob downloads).
+    // When the LoanStar ID is missing the "_{LoanId}" suffix is dropped (no "_NA").
     const bqLegalName = (businessApplicant.legalName || projectOverview.projectName || 'Business')
       .replace(/[^a-zA-Z0-9]/g, '_');
     const bqLoanId =
       projectOverview.loanStarLoanId != null && String(projectOverview.loanStarLoanId).trim() !== ''
         ? String(projectOverview.loanStarLoanId).replace(/[^a-zA-Z0-9]/g, '_')
-        : 'NA';
-    const filename = bqOnly
+        : '';
+    const bqFilename = bqLoanId
       ? `SBA_Biz_Question_${bqLegalName}_${bqLoanId}.pdf`
+      : `SBA_Biz_Question_${bqLegalName}.pdf`;
+    const filename = bqOnly
+      ? bqFilename
       : `Pre-Qual Memo_${loanName}_${dateGenerated}.pdf`;
 
     // Auto-save the generated Pre-Qual Memo into the project's SharePoint folder

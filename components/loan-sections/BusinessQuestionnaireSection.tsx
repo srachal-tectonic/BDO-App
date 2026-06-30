@@ -437,8 +437,8 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
 
   // Standalone Business Questionnaire export filename convention:
   // "SBA_Biz_Question_{LegalBusinessName}_{LoanStarLoanId}". Non-alphanumerics
-  // in the legal name are collapsed to underscores; a missing LoanStar ID
-  // falls back to "NA" so the shape stays stable.
+  // in the legal name are collapsed to underscores; when the LoanStar ID is
+  // missing the "_{LoanId}" suffix is dropped entirely (no "_NA").
   const buildExportFilename = (): string => {
     const legalRaw =
       appData.businessApplicant?.legalName ||
@@ -450,8 +450,10 @@ export default function BusinessQuestionnaireSection({ editable = false, answers
     const loanId =
       rawLoanId != null && String(rawLoanId).trim() !== ''
         ? String(rawLoanId).replace(/[^a-zA-Z0-9]/g, '_')
-        : 'NA';
-    return `SBA_Biz_Question_${legalName}_${loanId}.pdf`;
+        : '';
+    return loanId
+      ? `SBA_Biz_Question_${legalName}_${loanId}.pdf`
+      : `SBA_Biz_Question_${legalName}.pdf`;
   };
 
   const handleExportPdf = async () => {
