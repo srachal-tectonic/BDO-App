@@ -363,8 +363,12 @@ function generateSimple7aDocx(data: Simple7aLOIData, logo: LogoAsset | null) {
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
-  const safeName = (data.borrowerName || 'LOI').replace(/[^a-z0-9]/gi, '_');
-  saveAs(blob, `LOI_7a_${safeName}_${Date.now()}.docx`);
+  const projectName = (data.loanName || data.borrowerName || 'LOI')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .trim() || 'LOI';
+  const now = new Date();
+  const dateGenerated = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+  saveAs(blob, `LOI_7a_${projectName}_${dateGenerated}.docx`);
 }
 
 interface Simple7aLOIProps {
