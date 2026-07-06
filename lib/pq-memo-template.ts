@@ -185,11 +185,21 @@ function markdownToHtml(md: string): string {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].replace(/\s+$/, '');
 
-    // Blank line — terminate any open paragraph / list / blockquote.
+    // Blank line — terminate any open paragraph / blockquote. An open list
+    // stays open when the next non-blank line continues the same list, so
+    // "loose" lists (items separated by blank lines) render as one list
+    // instead of restarting numbering at 1 for every item.
     if (line.trim() === '') {
       flushParagraph();
-      closeList();
       closeQuote();
+      if (list) {
+        let j = i + 1;
+        while (j < lines.length && lines[j].trim() === '') j++;
+        const next = j < lines.length ? lines[j] : '';
+        const continues =
+          list.kind === 'ul' ? /^\s*[-*]\s+/.test(next) : /^\s*\d+\.\s+/.test(next);
+        if (!continues) closeList();
+      }
       continue;
     }
 
@@ -257,16 +267,18 @@ function markdownToHtml(md: string): string {
       continue;
     }
 
-    // Ordered list item.
-    const olMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+    // Ordered list item. If a list is interrupted by other content, the next
+    // <ol> starts at the source's number so numbering continues (e.g. 4, 5, 6).
+    const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
     if (olMatch) {
       flushParagraph();
       if (!list || list.kind !== 'ol') {
         closeList();
-        out.push('<ol>');
+        const start = Number(olMatch[1]);
+        out.push(start > 1 ? `<ol start="${start}">` : '<ol>');
         list = { kind: 'ol' };
       }
-      out.push(`<li>${inline(olMatch[1])}</li>`);
+      out.push(`<li>${inline(olMatch[2])}</li>`);
       continue;
     }
     closeList();

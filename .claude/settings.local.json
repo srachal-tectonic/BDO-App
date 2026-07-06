@@ -108,7 +108,8 @@
       "WebFetch(domain:sbaprequalifier-cbg7h5athsdkgxgm.southcentralus-01.azurewebsites.net)",
       "Bash(cp /tmp/loi_pkg_check.cjs ./_loi_pkg_check.cjs)",
       "Bash(node ./_loi_pkg_check.cjs)",
-      "Bash(rm -f ./_loi_pkg_check.cjs)"
+      "Bash(rm -f ./_loi_pkg_check.cjs)",
+      "Bash(node *)"
     ],
     "deny": [],
     "ask": []
