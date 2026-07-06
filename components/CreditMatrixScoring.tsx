@@ -42,6 +42,8 @@ interface CreditMatrixScoringProps {
   disabled?: boolean;
 }
 
+const COLLAPSED_CRITERIA_STORAGE_KEY = 'pqRiskScoresCollapsedCriteria';
+
 interface CategoryDefinition {
   label: string;
   key: keyof CreditScoringMatrix;
@@ -142,20 +144,39 @@ export default function CreditMatrixScoring({
   disabled = false
 }: CreditMatrixScoringProps) {
   // All criteria lists start expanded; each can be collapsed independently.
+  // Collapsed categories are remembered per-browser so they stay hidden on future visits.
   const [expandedCategories, setExpandedCategories] = useState<Set<keyof CreditScoringMatrix>>(
     () => new Set(matrixCategories.map((c) => c.key)),
   );
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_CRITERIA_STORAGE_KEY);
+      if (!raw) return;
+      const collapsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(collapsed)) return;
+      setExpandedCategories(
+        new Set(matrixCategories.map((c) => c.key).filter((key) => !collapsed.includes(key))),
+      );
+    } catch {
+      // Ignore unavailable/corrupt localStorage; fall back to all expanded.
+    }
+  }, []);
+
   const toggleExpand = (category: keyof CreditScoringMatrix) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
+    const next = new Set(expandedCategories);
+    if (next.has(category)) {
+      next.delete(category);
+    } else {
+      next.add(category);
+    }
+    setExpandedCategories(next);
+    try {
+      const collapsed = matrixCategories.map((c) => c.key).filter((key) => !next.has(key));
+      window.localStorage.setItem(COLLAPSED_CRITERIA_STORAGE_KEY, JSON.stringify(collapsed));
+    } catch {
+      // Ignore unavailable localStorage; the toggle still works for this session.
+    }
   };
 
   const totalScore = scores.repayment + scores.management + scores.credit + scores.equity + scores.collateral + scores.liquidity;
