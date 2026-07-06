@@ -1,7 +1,20 @@
 'use client';
 
 import { ChevronDown, Info } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+function AutoGrowTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [props.value]);
+
+  return <textarea ref={ref} {...props} />;
+}
 
 interface CreditScoringMatrix {
   repayment: number;
@@ -398,15 +411,15 @@ export default function CreditMatrixScoring({
                   <label className="block text-xs font-medium text-[color:var(--t-color-text-secondary)] mb-1.5">
                     Explanation
                   </label>
-                  <textarea
+                  <AutoGrowTextarea
                     value={explanations[category.key] || ''}
                     onChange={(e) => onExplanationChange?.(category.key, e.target.value)}
                     placeholder={`Enter explanation for ${category.label.toLowerCase()} score...`}
                     disabled={disabled}
-                    className={`w-full px-3 py-2 border border-[var(--t-color-border)] rounded-lg text-sm resize-none focus:border-[var(--t-color-accent)] focus:ring-1 focus:ring-[var(--t-color-accent)] outline-none ${
+                    className={`w-full px-3 py-2 border border-[var(--t-color-border)] rounded-lg text-sm resize-none overflow-hidden focus:border-[var(--t-color-accent)] focus:ring-1 focus:ring-[var(--t-color-accent)] outline-none ${
                       disabled ? 'bg-[#f9fafb] cursor-not-allowed' : 'bg-white'
                     }`}
-                    rows={2}
+                    rows={4}
                     data-testid={`explanation-${category.key}`}
                   />
                 </div>
