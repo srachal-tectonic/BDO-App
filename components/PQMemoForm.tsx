@@ -9,6 +9,7 @@ import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQue
 import DiligenceReportPanel from '@/components/diligence/DiligenceReportPanel';
 import { useApplication } from '@/lib/applicationStore';
 import { computePfsNetWorth } from '@/lib/pfsNetWorth';
+import { formatBusinessRole, formatProjectRole } from '@/lib/applicantRoleLabels';
 import { Button } from '@/components/ui/button';
 
 
@@ -16,10 +17,15 @@ interface PQMemoFormProps {
   projectId: string;
 }
 
+// Full row set + order mirrors the Spreads-side table (SourcesUsesMatrix.tsx)
+// so every category synced from an uploaded spread shows up here too.
 const SOURCES_USES_ROW_KEYS = [
   'realEstate', 'debtRefiCRE', 'debtRefiNonCRE', 'equipment',
-  'furnitureFixtures', 'inventory', 'businessAcquisition',
-  'workingCapital', 'closingCosts', 'other',
+  'furnitureFixtures', 'inventory', 'workingCapital',
+  'workingCapitalPreOpening', 'businessAcquisition', 'franchiseFees',
+  'constructionHardCosts', 'constructionContingency',
+  'interimInterestReserve', 'otherConstructionSoftCosts',
+  'closingCosts', 'sbaGtyFee', 'usdaGtyFee', 'other',
 ] as const;
 
 type LoanGroupColumn = { key: string; label: string; source: any };
@@ -125,9 +131,17 @@ const SOURCES_USES_ROW_LABELS: Record<string, string> = {
   equipment: 'Equipment',
   furnitureFixtures: 'Furniture & Fixtures',
   inventory: 'Inventory',
-  businessAcquisition: 'Business Acquisition',
   workingCapital: 'Working Capital',
+  workingCapitalPreOpening: 'Working Capital - Pre Opening',
+  businessAcquisition: 'Business Acquisition',
+  franchiseFees: 'Franchise Fees',
+  constructionHardCosts: 'Construction Hard Costs',
+  constructionContingency: 'Construction Contingency',
+  interimInterestReserve: 'Interest Reserve',
+  otherConstructionSoftCosts: 'Construction Soft Costs',
   closingCosts: 'Closing Costs',
+  sbaGtyFee: 'SBA Gty Fee',
+  usdaGtyFee: 'USDA Gty Fee',
   other: 'Other',
 };
 
@@ -806,9 +820,9 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                           <td className="py-2 px-2 text-[13px] font-medium text-gray-700">
                             {individual.firstName} {individual.lastName}
                           </td>
-                          <td className="py-2 px-2 text-[13px]">{individual.projectRole || '-'}</td>
+                          <td className="py-2 px-2 text-[13px]">{formatProjectRole(individual.projectRole)}</td>
                           <td className="py-2 px-2 text-[13px]">{Number(individual.ownershipPercentage ?? 0).toFixed(2)}%</td>
-                          <td className="py-2 px-2 text-[13px]">{individual.businessRole || '-'}</td>
+                          <td className="py-2 px-2 text-[13px]">{formatBusinessRole(individual.businessRole)}</td>
                           <td className="py-2 px-2 text-[13px]">{experience}</td>
                           <td className="py-2 px-2 text-[13px]">{formatCurrency(netWorth)}</td>
                           <td className="py-2 px-2 text-[13px]">{formatCurrency(individual.pcLiquidity)}</td>

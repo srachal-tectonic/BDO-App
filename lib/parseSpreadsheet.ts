@@ -302,7 +302,9 @@ export function parseFinancialSpreadsheet(buffer: Buffer): ParsedSpreadsheet {
     const colHeaderRow = sourcesHeaderRow + 1;
     const suCols: number[] = [];
     const headerSeen: Record<string, number> = {};
-    for (let c = 2; c <= Math.min(range.e.c, 9); c++) {
+    // Scan through column K (index 10): the 5.6.26 layout puts the "Total"
+    // column there (sources in C–J). Capping at J dropped every row's total.
+    for (let c = 2; c <= Math.min(range.e.c, 10); c++) {
       const v = cellVal(ws, colHeaderRow, c);
       if (v && String(v).trim() && !isNA(v)) {
         const raw = String(v).trim();

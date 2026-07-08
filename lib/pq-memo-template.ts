@@ -20,6 +20,7 @@
 // no console log); http:// from the same page origin works normally.
 import { splitDiligenceByRiskSections } from './diligenceRiskComments';
 import { computePfsNetWorth } from './pfsNetWorth';
+import { formatBusinessRole, formatProjectRole } from './applicantRoleLabels';
 
 /** Subset of QuestionnaireRule fields we need to render. Kept loose-typed so
  * this template doesn't reach into the questionnairePdf module. */
@@ -748,6 +749,9 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
       })()
     : ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty'];
 
+  // Full row set + order mirrors the in-app PQ Memo table (PQMemoForm.tsx
+  // SOURCES_USES_ROW_KEYS) and the Spreads-side SourcesUsesMatrix, so every
+  // category synced from an uploaded spread renders in the exported memo too.
   const categoryOrder = [
     'realEstate',
     'debtRefiCRE',
@@ -755,9 +759,17 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     'equipment',
     'furnitureFixtures',
     'inventory',
-    'businessAcquisition',
     'workingCapital',
+    'workingCapitalPreOpening',
+    'businessAcquisition',
+    'franchiseFees',
+    'constructionHardCosts',
+    'constructionContingency',
+    'interimInterestReserve',
+    'otherConstructionSoftCosts',
     'closingCosts',
+    'sbaGtyFee',
+    'usdaGtyFee',
     'other',
   ] as const;
 
@@ -768,9 +780,17 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     equipment: 'Equipment',
     furnitureFixtures: 'Furniture & Fixtures',
     inventory: 'Inventory',
-    businessAcquisition: 'Business Acquisition',
     workingCapital: 'Working Capital',
+    workingCapitalPreOpening: 'Working Capital - Pre Opening',
+    businessAcquisition: 'Business Acquisition',
+    franchiseFees: 'Franchise Fees',
+    constructionHardCosts: 'Construction Hard Costs',
+    constructionContingency: 'Construction Contingency',
+    interimInterestReserve: 'Interest Reserve',
+    otherConstructionSoftCosts: 'Construction Soft Costs',
     closingCosts: 'Closing Costs',
+    sbaGtyFee: 'SBA Gty Fee',
+    usdaGtyFee: 'USDA Gty Fee',
     other: 'Other',
   };
 
@@ -829,9 +849,9 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
       return `
     <tr>
       <td>${esc(individual.firstName || '')} ${esc(individual.lastName || '')}</td>
-      <td>${esc(individual.projectRole || '')}</td>
+      <td>${esc(formatProjectRole(individual.projectRole))}</td>
       <td>${ownershipPct}</td>
-      <td>${esc(individual.businessRole || '')}</td>
+      <td>${esc(formatBusinessRole(individual.businessRole))}</td>
       <td>${experienceDisplay}</td>
       <td>${netWorth}</td>
       <td>${pcLiquidity}</td>
