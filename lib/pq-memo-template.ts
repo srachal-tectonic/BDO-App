@@ -794,21 +794,33 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     other: 'Other',
   };
 
+  // Row total: sum of the per-source cells, falling back to an unallocated
+  // `total` stored by the spread import when the workbook only carries the
+  // amount in its Total column (e.g. "Construction Contingency - 10%" rows).
+  // Unallocated amounts show in the Total column only, never under a source.
+  const rowTotalValue = (categoryData: Record<string, number> | undefined): number => {
+    if (!categoryData) return 0;
+    const colSum = suColumns.reduce((sum, col) => sum + (Number(categoryData[col]) || 0), 0);
+    if (colSum > 0) return colSum;
+    const unallocated = Number(categoryData.total) || 0;
+    return unallocated > 0 ? unallocated : 0;
+  };
+
   const totals: Record<string, number> = {};
   suColumns.forEach((col) => {
     totals[col] = 0;
   });
 
+  let grandTotal = 0;
   categoryOrder.forEach((category) => {
     const categoryData = sourcesUsesData[category];
     if (categoryData) {
       suColumns.forEach((col) => {
         totals[col] += Number(categoryData[col]) || 0;
       });
+      grandTotal += rowTotalValue(categoryData);
     }
   });
-
-  const grandTotal = Object.values(totals).reduce((sum, val) => sum + val, 0);
 
   const percentages: Record<string, number> = {};
   suColumns.forEach((col) => {
@@ -1193,10 +1205,7 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
               .map((category) => {
                 const categoryData = sourcesUsesData[category];
                 if (!categoryData) return '';
-                const rowTotal = suColumns.reduce(
-                  (sum, col) => sum + (Number(categoryData[col]) || 0),
-                  0,
-                );
+                const rowTotal = rowTotalValue(categoryData);
                 if (rowTotal === 0) return '';
                 return `<tr>
                 <td>${categoryLabels[category]}</td>

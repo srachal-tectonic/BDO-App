@@ -334,31 +334,15 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
         // Reconcile against the workbook's Total column. Some rows (e.g.
         // "Construction Contingency - 10%") carry placeholder values in the
         // per-source cells while the real dollar amount only exists in the
-        // Total column — without this the row imports as a couple of dollars.
+        // Total column. Don't fabricate a split across financing sources —
+        // store the amount as an unallocated row `total`, which the tables
+        // render in the Total column only.
         const rowTotal = typeof row.total === 'number' ? row.total : null;
         if (rowTotal && rowTotal > 0) {
           const colSum = Object.values(rowData).reduce((s, v) => s + v, 0);
           if (Math.abs(colSum - rowTotal) > Math.max(1, rowTotal * 0.005)) {
-            if (colSum > 0) {
-              // Treat the per-column cells as relative weights and scale them
-              // so the row sums to the workbook's Total.
-              const factor = rowTotal / colSum;
-              const keys = Object.keys(rowData);
-              let scaledSum = 0;
-              for (const k of keys) {
-                rowData[k] = Math.round(rowData[k] * factor * 100) / 100;
-                scaledSum += rowData[k];
-              }
-              // Absorb any rounding remainder in the first column.
-              const remainder = Math.round((rowTotal - scaledSum) * 100) / 100;
-              if (remainder !== 0 && keys.length > 0) {
-                rowData[keys[0]] = Math.round((rowData[keys[0]] + remainder) * 100) / 100;
-              }
-            } else if (mappedHeaders.length > 0) {
-              // No usable per-column breakdown at all — put the full amount
-              // under the first financing column so the row still imports.
-              rowData[mappedHeaders[0].colKey] = rowTotal;
-            }
+            for (const k of Object.keys(rowData)) delete rowData[k];
+            rowData.total = rowTotal;
           }
         }
 

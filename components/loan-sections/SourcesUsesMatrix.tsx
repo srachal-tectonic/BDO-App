@@ -91,7 +91,13 @@ export default function SourcesUsesMatrix({
   const getRowTotal = (category: string) => {
     const row = (sourcesUses as any)[category] as Record<string, number> | undefined;
     if (!row || typeof row === 'number') return 0;
-    return sourceColumns.reduce((sum, col) => sum + (row[col.key] || 0), 0);
+    const colSum = sourceColumns.reduce((sum, col) => sum + (row[col.key] || 0), 0);
+    if (colSum > 0) return colSum;
+    // Spread imports store amounts the workbook only carries in its Total
+    // column (e.g. Construction Contingency) as an unallocated row `total` —
+    // shown in the Total column only, never under a source.
+    const unallocated = typeof row.total === 'number' ? row.total : 0;
+    return unallocated > 0 ? unallocated : 0;
   };
 
   const getColumnTotal = (source: string) => {
@@ -102,7 +108,7 @@ export default function SourcesUsesMatrix({
   };
 
   const getGrandTotal = () => {
-    return sourceColumns.reduce((sum, col) => sum + getColumnTotal(col.key), 0);
+    return rows.reduce((sum, row) => sum + getRowTotal(row.key), 0);
   };
 
   const getRowPercentage = (category: string) => {

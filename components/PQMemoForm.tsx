@@ -400,18 +400,28 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
       })()
     : ['tBankLoan', 'borrower', 'sellerNote', 'thirdParty']; // fallback
 
+  // Row total: sum of the per-source cells, falling back to an unallocated
+  // `total` stored by the spread import when the workbook only carries the
+  // amount in its Total column (e.g. "Construction Contingency - 10%" rows).
+  // Unallocated amounts show in the Total column only, never under a source.
+  const getRowTotalValue = (row: Record<string, any>): number => {
+    const colSum = suColumns.reduce((sum, col) => sum + (row[col] || 0), 0);
+    if (colSum > 0) return colSum;
+    return typeof row.total === 'number' && row.total > 0 ? row.total : 0;
+  };
+
   const calculateSourcesUsesTotals = () => {
     const totals: Record<string, number> = {};
     for (const col of suColumns) totals[col] = 0;
 
+    let grandTotal = 0;
     for (const rowKey of SOURCES_USES_ROW_KEYS) {
       const row = getRow(rowKey);
       for (const col of suColumns) {
         totals[col] += (row[col] || 0);
       }
+      grandTotal += getRowTotalValue(row);
     }
-
-    const grandTotal = Object.values(totals).reduce((sum, v) => sum + v, 0);
 
     const percentages: Record<string, number> = {};
     for (const col of suColumns) {
@@ -864,7 +874,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                   </tr>
                   {SOURCES_USES_ROW_KEYS.map((rowKey) => {
                     const row = getRow(rowKey);
-                    const rowTotal = suColumns.reduce((sum, col) => sum + (row[col] || 0), 0);
+                    const rowTotal = getRowTotalValue(row);
                     if (rowTotal === 0) return null;
 
                     return (
