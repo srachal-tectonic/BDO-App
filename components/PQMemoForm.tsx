@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle, FileQuestion, ShieldCheck } from 'lucide-react';
+import { FileText, BarChart3, ClipboardList, ChevronDown, TrendingUp, Bold, Italic, List, ListOrdered, Heading2, Download, AlertTriangle, FileQuestion, ShieldCheck, Loader2 } from 'lucide-react';
 import CreditMatrixScoring from '@/components/CreditMatrixScoring';
 import SpreadComparisonTable from '@/components/SpreadComparisonTable';
 import BusinessQuestionnaireSection from '@/components/loan-sections/BusinessQuestionnaireSection';
@@ -316,14 +316,27 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
     if (projectId) fetchFinancingSources();
   }, [projectId]);
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
   const exportToPDF = async () => {
     if (!projectId) {
       alert('Cannot generate PDF: Project ID is missing');
       return;
     }
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/pq-memo-pdf`);
+      // Generation can take a while (cold Chromium on the server, large
+      // memos). A dropped connection surfaces as TypeError("Failed to
+      // fetch") — retry once before giving up.
+      let response: Response;
+      try {
+        response = await fetch(`/api/projects/${projectId}/pq-memo-pdf`);
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        response = await fetch(`/api/projects/${projectId}/pq-memo-pdf`);
+      }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
@@ -350,7 +363,13 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
       }, 5000);
     } catch (error: any) {
       console.error('Error exporting PDF:', error);
-      alert(error.message || 'Failed to generate PDF. Please try again.');
+      const message =
+        error instanceof TypeError
+          ? 'The connection dropped while the PDF was being generated. This usually clears up on its own — please try again in a moment.'
+          : error.message || 'Failed to generate PDF. Please try again.';
+      alert(message);
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -427,11 +446,16 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
       <div className="pt-3 pb-2">
         <Button
           onClick={exportToPDF}
-          className="bg-gradient-to-r from-gray-700 to-blue-600 hover:shadow-xl shadow-lg text-white"
+          disabled={isExportingPdf}
+          className="bg-gradient-to-r from-gray-700 to-blue-600 hover:shadow-xl shadow-lg text-white disabled:opacity-70"
           data-testid="button-export-pdf"
         >
-          <Download className="mr-2 h-4 w-4" />
-          Export PDF
+          {isExportingPdf ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          {isExportingPdf ? 'Generating PDF…' : 'Export PDF'}
         </Button>
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { createServer, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
@@ -66,6 +66,176 @@ async function startFontServer(html: string): Promise<{ url: string; server: Ser
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+type Engine = 'sparticuz' | 'puppeteer-full';
+
+// ── Shared Chromium instance ─────────────────────────────────────────────
+// Launching Chromium is the slowest part of an export — several seconds
+// warm, 10s+ right after an app restart while @sparticuz/chromium extracts
+// its binary to /tmp — and every instance holds hundreds of MB. Azure App
+// Service runs this app as a single long-lived Node process, so launch
+// once, reuse the browser across requests (each request opens and closes
+// its own page), and relaunch only when the cached browser has died
+// (deploy, slot swap, platform recycle).
+let sharedBrowser: { browser: any; engine: Engine } | null = null;
+let sharedBrowserLaunch: Promise<{ browser: any; engine: Engine }> | null = null;
+
+const browserAlive = (b: any): boolean => {
+  try {
+    // puppeteer >= 22 exposes `connected`; older versions `isConnected()`.
+    return typeof b?.connected === 'boolean' ? b.connected : !!b?.isConnected?.();
+  } catch {
+    return false;
+  }
+};
+
+async function getSharedBrowser(): Promise<{ browser: any; engine: Engine }> {
+  if (sharedBrowser && browserAlive(sharedBrowser.browser)) return sharedBrowser;
+  sharedBrowser = null;
+  if (!sharedBrowserLaunch) {
+    // Concurrent exports piggyback on one launch; on failure the cache stays
+    // empty so the next request retries.
+    sharedBrowserLaunch = launchBrowser()
+      .then((result) => {
+        sharedBrowser = result;
+        return result;
+      })
+      .finally(() => {
+        sharedBrowserLaunch = null;
+      });
+  }
+  return sharedBrowserLaunch;
+}
+
+// Drop a cached browser that turned out to be dead (its process killed while
+// idle) so the next getSharedBrowser() call relaunches instead of failing.
+function invalidateSharedBrowser(browser: any): void {
+  if (sharedBrowser && sharedBrowser.browser === browser) sharedBrowser = null;
+  try {
+    browser?.close?.()?.catch?.(() => {});
+  } catch {
+    /* already dead */
+  }
+}
+
+// Load a Chromium launcher. Preference order:
+//   1. @sparticuz/chromium + puppeteer-core  — bundles a Linux-friendly
+//      Chromium built for constrained environments (serverless/PaaS,
+//      Azure App Service, Replit-style Nix sandboxes). Needed here
+//      because stock bundled Chromium dies on crashpad signal setup in
+//      those sandboxes (getsockopt EINVAL / unhandled cmsg).
+//   2. full `puppeteer`                      — standard dev machines
+//      (Windows/macOS, regular Linux desktop) where its bundled Chrome
+//      works out of the box.
+//   3. PUPPETEER_EXECUTABLE_PATH override    — explicit escape hatch.
+// Chromium links libfontconfig and calls FcInit() on startup. On
+// Debian/Ubuntu, /etc/fonts/fonts.conf chains through conf.d/* via
+// <include> directives — and those conf.d entries are SYMLINKS to
+// absolute paths like /usr/share/fontconfig/conf.avail/*.conf. On
+// Azure those targets don't exist (our files are under
+// /home/site/wwwroot/chrome-libs/...), every include fails, FcInit
+// returns FcFalse, Blink's font subsystem refuses to activate
+// typefaces, and every @font-face comes back with status: "error".
+//
+// Bypass that whole layer: write a minimal fonts.conf with NO
+// includes, pointing at bundled fonts + a writable cache dir, and
+// tell fontconfig to use it via FONTCONFIG_FILE. This must happen
+// before Chromium starts, which is why it lives in launchBrowser().
+async function launchBrowser(): Promise<{ browser: any; engine: Engine }> {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const bundledFontDir = '/home/site/wwwroot/chrome-libs/usr/share/fonts';
+    if (fs.existsSync(bundledFontDir)) {
+      const cacheDir = path.join(os.tmpdir(), 'fontconfig-cache');
+      fs.mkdirSync(cacheDir, { recursive: true });
+      const confPath = path.join(os.tmpdir(), 'pq-fonts.conf');
+      const conf = `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <dir>${bundledFontDir}</dir>
+  <cachedir>${cacheDir}</cachedir>
+  <alias><family>sans-serif</family><prefer><family>Liberation Sans</family></prefer></alias>
+  <alias><family>serif</family><prefer><family>Liberation Serif</family></prefer></alias>
+  <alias><family>monospace</family><prefer><family>Liberation Mono</family></prefer></alias>
+</fontconfig>`;
+      fs.writeFileSync(confPath, conf);
+      process.env.FONTCONFIG_FILE = confPath;
+      // If we previously set FONTCONFIG_PATH, clear it — fontconfig
+      // can treat FONTCONFIG_FILE as relative to FONTCONFIG_PATH on
+      // some versions, which would break the absolute path above.
+      delete process.env.FONTCONFIG_PATH;
+    }
+  } catch { /* non-Azure env; leave fontconfig alone */ }
+
+  let chromium: any = null;
+  try {
+    chromium = (await import('@sparticuz/chromium')).default;
+  } catch {
+    chromium = null;
+  }
+
+  if (chromium) {
+    const puppeteerCore: any = (await import('puppeteer-core')).default;
+    // These are no-ops on AWS Lambda but recommended everywhere else —
+    // force headless, skip the WebGL/SwiftShader stack we'll never use
+    // in a server-side PDF render. Improves cold start + memory use on
+    // Azure App Service.
+    try { chromium.setHeadlessMode = true; } catch { /* older versions */ }
+    try { chromium.setGraphicsMode = false; } catch { /* older versions */ }
+
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath());
+    const browser = await puppeteerCore.launch({
+      headless: true,
+      executablePath,
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
+      defaultViewport: chromium.defaultViewport,
+    });
+    return { browser, engine: 'sparticuz' };
+  }
+
+  // Fallback to full puppeteer with its bundled Chrome.
+  let puppeteerFull: any;
+  try {
+    // @ts-ignore optional runtime dep
+    puppeteerFull = (await import('puppeteer')).default;
+  } catch {
+    throw Object.assign(
+      new Error(
+        'No PDF engine installed. Run `npm install @sparticuz/chromium puppeteer-core` (recommended) or `npm install puppeteer`.',
+      ),
+      { code: 'NO_PDF_ENGINE' },
+    );
+  }
+
+  let executablePath: string | undefined = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (!executablePath) {
+    try {
+      executablePath = puppeteerFull.executablePath();
+    } catch {
+      executablePath = undefined;
+    }
+  }
+
+  const browser = await puppeteerFull.launch({
+    headless: true,
+    executablePath,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+    ],
+  });
+  return { browser, engine: 'puppeteer-full' };
+}
+
 /**
  * GET /api/projects/:id/pq-memo-pdf
  * Streams a generated PQ Memo PDF for the given project.
@@ -75,8 +245,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   let browser: any = null;
+  let page: any = null;
   let fontServer: Server | null = null;
-  let engine: 'sparticuz' | 'puppeteer-full' | 'unknown' = 'unknown';
+  let engine: Engine | 'unknown' = 'unknown';
   try {
     const { id: projectId } = await params;
     // `?section=business-questionnaire` strips the output down to just the
@@ -195,124 +366,14 @@ export async function GET(
       ? generateBusinessQuestionnaireOnlyHTML(templateInput)
       : generatePQMemoHTML(templateInput);
 
-    // Load a Chromium launcher. Preference order:
-    //   1. @sparticuz/chromium + puppeteer-core  — bundles a Linux-friendly
-    //      Chromium built for constrained environments (serverless/PaaS,
-    //      Azure App Service, Replit-style Nix sandboxes). Needed here
-    //      because stock bundled Chromium dies on crashpad signal setup in
-    //      those sandboxes (getsockopt EINVAL / unhandled cmsg).
-    //   2. full `puppeteer`                      — standard dev machines
-    //      (Windows/macOS, regular Linux desktop) where its bundled Chrome
-    //      works out of the box.
-    //   3. PUPPETEER_EXECUTABLE_PATH override    — explicit escape hatch.
-    // Chromium links libfontconfig and calls FcInit() on startup. On
-    // Debian/Ubuntu, /etc/fonts/fonts.conf chains through conf.d/* via
-    // <include> directives — and those conf.d entries are SYMLINKS to
-    // absolute paths like /usr/share/fontconfig/conf.avail/*.conf. On
-    // Azure those targets don't exist (our files are under
-    // /home/site/wwwroot/chrome-libs/...), every include fails, FcInit
-    // returns FcFalse, Blink's font subsystem refuses to activate
-    // typefaces, and every @font-face comes back with status: "error".
-    //
-    // Bypass that whole layer: write a minimal fonts.conf with NO
-    // includes, pointing at bundled fonts + a writable cache dir, and
-    // tell fontconfig to use it via FONTCONFIG_FILE.
+    // Chromium is shared across requests (see getSharedBrowser above) — this
+    // only pays the launch cost on the first export after a process start.
     try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const os = await import('os');
-      const bundledFontDir = '/home/site/wwwroot/chrome-libs/usr/share/fonts';
-      if (fs.existsSync(bundledFontDir)) {
-        const cacheDir = path.join(os.tmpdir(), 'fontconfig-cache');
-        fs.mkdirSync(cacheDir, { recursive: true });
-        const confPath = path.join(os.tmpdir(), 'pq-fonts.conf');
-        const conf = `<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <dir>${bundledFontDir}</dir>
-  <cachedir>${cacheDir}</cachedir>
-  <alias><family>sans-serif</family><prefer><family>Liberation Sans</family></prefer></alias>
-  <alias><family>serif</family><prefer><family>Liberation Serif</family></prefer></alias>
-  <alias><family>monospace</family><prefer><family>Liberation Mono</family></prefer></alias>
-</fontconfig>`;
-        fs.writeFileSync(confPath, conf);
-        process.env.FONTCONFIG_FILE = confPath;
-        // If we previously set FONTCONFIG_PATH, clear it — fontconfig
-        // can treat FONTCONFIG_FILE as relative to FONTCONFIG_PATH on
-        // some versions, which would break the absolute path above.
-        delete process.env.FONTCONFIG_PATH;
-      }
-    } catch { /* non-Azure env; leave fontconfig alone */ }
-
-    try {
-      let chromium: any = null;
-      try {
-        chromium = (await import('@sparticuz/chromium')).default;
-      } catch {
-        chromium = null;
-      }
-
-      if (chromium) {
-        const puppeteerCore: any = (await import('puppeteer-core')).default;
-        // These are no-ops on AWS Lambda but recommended everywhere else —
-        // force headless, skip the WebGL/SwiftShader stack we'll never use
-        // in a server-side PDF render. Improves cold start + memory use on
-        // Azure App Service.
-        try { chromium.setHeadlessMode = true; } catch { /* older versions */ }
-        try { chromium.setGraphicsMode = false; } catch { /* older versions */ }
-
-        const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath());
-        browser = await puppeteerCore.launch({
-          headless: true,
-          executablePath,
-          args: [
-            ...chromium.args,
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-          ],
-          defaultViewport: chromium.defaultViewport,
-        });
-        engine = 'sparticuz';
-      } else {
-        // Fallback to full puppeteer with its bundled Chrome.
-        let puppeteerFull: any;
-        try {
-          // @ts-ignore optional runtime dep
-          puppeteerFull = (await import('puppeteer')).default;
-        } catch {
-          return NextResponse.json(
-            {
-              error:
-                'No PDF engine installed. Run `npm install @sparticuz/chromium puppeteer-core` (recommended) or `npm install puppeteer`.',
-            },
-            { status: 501 },
-          );
-        }
-
-        let executablePath: string | undefined = process.env.PUPPETEER_EXECUTABLE_PATH;
-        if (!executablePath) {
-          try {
-            executablePath = puppeteerFull.executablePath();
-          } catch {
-            executablePath = undefined;
-          }
-        }
-
-        browser = await puppeteerFull.launch({
-          headless: true,
-          executablePath,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-          ],
-        });
-        engine = 'puppeteer-full';
-      }
+      ({ browser, engine } = await getSharedBrowser());
     } catch (launchErr: any) {
+      if (launchErr?.code === 'NO_PDF_ENGINE') {
+        return NextResponse.json({ error: launchErr.message }, { status: 501 });
+      }
       // Gather diagnostic info that's genuinely hard to retrieve post-hoc on
       // a platform like Azure App Service. Emitted once to the server log and
       // echoed back to the browser so we can see it in the Network tab.
@@ -388,7 +449,16 @@ export async function GET(
       );
     }
 
-    const page = await browser.newPage();
+    // A cached browser whose process was killed while idle (deploy, platform
+    // recycle) surfaces here as newPage() failing — relaunch once and retry.
+    try {
+      page = await browser.newPage();
+    } catch (stalePageErr: any) {
+      console.warn('[PQ Memo PDF] Cached browser unusable, relaunching:', stalePageErr?.message);
+      invalidateSharedBrowser(browser);
+      ({ browser, engine } = await getSharedBrowser());
+      page = await browser.newPage();
+    }
     // Capture console + pageerror so we can see font parsing warnings that
     // sparticuz's Chromium emits when it refuses to register a data-URI
     // font. These surface nowhere else — not in the PDF, not in the route
@@ -479,20 +549,24 @@ export async function GET(
     // conflictBehavior=rename keeping same-day re-exports as distinct copies.
     // Skipped for the Business-Questionnaire-only sub-export (that's a partial
     // view, not the memo of record). Non-fatal: a SharePoint failure must never
-    // block the user's PDF download.
+    // block the user's PDF download. Runs via next/server's after() — after the
+    // response is sent — so the download never waits on Graph.
     if (!bqOnly) {
-      try {
-        const saved = await uploadFileToProjectFolder({
-          projectId,
-          fileName: filename,
-          content: Buffer.from(pdfBuffer),
-          contentType: 'application/pdf',
-          subfolderName: SHAREPOINT_SUBFOLDERS.PROJECT_FILES,
-        });
-        console.log('[PQ Memo PDF] Saved memo to SharePoint:', { id: saved.id, name: saved.name });
-      } catch (spErr: any) {
-        console.error('[PQ Memo PDF] Failed to save memo to SharePoint:', spErr?.message || spErr);
-      }
+      const pdfForSharePoint = Buffer.from(pdfBuffer);
+      after(async () => {
+        try {
+          const saved = await uploadFileToProjectFolder({
+            projectId,
+            fileName: filename,
+            content: pdfForSharePoint,
+            contentType: 'application/pdf',
+            subfolderName: SHAREPOINT_SUBFOLDERS.PROJECT_FILES,
+          });
+          console.log('[PQ Memo PDF] Saved memo to SharePoint:', { id: saved.id, name: saved.name });
+        } catch (spErr: any) {
+          console.error('[PQ Memo PDF] Failed to save memo to SharePoint:', spErr?.message || spErr);
+        }
+      });
     }
 
     return new NextResponse(Buffer.from(pdfBuffer), {
@@ -514,8 +588,9 @@ export async function GET(
       { status: 500 },
     );
   } finally {
-    if (browser) {
-      await browser.close().catch((err: any) => console.error('Error closing browser:', err));
+    // Close only this request's page — the browser is shared across requests.
+    if (page) {
+      await page.close().catch((err: any) => console.error('Error closing page:', err));
     }
     if (fontServer) {
       fontServer.close();
