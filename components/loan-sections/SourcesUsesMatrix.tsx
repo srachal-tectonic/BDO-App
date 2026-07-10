@@ -92,12 +92,11 @@ export default function SourcesUsesMatrix({
     const row = (sourcesUses as any)[category] as Record<string, number> | undefined;
     if (!row || typeof row === 'number') return 0;
     const colSum = sourceColumns.reduce((sum, col) => sum + (row[col.key] || 0), 0);
-    if (colSum > 0) return colSum;
+    if (colSum !== 0) return colSum;
     // Spread imports store amounts the workbook only carries in its Total
     // column (e.g. Construction Contingency) as an unallocated row `total` —
     // shown in the Total column only, never under a source.
-    const unallocated = typeof row.total === 'number' ? row.total : 0;
-    return unallocated > 0 ? unallocated : 0;
+    return typeof row.total === 'number' ? row.total : 0;
   };
 
   const getColumnTotal = (source: string) => {
@@ -140,7 +139,7 @@ export default function SourcesUsesMatrix({
     { label: 'Other', key: 'other' },
   ];
 
-  const visibleRows = hideEmpty ? rows.filter(row => getRowTotal(row.key) > 0) : rows;
+  const visibleRows = hideEmpty ? rows.filter(row => getRowTotal(row.key) !== 0) : rows;
 
   const headerClass = "bg-[var(--t-color-page-bg)] text-[color:var(--t-color-text-body)] font-semibold text-sm text-left px-4 py-3 border-b-2 border-[var(--t-color-border)]";
   const cellInputClass = "w-full px-1 py-1 border border-[var(--t-color-border)] rounded-md text-sm text-right font-mono focus:outline-none focus:border-[var(--t-color-accent)] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.1)] disabled:bg-[var(--t-color-input-bg)] disabled:cursor-not-allowed";

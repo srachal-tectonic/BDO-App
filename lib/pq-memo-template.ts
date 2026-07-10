@@ -805,9 +805,8 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
   const rowTotalValue = (categoryData: Record<string, number> | undefined): number => {
     if (!categoryData) return 0;
     const colSum = suColumns.reduce((sum, col) => sum + (Number(categoryData[col]) || 0), 0);
-    if (colSum > 0) return colSum;
-    const unallocated = Number(categoryData.total) || 0;
-    return unallocated > 0 ? unallocated : 0;
+    if (colSum !== 0) return colSum;
+    return Number(categoryData.total) || 0;
   };
 
   const totals: Record<string, number> = {};

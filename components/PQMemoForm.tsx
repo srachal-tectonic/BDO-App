@@ -410,8 +410,8 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   // Unallocated amounts show in the Total column only, never under a source.
   const getRowTotalValue = (row: Record<string, any>): number => {
     const colSum = suColumns.reduce((sum, col) => sum + (row[col] || 0), 0);
-    if (colSum > 0) return colSum;
-    return typeof row.total === 'number' && row.total > 0 ? row.total : 0;
+    if (colSum !== 0) return colSum;
+    return typeof row.total === 'number' ? row.total : 0;
   };
 
   const calculateSourcesUsesTotals = () => {
@@ -885,7 +885,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
                       <tr key={rowKey} className="bg-white border-b border-gray-200 hover:bg-gray-50">
                         <td className="py-2 px-2 text-[13px] font-medium text-gray-700">{SOURCES_USES_ROW_LABELS[rowKey]}</td>
                         {suColumns.map(col => (
-                          <td key={col} className="py-2 px-2 text-[13px] text-right">{(row[col] || 0) > 0 ? formatCurrency(row[col]) : ''}</td>
+                          <td key={col} className="py-2 px-2 text-[13px] text-right">{(row[col] || 0) !== 0 ? formatCurrency(row[col]) : ''}</td>
                         ))}
                         <td className="py-2 px-2 text-[13px] text-right font-medium">{formatCurrency(rowTotal)}</td>
                       </tr>

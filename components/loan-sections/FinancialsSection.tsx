@@ -338,9 +338,9 @@ export default function FinancialsSection({ projectId, children }: FinancialsSec
         // store the amount as an unallocated row `total`, which the tables
         // render in the Total column only.
         const rowTotal = typeof row.total === 'number' ? row.total : null;
-        if (rowTotal && rowTotal > 0) {
+        if (rowTotal !== null && rowTotal !== 0) {
           const colSum = Object.values(rowData).reduce((s, v) => s + v, 0);
-          if (Math.abs(colSum - rowTotal) > Math.max(1, rowTotal * 0.005)) {
+          if (Math.abs(colSum - rowTotal) > Math.max(1, Math.abs(rowTotal) * 0.005)) {
             for (const k of Object.keys(rowData)) delete rowData[k];
             rowData.total = rowTotal;
           }
