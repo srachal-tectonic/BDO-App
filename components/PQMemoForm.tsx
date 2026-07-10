@@ -34,7 +34,11 @@ type LoanGroup = { key: 'tBank' | 'borrower' | 'other'; label: string; columns: 
 function isTBankSource(source: any): boolean {
   const ft = String(source?.financingType || source?.financingSource || source?.label || '').toLowerCase();
   if (!ft) return false;
-  if (ft.includes('equity') || ft.includes('seller') || ft.includes('3rd') || ft.includes('third') || ft.includes('borrower')) {
+  if (
+    ft.includes('equity') || ft.includes('seller') || ft.includes('3rd') ||
+    ft.includes('third') || ft.includes('borrower') ||
+    ft.includes('cdc') || ft.includes('debenture')
+  ) {
     return false;
   }
   return true;
