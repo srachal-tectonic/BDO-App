@@ -1482,11 +1482,12 @@ export function generatePQMemoHTML(input: PQMemoInput): string {
     ${executiveSummary ? `<div class="section"><h2 class="section-title">Executive Summary</h2><div class="description-text">${esc(executiveSummary)}</div></div>` : ''}
     ${memoNotes ? `<div class="section"><h2 class="section-title">Memo Notes</h2><div class="description-text">${esc(memoNotes)}</div></div>` : ''}
 
+    ${/* BDO Summary section temporarily hidden — flip `false` to `true` to restore */ false ? `
     <div class="page-break"></div>
     <div class="section">
       <h2 class="section-title">BDO Summary</h2>
       ${bdoSummaryNotes ? `<div class="description-text bdo-summary">${bdoSummaryNotes}</div>` : '<div class="description-text bdo-summary" style="color: #adb5bd; font-style: italic;">No BDO summary notes provided</div>'}
-    </div>
+    </div>` : ''}
 
     ${questionnaireBlock}
     ${diligenceBlock}

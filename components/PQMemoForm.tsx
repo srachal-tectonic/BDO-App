@@ -469,9 +469,9 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
   return (
     <>
       <div className="max-w-6xl mx-auto bg-gray-50 px-5 pb-5">
-      {/* Sits above the card, left-aligned with it. Block flow means it
+      {/* Sits above the card, right-aligned with it. Block flow means it
           never overlaps the gradient header or pushes its contents. */}
-      <div className="pt-3 pb-2">
+      <div className="pt-3 pb-2 flex justify-end">
         <Button
           onClick={exportToPDF}
           disabled={isExportingPdf}
@@ -483,7 +483,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
           ) : (
             <Download className="mr-2 h-4 w-4" />
           )}
-          {isExportingPdf ? 'Generating PDF…' : 'Export PDF'}
+          {isExportingPdf ? 'Generating PDF…' : 'General Pre-Qual'}
         </Button>
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -525,14 +525,17 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
               <BarChart3 className="w-4 h-4" />
               Risk Scores
             </TabsTrigger>
-            <TabsTrigger
-              value="bdo-summary"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
-              data-testid="tab-bdo-summary"
-            >
-              <ClipboardList className="w-4 h-4" />
-              BDO Summary
-            </TabsTrigger>
+            {/* Temporarily hidden — flip `false` to `true` to restore the BDO Summary tab */}
+            {false && (
+              <TabsTrigger
+                value="bdo-summary"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
+                data-testid="tab-bdo-summary"
+              >
+                <ClipboardList className="w-4 h-4" />
+                BDO Summary
+              </TabsTrigger>
+            )}
             <TabsTrigger
               value="financials"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-white px-6 py-3 gap-2"
@@ -936,21 +939,23 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
             </div>
           </TabsContent>
 
-          {/* BDO Summary Tab */}
-          <TabsContent value="bdo-summary" className="mt-0">
-            <div className="p-5">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
-                  BDO Summary
-                </h2>
-              </div>
+          {/* BDO Summary Tab — temporarily hidden, flip `false` to `true` to restore */}
+          {false && (
+            <TabsContent value="bdo-summary" className="mt-0">
+              <div className="p-5">
+                <div className="mb-4">
+                  <h2 className="text-base font-semibold text-gray-700 mb-2.5 pb-1.5 border-b-2 border-blue-500">
+                    BDO Summary
+                  </h2>
+                </div>
 
-              <BDOSummaryEditor
-                value={projectOverview.bdoComments || ''}
-                onChange={(html) => updateProjectOverview({ bdoComments: html })}
-              />
-            </div>
-          </TabsContent>
+                <BDOSummaryEditor
+                  value={projectOverview.bdoComments || ''}
+                  onChange={(html) => updateProjectOverview({ bdoComments: html })}
+                />
+              </div>
+            </TabsContent>
+          )}
 
           <TabsContent value="financials" className="mt-0">
             <PQMemoFinancials projectId={projectId} />
