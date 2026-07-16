@@ -562,3 +562,54 @@ export interface FeeDisclosureSummary {
   /** Whether itemization is attached */
   hasItemization: boolean;
 }
+
+/**
+ * A single field extracted by the Azure Document Intelligence custom model,
+ * normalized for display in the admin OCR Test tab.
+ */
+export interface OcrTestFieldValue {
+  /** DI field type, e.g. 'string' | 'number' | 'date' | 'currency' */
+  type: string;
+  /** Normalized display value (from the matching value* property) */
+  value: string | number | boolean | null;
+  /** Raw text span from the document */
+  content?: string;
+  /** Model confidence 0..1 */
+  confidence?: number;
+}
+
+/**
+ * One admin OCR Test run — metadata plus the Document Intelligence analyze
+ * result. The uploaded file's bytes are never persisted; only what DI returns.
+ * Stored in the `ocrTestResults` Cosmos collection.
+ */
+export interface OcrTestResult {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  status: 'succeeded' | 'failed';
+  /** Populated when status === 'failed' */
+  error?: string;
+  /** DI model used, snapshotted at analyze time */
+  modelId: string;
+  createdAt: string;
+  /** Analyze wall time in ms */
+  durationMs?: number;
+  uploadedBy: { uid: string; email?: string };
+  // Summary stats kept in the list projection
+  fieldCount?: number;
+  docType?: string;
+  docConfidence?: number;
+  // Heavy payloads — excluded from the list projection
+  extracted?: {
+    /** analyzeResult.content — full extracted text */
+    content: string;
+    /** Flattened from analyzeResult.documents[0].fields */
+    fields: Record<string, OcrTestFieldValue>;
+  };
+  /** Full raw analyzeResult JSON */
+  rawResult?: unknown;
+  /** True when rawResult was too large to store (Cosmos doc size cap) */
+  rawTruncated?: boolean;
+}

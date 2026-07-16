@@ -1,5 +1,6 @@
 'use client';
 
+import { OcrTestTab } from '@/components/admin/OcrTestTab';
 import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
 import { BDOLayout } from '@/components/layout/BDOLayout';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
@@ -1929,6 +1930,7 @@ Example format:
           <TabsTrigger value="label-comparison" data-testid="tab-label-comparison">Field Label Comparison</TabsTrigger>
           <TabsTrigger value="theme" data-testid="tab-theme">Theme / CSS</TabsTrigger>
           <TabsTrigger value="audit-trail" data-testid="tab-audit-trail">Audit Trail</TabsTrigger>
+          <TabsTrigger value="ocr-test" data-testid="tab-ocr-test">OCR Test</TabsTrigger>
         </TabsList>
 
         {/* Default Values Tab */}
@@ -4682,6 +4684,11 @@ Example format:
             </p>
             <GlobalAuditTrail />
           </div>
+        </TabsContent>
+
+        {/* ── OCR Test Tab ── */}
+        <TabsContent value="ocr-test" className="space-y-6">
+          <OcrTestTab />
         </TabsContent>
 
         {/* Add / Edit User Modal */}

@@ -94,6 +94,11 @@ async function ensureIndexes(collectionName: string): Promise<void> {
       await col.createIndex({ nameKey: 1, dobKey: 1, receivedAt: -1 }).catch(() => {});
       // Idempotent ingest: one record per Zoho submission.
       await col.createIndex({ zohoSubmissionId: 1 }, { unique: true }).catch(() => {});
+    } else if (collectionName === 'ocrTestResults') {
+      // Admin OCR Test tab history, newest first.
+      await col.createIndex({ createdAt: -1 }).catch(() => {});
+      // Single-result lookup by uuid.
+      await col.createIndex({ id: 1 }, { unique: true }).catch(() => {});
     }
   } catch (e) {
     // Index creation may fail if it already exists — that's fine
@@ -121,4 +126,5 @@ export const COLLECTIONS = {
   QUESTIONNAIRE_RESPONSES: 'questionnaireResponses',
   CREDIT_PULLS: 'creditPulls',
   CREDIT_PULL_AUTHORIZATIONS: 'creditPullAuthorizations',
+  OCR_TEST_RESULTS: 'ocrTestResults',
 } as const;
