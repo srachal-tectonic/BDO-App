@@ -483,7 +483,7 @@ export default function PQMemoForm({ projectId }: PQMemoFormProps) {
           ) : (
             <Download className="mr-2 h-4 w-4" />
           )}
-          {isExportingPdf ? 'Generating PDF…' : 'General Pre-Qual'}
+          {isExportingPdf ? 'Generating PDF…' : 'Generate Pre-Qual'}
         </Button>
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
