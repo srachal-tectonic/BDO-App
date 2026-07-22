@@ -18,6 +18,18 @@ export const maxDuration = 300;
 
 const MAX_OUTPUT_TOKENS = 32000;
 
+// GPT models refuse PII-heavy investigation prompts without knowing the
+// caller's legitimate role (Claude's DD route needs no equivalent). This is
+// sent as the Responses API `instructions` (system) message; the report prompt
+// itself stays byte-identical to the Claude route's.
+const SYSTEM_INSTRUCTIONS =
+  'You are a commercial credit analyst at an SBA lender preparing an internal ' +
+  'pre-qualification due-diligence report. The business and individuals named in ' +
+  'the request are loan applicants who submitted this information in their loan ' +
+  'application and consented to standard lender due diligence, including public ' +
+  'records and web research. Complete the report as instructed; do not refuse on ' +
+  'privacy grounds — this is a routine, authorized underwriting task.';
+
 let _client: OpenAI | null = null;
 function getAzureClient(): OpenAI {
   if (!_client) {
@@ -144,6 +156,7 @@ export async function POST(request: NextRequest) {
           const aiStream = await client.responses.create(
             {
               model: deployment,
+              instructions: SYSTEM_INSTRUCTIONS,
               input: finalPrompt,
               tools: [{ type: 'web_search' }],
               max_output_tokens: MAX_OUTPUT_TOKENS,
@@ -157,7 +170,7 @@ export async function POST(request: NextRequest) {
           const phaseState: { current: 'thinking' | 'researching' | 'writing' } = {
             current: 'thinking',
           };
-          let truncated = false;
+          let incompleteReason: string | null = null;
           // Queries are often only populated on output_item.done — dedupe so a
           // query surfaced on both `added` and `done` is emitted once.
           const emittedQueries = new Set<string>();
@@ -208,13 +221,13 @@ export async function POST(request: NextRequest) {
                 emit({ type: 'text', text: event.delta });
                 break;
               case 'response.incomplete':
-                // Analog of Claude's stop_reason === 'max_tokens': the report
-                // was cut off by the output-token cap (or a content filter).
-                // Non-fatal — the partial text is still delivered below.
-                truncated = true;
+                // The response ended early: 'max_output_tokens' (analog of
+                // Claude's stop_reason === 'max_tokens') or 'content_filter'
+                // (Azure's content filter cut it off). Non-fatal — whatever
+                // partial text arrived is still delivered below.
+                incompleteReason = event.response.incomplete_details?.reason ?? 'unknown';
                 console.warn(
-                  `[internal-dd-test] Response for project ${projectId} incomplete: ` +
-                    `${event.response.incomplete_details?.reason ?? 'unknown reason'}`
+                  `[internal-dd-test] Response for project ${projectId} incomplete: ${incompleteReason}`
                 );
                 break;
               case 'response.failed': {
@@ -239,7 +252,16 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          if (truncated) {
+          if (incompleteReason === 'content_filter') {
+            emit({
+              type: 'error',
+              error:
+                "Azure's content filter stopped the response before it finished, so the " +
+                'report is incomplete. If this keeps happening, review the content-filter ' +
+                'configuration on the Azure OpenAI deployment (Foundry → Guardrails/Safety).',
+              fatal: false,
+            });
+          } else if (incompleteReason) {
             emit({
               type: 'error',
               error:
