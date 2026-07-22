@@ -718,7 +718,7 @@ function CommentItem({
   );
 }
 
-function MarkdownBody({ markdown }: { markdown: string }) {
+export function MarkdownBody({ markdown }: { markdown: string }) {
   return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
