@@ -1,0 +1,112 @@
+{
+  "properties": {
+    "clearInboundClaimsMapping": "false",
+    "globalValidation": {
+      "excludedPaths": [
+        "/api/agent/*",
+        "/api/webhooks/zoho/credit-auth"
+      ],
+      "redirectToProvider": "azureactivedirectory",
+      "requireAuthentication": true,
+      "unauthenticatedClientAction": "RedirectToLoginPage"
+    },
+    "httpSettings": {
+      "forwardProxy": {
+        "convention": "NoProxy"
+      },
+      "requireHttps": true,
+      "routes": {
+        "apiPrefix": "/.auth"
+      }
+    },
+    "identityProviders": {
+      "apple": {
+        "enabled": true,
+        "login": {},
+        "registration": {}
+      },
+      "azureActiveDirectory": {
+        "enabled": true,
+        "isAutoProvisioned": true,
+        "login": {
+          "disableWWWAuthenticate": false
+        },
+        "registration": {
+          "clientId": "3cd33f6b-5513-4819-881c-204c950750b9",
+          "clientSecretSettingName": "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET",
+          "openIdIssuer": "https://login.microsoftonline.com/541f3f78-2095-40fd-b75d-461eb2586ba3/v2.0"
+        },
+        "validation": {
+          "allowedAudiences": [
+            "api://3cd33f6b-5513-4819-881c-204c950750b9"
+          ],
+          "defaultAuthorizationPolicy": {
+            "allowedApplications": [
+              "3cd33f6b-5513-4819-881c-204c950750b9"
+            ],
+            "allowedPrincipals": {}
+          },
+          "jwtClaimChecks": {}
+        }
+      },
+      "facebook": {
+        "enabled": true,
+        "login": {},
+        "registration": {}
+      },
+      "gitHub": {
+        "enabled": true,
+        "login": {},
+        "registration": {}
+      },
+      "google": {
+        "enabled": true,
+        "login": {},
+        "registration": {},
+        "validation": {}
+      },
+      "legacyMicrosoftAccount": {
+        "enabled": true,
+        "login": {},
+        "registration": {},
+        "validation": {}
+      },
+      "twitter": {
+        "enabled": true,
+        "registration": {}
+      }
+    },
+    "login": {
+      "cookieExpiration": {
+        "convention": "FixedTime",
+        "timeToExpiration": "08:00:00"
+      },
+      "nonce": {
+        "nonceExpirationInterval": "00:05:00",
+        "validateNonce": true
+      },
+      "preserveUrlFragmentsForLogins": false,
+      "routes": {},
+      "tokenStore": {
+        "azureBlobStorage": {},
+        "enabled": true,
+        "fileSystem": {},
+        "tokenRefreshExtensionHours": 72.0
+      }
+    },
+    "platform": {
+      "enabled": true,
+      "runtimeVersion": "~1"
+    },
+    "prmConfig": {
+      "disableMetadata": false,
+      "hideAuthorizationServers": false,
+      "resourceInfo": {
+        "documentationUri": {},
+        "name": {},
+        "policyUri": {},
+        "tosUri": {}
+      }
+    }
+  }
+}

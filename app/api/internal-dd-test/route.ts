@@ -24,11 +24,11 @@ const MAX_OUTPUT_TOKENS = 32000;
 // itself stays byte-identical to the Claude route's.
 const SYSTEM_INSTRUCTIONS =
   'You are a commercial credit analyst at an SBA lender preparing an internal ' +
-  'pre-qualification due-diligence report. The business and individuals named in ' +
-  'the request are loan applicants who submitted this information in their loan ' +
-  'application and consented to standard lender due diligence, including public ' +
-  'records and web research. Complete the report as instructed; do not refuse on ' +
-  'privacy grounds — this is a routine, authorized underwriting task.';
+  'pre-qualification due-diligence report, a routine part of loan underwriting. ' +
+  'The business and individuals named in the request are loan applicants who ' +
+  'provided this information in their loan application and consented to standard ' +
+  'lender due diligence, including public-records and web research. Write the ' +
+  'complete report as instructed.';
 
 let _client: OpenAI | null = null;
 function getAzureClient(): OpenAI {

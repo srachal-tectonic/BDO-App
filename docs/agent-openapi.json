@@ -1,0 +1,145 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "BDO App Agent API",
+    "description": "Read-only endpoints exposing SBA loan project data to the Foundry 'SBA Deal Copilot' agent. All endpoints require the x-agent-api-key header. Typical flow: call searchProjects to resolve a business or project name to a projectId, then call the per-project endpoints.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sbaprequalifier-cbg7h5athsdkgxgm.southcentralus-01.azurewebsites.net",
+      "description": "BDO App (set to the slot this agent should read from)"
+    }
+  ],
+  "security": [{ "agentApiKey": [] }],
+  "paths": {
+    "/api/agent/projects": {
+      "get": {
+        "operationId": "searchProjects",
+        "summary": "Search loan projects by business or project name",
+        "description": "Find projects matching a name fragment (case-insensitive) or exact project id. Use this first to resolve which projectId the user is talking about. Returns up to 25 projects, most recently updated first. Omit 'search' to list recent projects.",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Business name, project name fragment, or exact project id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": { "type": "string" },
+                      "projectName": { "type": "string", "nullable": true },
+                      "businessName": { "type": "string", "nullable": true },
+                      "stage": { "type": "string", "nullable": true },
+                      "status": { "type": "string", "nullable": true },
+                      "loanAmount": { "type": "number", "nullable": true },
+                      "bdoUserName": { "type": "string", "nullable": true },
+                      "updatedAt": { "type": "string", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/summary": {
+      "get": {
+        "operationId": "getProjectSummary",
+        "summary": "Get a one-call overview of a loan project",
+        "description": "Core project record plus normalized loan-application fields (legal name, industry, NAICS, loan amount, use of proceeds, owners, etc.) and counts/flags for what other data exists (diligence report, financial spreads, credit pulls, uploads). Call this before deciding which detail endpoints to use.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Project summary", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "404": { "description": "Project not found" }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/loan-application": {
+      "get": {
+        "operationId": "getLoanApplication",
+        "summary": "Get the full saved loan application",
+        "description": "The complete structured loan application (business applicant, project overview, individual applicants/owners, program-specific sources & uses, funding structure). SSNs and dates of birth are redacted. Large response — prefer getProjectSummary unless field-level detail is needed.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Loan application document", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "404": { "description": "No saved loan application" }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/financials": {
+      "get": {
+        "operationId": "getFinancialSpreads",
+        "summary": "Get parsed financial spread data",
+        "description": "Financial spreads parsed from uploaded Excel workbooks (business cash flow, guarantor draws, post-close liquidity, personal financial statement values), newest first. Use these numbers for DSCR and liquidity calculations instead of estimating.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Array of parsed spreads (empty if none uploaded)", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object" } } } } }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/credit-summary": {
+      "get": {
+        "operationId": "getCreditSummary",
+        "summary": "Get soft credit pull results",
+        "description": "Credit-pull history for the project's individual applicants: bureau, score and score model, hit/no-hit, OFAC status, and a parsed tradeline summary. No raw bureau data or identity details are included.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Array of credit pulls (empty if none)", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object" } } } } }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/diligence-report": {
+      "get": {
+        "operationId": "getDiligenceReport",
+        "summary": "Get the generated due-diligence report",
+        "description": "The latest AI-generated due-diligence report for the project as markdown (entity verification, industry/market analysis, online reputation, risk factors, open questions, sources), with generation metadata.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Diligence report document", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "404": { "description": "No report generated yet" }
+        }
+      }
+    },
+    "/api/agent/projects/{projectId}/uploads": {
+      "get": {
+        "operationId": "listBorrowerUploads",
+        "summary": "List borrower document uploads",
+        "description": "Documents the borrower or broker has uploaded for this project: file name, upload date, detected form type, and OCR extraction status. Useful for answering what has been received and what is still missing.",
+        "parameters": [{ "$ref": "#/components/parameters/projectId" }],
+        "responses": {
+          "200": { "description": "Array of upload records (empty if none)", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object" } } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "projectId": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "The project's id (from searchProjects)"
+      }
+    },
+    "securitySchemes": {
+      "agentApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-agent-api-key"
+      }
+    }
+  }
+}
