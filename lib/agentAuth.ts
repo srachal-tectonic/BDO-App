@@ -29,15 +29,20 @@ function secretMatches(provided: string | null): boolean {
  * 401/503 response to return as-is. Unconfigured AGENT_API_KEY fails closed.
  */
 export function verifyAgentKey(request: NextRequest): NextResponse | null {
+  const path = request.nextUrl.pathname + request.nextUrl.search;
   if (!process.env.AGENT_API_KEY) {
+    console.log(`[agent-api] ${path} -> 503 (AGENT_API_KEY unset)`);
     return NextResponse.json(
       { error: 'Agent API is not configured on the server (AGENT_API_KEY unset).' },
       { status: 503 }
     );
   }
-  if (!secretMatches(request.headers.get(AGENT_KEY_HEADER))) {
+  const provided = request.headers.get(AGENT_KEY_HEADER);
+  if (!secretMatches(provided)) {
+    console.log(`[agent-api] ${path} -> 401 (${provided ? 'key mismatch' : 'no key header'})`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  console.log(`[agent-api] ${path} -> authorized`);
   return null;
 }
 
