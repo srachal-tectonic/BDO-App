@@ -68,16 +68,19 @@ async function loadChunks(): Promise<CachedChunk[]> {
     return _cache.chunks;
   }
   const col = await getCollection(COLLECTIONS.SOP_CHUNKS);
+  // Sort in memory — Cosmos (Mongo API) rejects query-level sorts on fields
+  // without an index, and ~350 chunks is trivial to sort client-side.
   const docs = await col
     .find({}, { projection: { section: 1, text: 1, order: 1, embedding: 1 } })
-    .sort({ order: 1 })
     .toArray();
-  const chunks = docs.map((d: any) => ({
-    section: d.section,
-    text: d.text,
-    order: d.order,
-    embedding: d.embedding,
-  }));
+  const chunks = docs
+    .map((d: any) => ({
+      section: d.section,
+      text: d.text,
+      order: d.order,
+      embedding: d.embedding,
+    }))
+    .sort((a: any, b: any) => a.order - b.order);
   _cache = { chunks, loadedAt: Date.now() };
   return chunks;
 }

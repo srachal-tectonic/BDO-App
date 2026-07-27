@@ -83,19 +83,44 @@ multi-tool one broken. Worth filing with Microsoft (clean repro = versions 3-7).
   Currently UNUSED (file_search pairing broken).
 - Deployments live: `gpt-5` (DZ Standard, 300K) and `text-embedding-3-small`.
 
-## Recommended next step: app-side SOP search (single-tool architecture)
+## FINAL ARCHITECTURE — SHIPPED 2026-07-27 (v10 live)
 
-Since the platform only supports our OpenAPI tool solo, serve SOP policy
-through the same tool: add `GET /api/agent/sop-search?query=` to the app —
-chunk the SOP docx by section, embed chunks with the `text-embedding-3-small`
-deployment, store in Cosmos, cosine-search at query time, return top chunks
-with section labels. Add the operation to `docs/agent-openapi.json`, create a
-new copilot version (still one tool), and the agent gets both live deal data
-AND citable SOP policy. The SOP docx is public (sba.gov); a copy was used at
-`scratchpad/SOP-50-10-8.docx` during the build.
+App-side SOP search replaced Foundry File Search (single-tool architecture):
 
-Then the parked items (Phase 3 chat panel, PQ-criteria doc, junk-version
-cleanup, playground sanity check).
+- `lib/sopIngest.ts` — parses the SOP .docx (pizzip + fast-xml-parser,
+  `trimValues: false` is load-bearing), chunks by Heading1-4 breadcrumbs
+  (354 chunks / 88 sections), embeds via `text-embedding-3-small`.
+- `lib/sopSearch.ts` — cosine search with in-memory cache.
+- `POST /api/agent/sop-ingest` (maintenance, multipart .docx, agent key) and
+  `GET /api/agent/sop-search?query=` (8th spec operation `searchSopPolicy`).
+- Cosmos collection `sopChunks`; an index on `order` was created manually
+  (Cosmos Mongo rejects sorts on unindexed fields; code now also sorts
+  in-memory as belt-and-suspenders).
+- SOP 50 10 8 ingested to prod 2026-07-27 (~144s). Re-ingest on new editions:
+  `curl -X POST .../api/agent/sop-ingest -H "x-agent-api-key: $KEY" -F "file=@SOP.docx"`
+
+**Agent `sba-deal-copilot` v10 = live and fully working.** Single openapi
+tool (8 ops), analyst instructions, and — critically —
+`definition.reasoning = {effort: "low"}`.
+
+### THIRD finding: gpt-5 medium reasoning stalls tool use
+
+At default medium effort the model plans, ANNOUNCES ("Searching for the
+project…"), and ends its turn without calling tools on multi-step prompts —
+even with explicit anti-announce instructions. `effort: "low"` in the agent
+definition fixed it completely (7 chained calls, 60s, full eligibility memo
+with SOP citations). Reasoning cannot be overridden at invoke time when
+`agent_reference` is used — it must live in the definition.
+
+Acceptance test that passes: "Look up the CSRV Ventures project and assess:
+is this franchise acquisition likely eligible under SOP 50 10? Cite SOP
+sections." → chained project + SOP calls, cited Section A Ch 1 / Section B
+Ch 1-2, flagged size-standard and sources/uses issues.
+
+Remaining (all optional): Phase 3 chat panel (`/api/agent-chat` +
+`agent_reference`, remember `reasoning` low), PQ-criteria doc for the SOP
+store, delete junk agent versions, playground sanity check, file the two
+platform bugs with Microsoft.
 
 ## What is proven working (do not re-debug these)
 
