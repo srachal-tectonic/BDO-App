@@ -54,6 +54,47 @@
         }
       }
     },
+    "/api/agent/sop-search": {
+      "get": {
+        "operationId": "searchSopPolicy",
+        "summary": "Search the SBA SOP 50 10 rulebook",
+        "description": "Semantic search over the full text of SBA SOP 50 10 (current edition). Use this for ANY question about SBA eligibility, program rules, franchise requirements, change-of-ownership rules, equity injection, guaranty requirements, or lender procedures. Returns the most relevant SOP passages, each labeled with its section breadcrumb (e.g. 'Section A > Chapter 3 > ...') — cite these section labels in answers. Ask focused questions; call multiple times with different phrasings for multi-part policy questions.",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "A focused policy question or topic, e.g. 'franchise directory requirement for 7(a) loans' or 'seller standby note equity injection rules'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked SOP passages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "section": { "type": "string", "description": "SOP section breadcrumb to cite" },
+                          "text": { "type": "string" },
+                          "score": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/projects/{projectId}/summary": {
       "get": {
         "operationId": "getProjectSummary",

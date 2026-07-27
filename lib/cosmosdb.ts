@@ -127,4 +127,5 @@ export const COLLECTIONS = {
   CREDIT_PULLS: 'creditPulls',
   CREDIT_PULL_AUTHORIZATIONS: 'creditPullAuthorizations',
   OCR_TEST_RESULTS: 'ocrTestResults',
+  SOP_CHUNKS: 'sopChunks',
 } as const;
