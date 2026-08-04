@@ -5,26 +5,11 @@
 import { getCollection, COLLECTIONS } from '@/lib/cosmosdb';
 import { ObjectId } from 'mongodb';
 import { extractApplicationFields, loadApplicationData } from '@/lib/diligenceShared';
+import { DEFAULT_SPREADS_REVIEW_PROMPT } from '@/lib/spreadsReviewPrompt';
 
 const ADMIN_SETTINGS_CONFIG_ID = 'config';
 
-// Default review prompt. Admins can override it by saving a
-// `spreadsReviewPrompt` string on the admin settings doc (no UI yet — the
-// route reads it the same way the DD routes read diligenceCorePrompt).
-export const DEFAULT_SPREADS_REVIEW_PROMPT = `You are a senior commercial credit analyst at an SBA lender. Review the financial spread below for the loan applicant and write an internal credit review memo in markdown.
-
-Cover, in order:
-
-1. **Summary** — 3-5 sentence overall assessment of the deal's financial strength.
-2. **Revenue & Profitability Trends** — period-over-period revenue, gross margin, and net income trends; call out growth, decline, or volatility.
-3. **Add-Backs & Adjustments** — are the add-backs reasonable and typical? Flag anything aggressive or unusual.
-4. **Debt Service Coverage** — analyze the DSCR for each period against the bank's 1.25x benchmark; note trends and whether coverage relies on add-backs.
-5. **Global Cash Flow** — assess global DSCR including affiliate and guarantor cash flow, if provided.
-6. **Financing Structure & Sources / Uses** — comment on the proposed loan structure, equity injection, and whether the sources and uses are consistent and complete.
-7. **Red Flags & Missing Information** — anything inconsistent, deteriorating, or absent from the spread that underwriting should resolve.
-8. **Recommendation** — proceed / proceed with conditions / decline, with the key conditions or mitigants.
-
-Base every figure on the spread data provided — do not invent numbers. When data for a section is missing, say so explicitly rather than guessing.`;
+export { DEFAULT_SPREADS_REVIEW_PROMPT };
 
 // The parsed-spread document stored in COLLECTIONS.FINANCIAL_SPREADS by
 // POST /api/projects/[id]/financials.

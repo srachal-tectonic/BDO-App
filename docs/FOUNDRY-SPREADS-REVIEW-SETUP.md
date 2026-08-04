@@ -127,9 +127,9 @@ Failure modes:
 
 ## Customizing the review prompt
 
-The default memo instructions live in `DEFAULT_SPREADS_REVIEW_PROMPT`
-(`lib/spreadsReviewShared.ts`). They can be overridden without a deploy by
-setting a `spreadsReviewPrompt` string field on the admin settings document
-(`adminSettings` collection, doc id `config`) — same pattern as
-`diligenceCorePrompt`. There is no admin UI for it yet; add one alongside the
-DD Prompts tab if it turns out to need frequent tuning.
+Edit it in the app: **Admin Settings → AI Prompts → "Spreads Agent Prompt"**
+(bottom of the tab). Click *Load Default* to start from the built-in prompt,
+edit, then Save Changes — the value is stored as `spreadsReviewPrompt` on the
+admin settings doc and picked up on the next generation, no deploy needed.
+Clearing the box and saving reverts to the built-in default, which lives in
+`DEFAULT_SPREADS_REVIEW_PROMPT` (`lib/spreadsReviewPrompt.ts`).

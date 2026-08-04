@@ -29,6 +29,7 @@ import {
   DEFAULT_DILIGENCE_PURPOSE_APPENDICES,
   DILIGENCE_PURPOSE_OPTIONS,
 } from '@/lib/diligencePrompts';
+import { DEFAULT_SPREADS_REVIEW_PROMPT } from '@/lib/spreadsReviewPrompt';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
@@ -201,6 +202,9 @@ interface AdminSettings {
   // appendix is appended only when its purpose is selected on the project.
   diligenceCorePrompt?: string;
   diligencePurposeAppendices?: Record<string, string>;
+  // Internal Spreads Review prompt (AI Prompts tab → "Spreads Agent Prompt").
+  // Empty/unset means the built-in default is used at runtime.
+  spreadsReviewPrompt?: string;
 }
 
 interface AppUser {
@@ -2267,6 +2271,50 @@ Example format:
             />
             <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
               <strong>Note:</strong> The prompt receives structured JSON financial period data as user input. The response must be valid JSON matching the expected analysis schema. Modifying the response format may break the analysis display.
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-[var(--t-color-border)] p-6">
+            <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-semibold text-[color:var(--t-color-text-body)] mb-2" data-testid="text-spreads-agent-prompt-title">
+                  Spreads Agent Prompt
+                </h2>
+                <p className="text-sm text-[color:var(--t-color-text-muted)]">
+                  The review instructions sent to the internal Azure OpenAI (Foundry) model by the
+                  Admin Settings → Internal Spreads Review tab. The parsed spread data (income
+                  statement periods, debt coverage, financing structure, sources &amp; uses) and a
+                  project context block are appended automatically after these instructions. Leave
+                  empty to use the built-in default prompt.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSettings((prev) => ({ ...prev, spreadsReviewPrompt: DEFAULT_SPREADS_REVIEW_PROMPT }));
+                  setHasUnsavedChanges(true);
+                }}
+                data-testid="button-spreads-agent-prompt-load-default"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Load Default
+              </Button>
+            </div>
+            <Textarea
+              value={settings.spreadsReviewPrompt ?? ''}
+              onChange={(e) => {
+                setSettings((prev) => ({ ...prev, spreadsReviewPrompt: e.target.value }));
+                setHasUnsavedChanges(true);
+              }}
+              className="w-full min-h-[300px] font-mono text-sm"
+              placeholder={`Leave empty to use the default prompt:\n\n${DEFAULT_SPREADS_REVIEW_PROMPT}`}
+              data-testid="textarea-spreads-agent-prompt"
+            />
+            <div className="mt-3 text-sm text-[color:var(--t-color-text-muted)]">
+              <strong>Note:</strong> Click &quot;Load Default&quot; to start from the built-in prompt, edit as
+              needed, then click Save Changes. Clearing the box (and saving) reverts to the
+              built-in default.
             </div>
           </div>
 
