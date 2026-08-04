@@ -2,6 +2,7 @@
 
 import { OcrTestTab } from '@/components/admin/OcrTestTab';
 import { InternalDdTestTab } from '@/components/admin/InternalDdTestTab';
+import { InternalSpreadsReviewTab } from '@/components/admin/InternalSpreadsReviewTab';
 import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
 import { BDOLayout } from '@/components/layout/BDOLayout';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
@@ -1933,6 +1934,7 @@ Example format:
           <TabsTrigger value="audit-trail" data-testid="tab-audit-trail">Audit Trail</TabsTrigger>
           <TabsTrigger value="ocr-test" data-testid="tab-ocr-test">OCR Test</TabsTrigger>
           <TabsTrigger value="internal-dd-test" data-testid="tab-internal-dd-test">Internal DD Test</TabsTrigger>
+          <TabsTrigger value="internal-spreads-review" data-testid="tab-internal-spreads-review">Internal Spreads Review</TabsTrigger>
         </TabsList>
 
         {/* Default Values Tab */}
@@ -4696,6 +4698,11 @@ Example format:
         {/* ── Internal DD Test Tab ── */}
         <TabsContent value="internal-dd-test" className="space-y-6">
           <InternalDdTestTab />
+        </TabsContent>
+
+        {/* ── Internal Spreads Review Tab ── */}
+        <TabsContent value="internal-spreads-review" className="space-y-6">
+          <InternalSpreadsReviewTab />
         </TabsContent>
 
         {/* Add / Edit User Modal */}
