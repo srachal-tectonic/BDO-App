@@ -24,8 +24,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 // Extended project type with loan application summary
 interface ProjectWithSummary extends Project {
   industry?: string;
-  projectTotal?: number;
-  loanAmountFromApp?: number;
+  totalProjectAmount?: number;
   sbaStructure?: string;
   primaryPurpose?: string;
 }
@@ -182,12 +181,28 @@ export default function ProjectsPage() {
           projectsData.map(async (project) => {
             try {
               const loanApp = await getLoanApplication(project.id);
-              const loanType = loanApp?.loan1?.type || loanApp?.loan2?.type || '';
-              let sbaStructure = '';
-              if (loanType.includes('7a') || loanType.includes('7(a)')) sbaStructure = '7(a)';
-              else if (loanType.includes('504')) sbaStructure = '504';
-              else if (loanType.includes('USDA') || loanType.includes('usda')) sbaStructure = 'USDA B&I';
-              else if (loanType) sbaStructure = loanType;
+
+              // Total Project Amount as shown on the Spreads tab: the sum of
+              // every value in the Sources & Uses matrix (see
+              // FundingStructureSection's calculateTotal).
+              let totalProjectAmount = 0;
+              if (loanApp?.sourcesUses7a) {
+                Object.values(loanApp.sourcesUses7a).forEach((row: any) => {
+                  if (row && typeof row === 'object') {
+                    Object.values(row).forEach((value: any) => {
+                      if (typeof value === 'number') totalProjectAmount += value;
+                    });
+                  }
+                });
+              }
+
+              // SBA Structure: the Financing Types from the Spreads tab's
+              // Financing Sources, comma-joined (the cell truncates with an
+              // ellipsis when the list is long).
+              const sbaStructure = (loanApp?.financingSources || [])
+                .map((fs) => (fs.financingType || '').trim())
+                .filter(Boolean)
+                .join(', ');
 
               const rawPurpose = loanApp?.projectOverview?.primaryProjectPurpose || '';
               const primaryPurpose = Array.isArray(rawPurpose) ? rawPurpose.join(', ') : rawPurpose;
@@ -195,8 +210,7 @@ export default function ProjectsPage() {
               return {
                 ...project,
                 industry: loanApp?.projectOverview?.industry || project.businessType,
-                projectTotal: loanApp?.sourcesUses?.totalUses,
-                loanAmountFromApp: loanApp?.sourcesUses?.loanAmount,
+                totalProjectAmount,
                 sbaStructure,
                 primaryPurpose,
               };
@@ -357,8 +371,8 @@ export default function ProjectsPage() {
           valB = (b.projectName || '').toLowerCase();
           break;
         case 'loanAmount':
-          valA = a.loanAmountFromApp || a.loanAmount || 0;
-          valB = b.loanAmountFromApp || b.loanAmount || 0;
+          valA = a.totalProjectAmount || 0;
+          valB = b.totalProjectAmount || 0;
           break;
         case 'structure':
           valA = (a.sbaStructure || '').toLowerCase();
@@ -615,7 +629,7 @@ export default function ProjectsPage() {
                   </thead>
                   <tbody className="divide-y divide-[var(--t-color-primary-palest)]">
                     {paginatedProjects.map((project) => {
-                      const loanAmount = project.loanAmountFromApp || project.loanAmount || 0;
+                      const loanAmount = project.totalProjectAmount || 0;
                       const clientName = project.businessName || '';
                       const isDeleted = !!project.deletedAt;
 
@@ -641,7 +655,7 @@ export default function ProjectsPage() {
                           <td className="px-3 py-2 text-right text-[length:var(--t-font-size-base)] font-medium text-[color:var(--t-color-primary)] overflow-hidden text-ellipsis whitespace-nowrap">
                             {loanAmount > 0 ? formatCurrency(loanAmount) : '—'}
                           </td>
-                          <td className="px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                          <td className="px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap" title={project.sbaStructure || undefined}>
                             <span className="text-[length:var(--t-font-size-base)] text-[color:var(--t-color-text-body)]">
                               {project.sbaStructure || '—'}
                             </span>
@@ -690,7 +704,7 @@ export default function ProjectsPage() {
               {/* Mobile Cards */}
               <div className="md:hidden px-4 space-y-3">
                 {paginatedProjects.map((project) => {
-                  const loanAmount = project.loanAmountFromApp || project.loanAmount || 0;
+                  const loanAmount = project.totalProjectAmount || 0;
                   const isDeleted = !!project.deletedAt;
 
                   return (
@@ -722,7 +736,7 @@ export default function ProjectsPage() {
                         </span>
                       </div>
                       {project.sbaStructure && (
-                        <div className="mb-1 text-[length:var(--t-font-size-sm)] text-[color:var(--t-color-text-body)]">
+                        <div className="mb-1 text-[length:var(--t-font-size-sm)] text-[color:var(--t-color-text-body)] overflow-hidden text-ellipsis whitespace-nowrap" title={project.sbaStructure}>
                           {project.sbaStructure}
                         </div>
                       )}
