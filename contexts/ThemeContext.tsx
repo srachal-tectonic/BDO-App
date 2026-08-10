@@ -209,10 +209,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     setMounted(true);
 
-    // Step 2: fetch the Cosmos-backed admin settings and override if present.
+    // Step 2: fetch the Cosmos-backed theme settings and override if present.
+    // Uses the slim public /api/theme endpoint (~1KB) rather than the full
+    // admin-settings doc (~130KB, auth-protected).
     (async () => {
       try {
-        const res = await fetch('/api/admin-settings', { cache: 'no-store' });
+        const res = await fetch('/api/theme');
         if (!res.ok) return;
         const doc = await res.json();
         if (cancelled || !doc || !doc.themeSettings) return;
