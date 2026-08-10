@@ -73,6 +73,19 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Redirect the root URL at the routing layer instead of rendering a React
+  // page whose only job is to call redirect() — cheaper per request, and the
+  // redirect hop counts toward measured TTFB.
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/bdo/login',
+        permanent: false,
+      },
+    ];
+  },
+
   // Add security headers to all routes
   async headers() {
     return [
