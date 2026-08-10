@@ -20,7 +20,7 @@ function BDOLoginContent() {
   const [error, setError] = useState('');
 
   // signIn is stubbed - it will throw until Entra ID is integrated.
-  const { signIn, isLoading: authLoading } = useFirebaseAuth();
+  const { signIn } = useFirebaseAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,14 +43,9 @@ function BDOLoginContent() {
     window.location.href = '/.auth/login/aad?post_login_redirect_uri=/bdo/projects';
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
+  // NOTE: intentionally NOT gated on auth isLoading — the login card must be
+  // in the server-rendered HTML so first paint (LCP) doesn't wait for
+  // hydration + the /.auth/me round trip.
   return (
     <div className="flex min-h-screen w-full items-center justify-center p-6 md:p-10 bg-background">
       <div className="w-full max-w-sm">
