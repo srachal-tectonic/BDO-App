@@ -3,6 +3,7 @@
 import { OcrTestTab } from '@/components/admin/OcrTestTab';
 import { InternalDdTestTab } from '@/components/admin/InternalDdTestTab';
 import { InternalSpreadsReviewTab } from '@/components/admin/InternalSpreadsReviewTab';
+import { SbaPrescreenTab } from '@/components/admin/SbaPrescreenTab';
 import { GlobalAuditTrail } from '@/components/GlobalAuditTrail';
 import { BDOLayout } from '@/components/layout/BDOLayout';
 import { IndirectOwnershipExplainer } from '@/components/LearnMorePanel';
@@ -1939,6 +1940,7 @@ Example format:
           <TabsTrigger value="ocr-test" data-testid="tab-ocr-test">OCR Test</TabsTrigger>
           <TabsTrigger value="internal-dd-test" data-testid="tab-internal-dd-test">Internal DD Test</TabsTrigger>
           <TabsTrigger value="internal-spreads-review" data-testid="tab-internal-spreads-review">Internal Spreads Review</TabsTrigger>
+          <TabsTrigger value="sba-prescreen" data-testid="tab-sba-prescreen">SBA Prescreen</TabsTrigger>
         </TabsList>
 
         {/* Default Values Tab */}
@@ -4751,6 +4753,11 @@ Example format:
         {/* ── Internal Spreads Review Tab ── */}
         <TabsContent value="internal-spreads-review" className="space-y-6">
           <InternalSpreadsReviewTab />
+        </TabsContent>
+
+        {/* ── SBA Prescreen Tab ── */}
+        <TabsContent value="sba-prescreen" className="space-y-6">
+          <SbaPrescreenTab />
         </TabsContent>
 
         {/* Add / Edit User Modal */}
